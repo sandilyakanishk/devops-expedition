@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { KeyboardControls, useProgress } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
-import { Volume2, VolumeX, ShieldAlert, Award, Play } from 'lucide-react';
+import { Volume2, VolumeX, Github, FileText } from 'lucide-react';
 import * as THREE from 'three';
 
 // 3D Components
@@ -18,7 +18,7 @@ import Experience from './sections/Experience';
 import Skills from './sections/Skills';
 import Contact from './sections/Contact';
 
-// Audio and GSAP
+// Audio
 import audioSystem from './utils/audio';
 
 // Keyboard controls map
@@ -62,12 +62,12 @@ export default function App() {
 
   const handleStartJourney = () => {
     setGameStarted(true);
-    // Initialize & start background procedural audio with safety catches
+    // Initialize & start background procedural audio
     try {
       audioSystem.init();
       audioSystem.resume();
     } catch (err) {
-      console.warn("Procedural audio initialization bypassed or failed:", err);
+      console.warn("Procedural audio bypassed:", err);
     }
   };
 
@@ -76,7 +76,7 @@ export default function App() {
     setIsMuted(muted);
   };
 
-  // Checkpoint coordinate points mapping (wooden board teleportation targets)
+  // Checkpoint coordinates for navigation board and navbar links
   const menuCheckpoints = [
     { id: 1, label: 'Introduction', pos: [0, 0.4, -2.5] },
     { id: 2, label: 'Education', pos: [-5, 3.0, -32.0] },
@@ -87,6 +87,10 @@ export default function App() {
   ];
 
   const handleTeleport = (pos) => {
+    // If game has not started, start it first
+    if (!gameStarted) {
+      handleStartJourney();
+    }
     setTeleportTarget(new THREE.Vector3(...pos));
   };
 
@@ -115,77 +119,71 @@ export default function App() {
     };
   }, [gameStarted]);
 
-  // Loading text script cycling
-  const loadingStatusText = () => {
-    if (progress < 25) return 'Packing the gear...';
-    if (progress < 55) return 'Preparing the trail...';
-    if (progress < 85) return 'Setting up base camp...';
-    return 'Lacing up boots...';
-  };
-
   return (
     <KeyboardControls map={keyboardMap}>
-      <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      <div style={{ width: '100vw', height: '100vh', position: 'relative', background: '#0b0f19' }}>
         
         {/* ==================================================
-           1. ANIMATED CARTOON LOADING SCREEN
+           1. MODERN HEADER NAVBAR (ALWAYS VISIBLE AFTER LOADER)
+           ================================================== */}
+        {dismissLoader && (
+          <header className="app-navbar">
+            <div className="navbar-logo" onClick={() => handleTeleport([0, 0.4, -2.5])}>
+              KS
+            </div>
+            <div className="navbar-email">
+              sandilyakanishk@gmail.com
+            </div>
+            <nav>
+              <ul className="navbar-links">
+                <li>
+                  <span className="navbar-link-item" onClick={() => handleTeleport([0, 0.4, -2.5])}>
+                    About
+                  </span>
+                </li>
+                <li>
+                  <span className="navbar-link-item" onClick={() => handleTeleport([5, 5.8, -64.0])}>
+                    Work
+                  </span>
+                </li>
+                <li>
+                  <span className="navbar-link-item" onClick={() => handleTeleport([0, 15.5, -160.0])}>
+                    Contact
+                  </span>
+                </li>
+              </ul>
+            </nav>
+          </header>
+        )}
+
+        {/* ==================================================
+           2. MODERN PILL LOADING SCREEN WITH SCROLLING MARQUEE
            ================================================== */}
         {!dismissLoader && (
-          <div className="loading-screen" style={{ opacity: (!active && progress === 100) ? 0 : 1 }}>
+          <div className="loading-screen-modern" style={{ opacity: (!active && progress === 100) ? 0 : 1 }}>
             
-            {/* Fluffy moving clouds */}
-            <div className="cloud-container">
-              <div className="cartoon-cloud cloud-1" />
-              <div className="cartoon-cloud cloud-2" />
-              <div className="cartoon-cloud cloud-3" />
-              <div className="cartoon-cloud cloud-4" />
-            </div>
-
-            {/* Flying birds */}
-            <div className="birds-container">
-              <div className="bird b1" />
-              <div className="bird b2" />
-              <div className="bird b3" />
-            </div>
-
-            {/* Drifting Leaf Particles */}
-            <div className="particles-container">
-              <div className="leaf-particle l1" />
-              <div className="leaf-particle l2" />
-              <div className="leaf-particle l3" />
-              <div className="leaf-particle l4" />
-              <div className="leaf-particle l5" />
-            </div>
-
-            {/* Rising Campfire Sparks */}
-            <div className="particles-container">
-              <div className="spark-particle s1" />
-              <div className="spark-particle s2" />
-              <div className="spark-particle s3" />
-              <div className="spark-particle s4" />
-            </div>
-
-            {/* Center Loading Info */}
-            <div className="loading-panel">
-              <h1 className="loading-title">TREKKING THROUGH MY JOURNEY</h1>
-              <div className="loading-subtitle">{loadingStatusText()}</div>
-              
-              {/* Rope Trail Progress Bar */}
-              <div className="trail-progress-container">
-                <div className="trail-progress-bar" style={{ width: `${progress}%` }} />
-                <div className="trail-hiker-icon" style={{ left: `${progress}%` }}>
-                  🧭
-                </div>
+            {/* Infinite scrolling marquee text in background */}
+            <div className="marquee-container">
+              <div className="marquee-text-flow">
+                <span>DevOps Engineer • Cloud Practitioner • Graduate Trainee •&nbsp;</span>
+                <span>DevOps Engineer • Cloud Practitioner • Graduate Trainee •&nbsp;</span>
+                <span>DevOps Engineer • Cloud Practitioner • Graduate Trainee •&nbsp;</span>
+                <span>DevOps Engineer • Cloud Practitioner • Graduate Trainee •&nbsp;</span>
               </div>
             </div>
 
-            {/* Background Mountain Silhouette */}
-            <div className="mountain-silhouette" />
+            {/* Centered Loading Pill */}
+            <div className="loading-pill-container">
+              <div className="loading-spinner" />
+              <div className="loading-pill-text">
+                Loading {Math.round(progress)}%
+              </div>
+            </div>
           </div>
         )}
 
         {/* ==================================================
-           2. 3D RENDERING CANVAS
+           3. 3D RENDERING CANVAS
            ================================================== */}
         <div className="canvas-container">
           <Canvas
@@ -203,13 +201,13 @@ export default function App() {
                   />
                 )}
 
-                {/* Environment (GLB models loader & sensor trigger checkpoints) */}
+                {/* Environment (GLB models loader & sensor triggers with procedural fallback) */}
                 <Environment
                   onCheckpointEnter={handleCheckpointEnter}
                   onCheckpointExit={handleCheckpointExit}
                 />
 
-                {/* Follow Camera (intro panning -> 3rd person game follow) */}
+                {/* Follow Camera (intro panning -> 3rd person follow) */}
                 {gameStarted && (
                   <Camera 
                     playerPosRef={playerPosRef} 
@@ -222,11 +220,11 @@ export default function App() {
         </div>
 
         {/* ==================================================
-           3. 2D HUD / CONTROLS INTERFACES
+           4. 2D HUD / CONTROLS WIDGETS
            ================================================== */}
         <div className="ui-layer">
           
-          {/* Landing Banner */}
+          {/* Landing / Welcome screen */}
           {dismissLoader && !gameStarted && (
             <div className="landing-banner">
               <h1>KANISHK SANDILYA</h1>
@@ -242,13 +240,13 @@ export default function App() {
             </div>
           )}
 
-          {/* Game HUD Panel (only visible after cinematic opening completes) */}
+          {/* Game HUD Panel (visible after cinematic intro completes) */}
           {gameStarted && introCompleted && (
             <>
-              {/* Top Left Profile info */}
+              {/* Profile Card */}
               <div className="profile-hud">
                 <div className="profile-avatar-container">
-                  <span style={{ fontSize: '20px' }}>🏕️</span>
+                  <span style={{ fontSize: '18px' }}>🏕️</span>
                 </div>
                 <div className="profile-details">
                   <span className="profile-greeting">Hello, I'm</span>
@@ -257,14 +255,14 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Top Right volume control */}
+              {/* Volume Button */}
               <div className="top-right-hud">
                 <button className="hud-btn" onClick={handleToggleMute} title="Toggle Mute">
                   {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                 </button>
               </div>
 
-              {/* Left Wooden Sign Board Menu */}
+              {/* Left Wooden Board Menu */}
               <div className="adventure-menu-board">
                 <div className="board-header">Your Adventure</div>
                 {menuCheckpoints.map((cp) => (
@@ -279,7 +277,7 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Bottom Left WASD Controls Guide */}
+              {/* Bottom Left WASD controls tips */}
               <div className="controls-hud-cozy">
                 <div className="control-row">
                   <span>Move</span>
@@ -300,13 +298,13 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Bottom Center Scroll Mouse Tip */}
+              {/* Bottom Center mouse look tips */}
               <div className="scroll-helper-hud">
                 <span className="scroll-mouse-icon">🖱️</span>
                 <span>Move Mouse to Look Around</span>
               </div>
 
-              {/* Bottom Right Quote Signpost */}
+              {/* Bottom Right sign board */}
               <div className="hud-signpost-board">
                 <span className="hud-signpost-text">
                   "Every step leads to a new chapter."
@@ -315,9 +313,7 @@ export default function App() {
             </>
           )}
 
-          {/* ==================================================
-             4. CHECKPOINT OVERLAY CARD WIDGETS
-             ================================================== */}
+          {/* Checkpoint overlay resume cards */}
           {gameStarted && introCompleted && (
             <>
               <Intro active={activeCheckpoint === 1} />
@@ -330,6 +326,40 @@ export default function App() {
           )}
 
         </div>
+
+        {/* ==================================================
+           5. MODERN FOOTER PANEL (ALWAYS VISIBLE AFTER LOADER)
+           ================================================== */}
+        {dismissLoader && (
+          <footer className="app-footer">
+            <div className="footer-left">
+              <a 
+                href="https://github.com/sandilyakanishk" 
+                target="_blank" 
+                rel="noreferrer" 
+                className="footer-social-link"
+                title="GitHub Profile"
+              >
+                <Github size={22} />
+              </a>
+            </div>
+            <div className="footer-center">
+              Kanishk Sandilya • DevOps & Cloud Engineer
+            </div>
+            <div className="footer-right">
+              <a 
+                href="https://github.com/sandilyakanishk/portfolio-3Dtrek" 
+                target="_blank" 
+                rel="noreferrer" 
+                className="resume-btn"
+              >
+                <FileText size={16} />
+                <span>RESUME</span>
+              </a>
+            </div>
+          </footer>
+        )}
+
       </div>
     </KeyboardControls>
   );
