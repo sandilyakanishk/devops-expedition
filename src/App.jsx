@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { KeyboardControls, useProgress } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
-import { Volume2, VolumeX, Github, FileText } from 'lucide-react';
+import { Volume2, VolumeX, Github, FileText, ThumbsUp, ThumbsDown, MessageSquare, Share2 } from 'lucide-react';
 import * as THREE from 'three';
 
 // 3D Components
@@ -99,7 +99,7 @@ export default function App() {
     if (!active && progress === 100) {
       const t = setTimeout(() => {
         setDismissLoader(true);
-      }, 800);
+      }, 1000);
       return () => clearTimeout(t);
     }
   }, [active, progress]);
@@ -121,7 +121,17 @@ export default function App() {
 
   return (
     <KeyboardControls map={keyboardMap}>
-      <div style={{ width: '100vw', height: '100vh', position: 'relative', background: '#0b0f19' }}>
+      {/* 
+        Container background is a warm bright nature gradient sky:
+        Deep sky blue -> Soft pastel blue -> Warm peach sunset orange
+      */}
+      <div style={{ 
+        width: '100vw', 
+        height: '100vh', 
+        position: 'relative', 
+        background: 'linear-gradient(to bottom, #38bdf8 0%, #bae6fd 60%, #ffedd5 100%)',
+        overflow: 'hidden'
+      }}>
         
         {/* ==================================================
            1. MODERN HEADER NAVBAR (ALWAYS VISIBLE AFTER LOADER)
@@ -157,38 +167,55 @@ export default function App() {
         )}
 
         {/* ==================================================
-           2. MODERN PILL LOADING SCREEN WITH SCROLLING MARQUEE
+           2. COZY ANIMATED ADVENTURE LOADING SCREEN
            ================================================== */}
         {!dismissLoader && (
-          <div className="loading-screen-modern" style={{ opacity: (!active && progress === 100) ? 0 : 1 }}>
-            
-            {/* Infinite scrolling marquee text in background */}
-            <div className="marquee-container">
-              <div className="marquee-text-flow">
-                <span>DevOps Engineer • Cloud Practitioner • Graduate Trainee •&nbsp;</span>
-                <span>DevOps Engineer • Cloud Practitioner • Graduate Trainee •&nbsp;</span>
-                <span>DevOps Engineer • Cloud Practitioner • Graduate Trainee •&nbsp;</span>
-                <span>DevOps Engineer • Cloud Practitioner • Graduate Trainee •&nbsp;</span>
-              </div>
-            </div>
+          <div className="adventure-loading-screen" style={{ opacity: (!active && progress === 100) ? 0 : 1 }}>
+            {/* Moving Fluffy Cartoon Clouds */}
+            <div className="loading-cloud cloud-1">☁️</div>
+            <div className="loading-cloud cloud-2">☁️</div>
+            <div className="loading-cloud cloud-3">☁️</div>
 
-            {/* Centered Loading Pill */}
-            <div className="loading-pill-container">
-              <div className="loading-spinner" />
-              <div className="loading-pill-text">
-                Loading {Math.round(progress)}%
+            {/* Flying Birds */}
+            <div className="loading-bird bird-1">🦅</div>
+            <div className="loading-bird bird-2">🦅</div>
+
+            {/* Falling Leaves */}
+            <div className="loading-leaf leaf-1">🍃</div>
+            <div className="loading-leaf leaf-2">🍁</div>
+            <div className="loading-leaf leaf-3">🍃</div>
+            
+            {/* Spark particles */}
+            <div className="loading-spark spark-1">✨</div>
+            <div className="loading-spark spark-2">✨</div>
+
+            {/* Mountain silhouette at bottom */}
+            <div className="loading-mountain-silhouette" />
+
+            {/* Centered Typography & Progress Path */}
+            <div className="loading-center-content">
+              <h1 className="loading-title">TREKKING THROUGH MY JOURNEY</h1>
+              
+              <div className="loading-trail-progress">
+                <div className="loading-trail-bar" style={{ width: `${Math.round(progress)}%` }} />
+                <span className="loading-trail-runner" style={{ left: `${Math.round(progress)}%` }}>🏃</span>
               </div>
+              
+              <p className="loading-subtitle">
+                Loading Adventure... {Math.round(progress)}%
+              </p>
             </div>
           </div>
         )}
 
         {/* ==================================================
-           3. 3D RENDERING CANVAS
+           3. 3D RENDERING CANVAS (TRANSPARENT TO SHOW BACKGROUND GRADIENT)
            ================================================== */}
         <div className="canvas-container">
           <Canvas
             shadows
             camera={{ position: [8, 16, 22], fov: 50 }}
+            gl={{ alpha: true, antialias: true }}
           >
             <Suspense fallback={null}>
               <Physics gravity={[0, -14, 0]}>
@@ -201,7 +228,7 @@ export default function App() {
                   />
                 )}
 
-                {/* Environment (GLB models loader & sensor triggers with procedural fallback) */}
+                {/* Environment (100% procedural landscape and lighting) */}
                 <Environment
                   onCheckpointEnter={handleCheckpointEnter}
                   onCheckpointExit={handleCheckpointExit}
@@ -343,10 +370,31 @@ export default function App() {
                 <Github size={22} />
               </a>
             </div>
+            
             <div className="footer-center">
               Kanishk Sandilya • DevOps & Cloud Engineer
             </div>
+            
+            {/* Right side with polished feedback/social utility icons + Resume */}
             <div className="footer-right">
+              <div className="footer-feedback-icons">
+                <button className="feedback-icon-btn" title="Like" onClick={() => alert("Thanks for your feedback!")}>
+                  <ThumbsUp size={15} />
+                </button>
+                <button className="feedback-icon-btn" title="Dislike" onClick={() => alert("Thanks for your feedback!")}>
+                  <ThumbsDown size={15} />
+                </button>
+                <button className="feedback-icon-btn" title="Comment" onClick={() => handleTeleport([0, 15.5, -160.0])}>
+                  <MessageSquare size={15} />
+                </button>
+                <button className="feedback-icon-btn" title="Share" onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert("Link copied to clipboard!");
+                }}>
+                  <Share2 size={15} />
+                </button>
+              </div>
+              
               <a 
                 href="https://github.com/sandilyakanishk/portfolio-3Dtrek" 
                 target="_blank" 

@@ -166,6 +166,36 @@ body, html, #root {
 .footer-right {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.footer-feedback-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 12px;
+}
+
+.feedback-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: rgba(13, 20, 38, 0.55);
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+.feedback-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: #0b0f19;
+  transform: scale(1.1) translateY(-2px);
+  border-color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.35);
 }
 
 .resume-btn {
@@ -188,20 +218,21 @@ body, html, #root {
   background: #fff;
   color: #0b0f19;
   border-color: #fff;
-  box-shadow: 0 0 15px rgba(255,255,255,0.4);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
 }
 
 /* ==================================================
-   ANIMATED LOADING SCREEN (NEW PILL CONCEPT)
+   COZY ANIMATED ADVENTURE LOADING SCREEN
    ================================================== */
-.loading-screen-modern {
+.adventure-loading-screen {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #dceef2; /* Light pastel background from image */
+  background: linear-gradient(to bottom, #38bdf8 0%, #bae6fd 60%, #ffedd5 100%);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 1000;
@@ -210,78 +241,150 @@ body, html, #root {
   transition: opacity 0.8s ease-out;
 }
 
-/* Marquee background text */
-.marquee-container {
+/* Moving Fluffy Cartoon Clouds */
+.loading-cloud {
   position: absolute;
-  top: 50%;
+  font-size: 4rem;
+  opacity: 0.75;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 12px rgba(255, 255, 255, 0.8));
+}
+.cloud-1 { top: 15%; left: -10%; animation: driftRight 45s linear infinite; }
+.cloud-2 { top: 32%; left: -15%; animation: driftRight 32s linear infinite 4s; }
+.cloud-3 { top: 8%; left: -20%; animation: driftRight 55s linear infinite 1.5s; }
+
+@keyframes driftRight {
+  from { transform: translateX(0); }
+  to { transform: translateX(120vw); }
+}
+
+/* Flying Birds */
+.loading-bird {
+  position: absolute;
+  font-size: 2.2rem;
+  opacity: 0.65;
+  pointer-events: none;
+}
+.bird-1 { top: 22%; left: -5%; animation: flyAcross 22s linear infinite 2s; }
+.bird-2 { top: 10%; left: -12%; animation: flyAcross 28s linear infinite 7s; }
+
+@keyframes flyAcross {
+  0% { transform: translate(0, 0) scaleX(1); }
+  48% { transform: translate(50vw, -20px) scaleX(1); }
+  50% { transform: translate(50vw, -20px) scaleX(1); }
+  100% { transform: translate(115vw, 15px) scaleX(1); }
+}
+
+/* Falling Leaves */
+.loading-leaf {
+  position: absolute;
+  font-size: 1.6rem;
+  opacity: 0.75;
+  pointer-events: none;
+  animation: fallWind 7s ease-in-out infinite;
+}
+.leaf-1 { left: 18%; animation-delay: 0s; }
+.leaf-2 { left: 52%; animation-delay: 1.8s; }
+.leaf-3 { left: 82%; animation-delay: 3.6s; }
+
+@keyframes fallWind {
+  0% { transform: translate(0, -10vh) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.8; }
+  90% { opacity: 0.8; }
+  100% { transform: translate(120px, 110vh) rotate(360deg); opacity: 0; }
+}
+
+/* Rising Spark Particles */
+.loading-spark {
+  position: absolute;
+  font-size: 1.3rem;
+  opacity: 0.8;
+  pointer-events: none;
+  animation: floatUpSpark 4.5s linear infinite;
+}
+.spark-1 { left: 34%; animation-delay: 0.8s; }
+.spark-2 { left: 68%; animation-delay: 2.5s; }
+
+@keyframes floatUpSpark {
+  0% { transform: translate(0, 10vh) scale(0); opacity: 0; }
+  20% { opacity: 0.8; }
+  85% { opacity: 0.8; }
+  100% { transform: translate(-30px, -20vh) scale(1.3); opacity: 0; }
+}
+
+/* Mountain Silhouette at bottom */
+.loading-mountain-silhouette {
+  position: absolute;
+  bottom: 0;
   left: 0;
   width: 100%;
-  overflow: hidden;
-  transform: translateY(-50%);
-  opacity: 0.12;
+  height: 200px;
+  background: #166534; /* Forest green */
+  clip-path: polygon(0% 100%, 0% 75%, 12% 50%, 28% 85%, 50% 35%, 72% 70%, 88% 45%, 100% 75%, 100% 100%);
+  opacity: 0.28;
   pointer-events: none;
-  z-index: 1;
 }
 
-.marquee-text-flow {
+/* Centered content */
+.loading-center-content {
   display: flex;
-  width: fit-content;
-  animation: marqueeSliding 35s linear infinite;
-  white-space: nowrap;
-}
-
-.marquee-text-flow span {
-  font-family: var(--font-sans);
-  font-size: 8rem;
-  font-weight: 900;
-  color: #2c1606;
-  text-transform: uppercase;
-  padding-right: 50px;
-}
-
-@keyframes marqueeSliding {
-  0% { transform: translate3d(0, 0, 0); }
-  100% { transform: translate3d(-50%, 0, 0); }
-}
-
-/* Center loading pill */
-.loading-pill-container {
-  background: rgba(13, 20, 38, 0.95);
-  border: 3px solid var(--wood-border);
-  padding: 14px 28px;
-  border-radius: 40px;
-  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
   z-index: 10;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
-  animation: floatEffect 3s ease-in-out infinite;
+  pointer-events: none;
 }
 
-@keyframes floatEffect {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+.loading-title {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 900;
+  color: #075985; /* Soft Sky Dark Blue */
+  text-align: center;
+  text-shadow: 2px 2px 0px #bae6fd, 5px 5px 0px rgba(0, 0, 0, 0.05);
+  letter-spacing: 2px;
+  margin-bottom: 26px;
+  text-transform: uppercase;
+  max-width: 90%;
+  animation: titlePulse 2.2s ease-in-out infinite;
 }
 
-.loading-spinner {
-  width: 22px;
-  height: 22px;
-  border: 3.5px solid rgba(255, 255, 255, 0.1);
-  border-top: 3.5px solid var(--accent-gold);
-  border-radius: 50%;
-  animation: spinnerRotate 0.8s linear infinite;
+@keyframes titlePulse {
+  0%, 100% { transform: scale(1.0); }
+  50% { transform: scale(1.03); }
 }
 
-@keyframes spinnerRotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* Trail-themed progress bar */
+.loading-trail-progress {
+  width: 320px;
+  height: 12px;
+  background: rgba(120, 53, 15, 0.2);
+  border-radius: 8px;
+  position: relative;
+  margin-bottom: 18px;
+  border: 2px solid #78350f;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+.loading-trail-bar {
+  height: 100%;
+  background: #22c55e;
+  border-radius: 6px;
+  transition: width 0.15s ease-out;
+}
+.loading-trail-runner {
+  position: absolute;
+  top: -24px;
+  font-size: 1.7rem;
+  transform: translateX(-50%);
+  transition: left 0.15s ease-out;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,0.15));
 }
 
-.loading-pill-text {
+.loading-subtitle {
   font-family: var(--font-sans);
+  font-size: 0.95rem;
   font-weight: 800;
-  font-size: 1rem;
-  color: #fff;
+  color: #78350f;
   letter-spacing: 1.5px;
   text-transform: uppercase;
 }
