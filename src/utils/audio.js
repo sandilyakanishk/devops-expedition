@@ -29,11 +29,11 @@ class AudioSystem {
 
     // Sub-gains for mixing
     this.ambienceGain = this.ctx.createGain();
-    this.ambienceGain.gain.setValueAtTime(0.28, this.ctx.currentTime);
+    this.ambienceGain.gain.setValueAtTime(0.18, this.ctx.currentTime); // softer wind so guitar is clear
     this.ambienceGain.connect(this.masterGain);
 
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+    this.musicGain.gain.setValueAtTime(0.38, this.ctx.currentTime); // guitar sits clearly in mix
     this.musicGain.connect(this.masterGain);
 
     this.sfxGain = this.ctx.createGain();
@@ -42,7 +42,7 @@ class AudioSystem {
 
     this.startWind();
     this.startTropicalBirds();
-    this.startTropicalMelody();
+    this.startGuitarMelody();
   }
 
   // ──────────────────────────────────────────────────
@@ -180,76 +180,141 @@ class AudioSystem {
   }
 
   // ──────────────────────────────────────────────────
-  // TROPICAL MARIMBA MELODY
+  // ACOUSTIC GUITAR — soothing fingerpicked melody
+  // Am pentatonic: A2 C3 D3 E3 G3 A3 C4 D4 E4 G4 A4
   // ──────────────────────────────────────────────────
-  startTropicalMelody() {
-    // Tropical pentatonic scale notes (Hz)
-    // C4 D4 E4 G4 A4 C5 D5 E5 G5 A5
-    const notes = [261.63, 293.66, 329.63, 392.00, 440.00,
-                   523.25, 587.33, 659.25, 783.99, 880.00];
+  startGuitarMelody() {
+    // Fingerpicking pattern in Am — warm, melancholic, mountain feel
+    // Notes as semitone offsets from A2 (110 Hz)
+    // A2=110, C3=130.8, D3=146.8, E3=164.8, G3=196, A3=220
+    // C4=261.6, D4=293.7, E4=329.6, G4=392, A4=440
+    const freq = (semitone) => 110 * Math.pow(2, semitone / 12);
+    //                     A   C    D    E    G    A    C    D    E    G    A
+    const scaleHz = [freq(0), freq(3), freq(5), freq(7), freq(10),
+                     freq(12), freq(15), freq(17), freq(19), freq(22), freq(24)];
 
-    // Adventure melody pattern (indices into notes array)
-    const melody = [
-      4, 3, 2, 4, 3, 1, 2, 0,
-      3, 4, 6, 5, 4, 3, 4, 2,
-      5, 4, 3, 5, 4, 2, 3, 1,
-      4, 6, 5, 4, 3, 2, 1, 0
+    // A calming fingerpicking pattern (index into scaleHz)
+    // Alternates bass notes (0-4) with melody (5-10) for depth
+    const pattern = [
+      // Phrase 1 — gentle opening
+      { n: 0, d: 1.0 }, { n: 5, d: 0.5 }, { n: 7, d: 0.5 },
+      { n: 1, d: 1.0 }, { n: 6, d: 0.5 }, { n: 8, d: 0.5 },
+      // Phrase 2 — slight lift
+      { n: 2, d: 0.75}, { n: 7, d: 0.25}, { n: 9, d: 0.5 }, { n: 8, d: 0.5 },
+      { n: 0, d: 1.0 }, { n: 5, d: 0.5 }, { n: 6, d: 0.5 },
+      // Phrase 3 — resolve
+      { n: 3, d: 0.75}, { n: 8, d: 0.5 }, { n: 7, d: 0.5 }, { n: 5, d: 0.25},
+      { n: 1, d: 1.0 }, { n: 6, d: 0.5 }, { n: 5, d: 0.5 },
+      // Phrase 4 — peaceful close
+      { n: 0, d: 1.5 }, { n: 5, d: 0.25}, { n: 6, d: 0.25},
+      { n: 7, d: 0.5 }, { n: 6, d: 0.5 }, { n: 5, d: 0.5 }, { n: 0, d: 1.5 },
     ];
 
-    const bpm = 108;
-    const beat = 60 / bpm;
+    const BPM = 72; // slow, relaxed tempo
+    const beat = 60 / BPM;
 
-    const playMelody = () => {
+    const playPhrase = () => {
       if (!this.ctx || this.isMuted) return;
-      const now = this.ctx.currentTime;
+      const now = this.ctx.currentTime + 0.05;
+      let cursor = 0;
 
-      melody.forEach((noteIdx, i) => {
-        const t = now + i * beat * 0.5;
-        this.playMarimbaNote(notes[noteIdx], t, beat * 0.42);
-        // Add bass note every 4 beats
-        if (i % 8 === 0) {
-          this.playMarimbaNote(notes[noteIdx % 5] * 0.5, t, beat * 1.8, 0.7);
-        }
+      pattern.forEach(({ n, d }) => {
+        const t = now + cursor * beat;
+        const hz = scaleHz[n];
+        const dur = d * beat;
+        // Bass notes slightly louder, melody notes softer
+        const vol = n < 5 ? 0.18 : 0.12;
+        this.playGuitarNote(hz, t, dur, vol);
+        cursor += d;
       });
 
-      // Loop after melody finishes
-      const duration = melody.length * beat * 0.5 * 1000;
-      this.melodyTimeout = setTimeout(playMelody, duration);
+      // Add occasional gentle chord strum at phrase starts
+      [0, 8, 16].forEach((offset) => {
+        const t = now + offset * beat;
+        // Soft Am chord: A2 + E3 + A3 staggered
+        [scaleHz[0], scaleHz[4], scaleHz[5]].forEach((hz, i) => {
+          this.playGuitarNote(hz, t + i * 0.022, beat * 2, 0.08);
+        });
+      });
+
+      // Total duration of pattern in ms
+      const totalBeats = pattern.reduce((s, p) => s + p.d, 0);
+      const totalMs = totalBeats * beat * 1000 + 2500; // 2.5s silence between loops
+      this.melodyTimeout = setTimeout(playPhrase, totalMs);
     };
 
-    playMelody();
+    // Short initial delay so it starts after ambient wind settles
+    this.melodyTimeout = setTimeout(playPhrase, 1800);
   }
 
-  playMarimbaNote(freq, time, duration, gainMult = 1.0) {
+  // Plucked acoustic guitar note — Karplus-Strong inspired envelope
+  // Uses a mix of sawtooth + sine + filtered noise for realistic string tone
+  playGuitarNote(freq, time, duration, peakVol = 0.14) {
     if (!this.ctx) return;
 
-    // Marimba-like: sine wave with fast attack, medium decay
-    const osc = this.ctx.createOscillator();
-    const gainNode = this.ctx.createGain();
+    // ── String body: sawtooth filtered to remove harshness ──
+    const osc1 = this.ctx.createOscillator();
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(freq, time);
+    // Slight pitch drop simulating string stretch
+    osc1.frequency.exponentialRampToValueAtTime(freq * 0.998, time + 0.4);
 
-    // Slight detuning for warmth
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, time);
+    const lpf = this.ctx.createBiquadFilter();
+    lpf.type = 'lowpass';
+    lpf.frequency.setValueAtTime(freq * 8, time); // bright pluck
+    lpf.frequency.exponentialRampToValueAtTime(freq * 1.8, time + duration * 0.6); // darken fast
+    lpf.Q.setValueAtTime(0.8, time);
 
-    // Marimba envelope: fast attack, medium-fast decay, no sustain
-    gainNode.gain.setValueAtTime(0, time);
-    gainNode.gain.linearRampToValueAtTime(0.18 * gainMult, time + 0.008);
-    gainNode.gain.exponentialRampToValueAtTime(0.06 * gainMult, time + duration * 0.3);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-
-    // Add harmonics for marimba color
+    // ── Fundamental sine for warmth ──
     const osc2 = this.ctx.createOscillator();
-    const g2 = this.ctx.createGain();
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(freq * 2.0, time);
-    g2.gain.setValueAtTime(0, time);
-    g2.gain.linearRampToValueAtTime(0.04 * gainMult, time + 0.005);
-    g2.gain.exponentialRampToValueAtTime(0.0001, time + duration * 0.2);
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(freq, time);
 
-    osc.connect(gainNode); gainNode.connect(this.musicGain);
-    osc2.connect(g2); g2.connect(this.musicGain);
-    osc.start(time); osc.stop(time + duration + 0.05);
-    osc2.start(time); osc2.stop(time + duration * 0.25);
+    // ── Pluck transient: very short noise burst ──
+    const nBuf = this.createNoiseBuffer(0.04);
+    const nSrc = this.ctx.createBufferSource();
+    nSrc.buffer = nBuf;
+    const nFilter = this.ctx.createBiquadFilter();
+    nFilter.type = 'bandpass';
+    nFilter.frequency.setValueAtTime(freq * 3, time);
+    nFilter.Q.setValueAtTime(4, time);
+    const nGain = this.ctx.createGain();
+    nGain.gain.setValueAtTime(peakVol * 0.3, time);
+    nGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.04);
+    nSrc.connect(nFilter); nFilter.connect(nGain); nGain.connect(this.musicGain);
+    nSrc.start(time); nSrc.stop(time + 0.05);
+
+    // ── Main envelope: fast attack, long natural decay ──
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, time);
+    env.gain.linearRampToValueAtTime(peakVol, time + 0.006); // snap attack
+    env.gain.exponentialRampToValueAtTime(peakVol * 0.4, time + duration * 0.25);
+    env.gain.exponentialRampToValueAtTime(0.0001, time + Math.min(duration, 3.5));
+
+    // ── Sine layer (softer, longer sustain) ──
+    const env2 = this.ctx.createGain();
+    env2.gain.setValueAtTime(0, time);
+    env2.gain.linearRampToValueAtTime(peakVol * 0.55, time + 0.01);
+    env2.gain.exponentialRampToValueAtTime(0.0001, time + Math.min(duration * 1.2, 4.0));
+
+    // Slight reverb via delay feedback
+    const delay = this.ctx.createDelay(0.5);
+    delay.delayTime.setValueAtTime(0.22, time);
+    const fbGain = this.ctx.createGain();
+    fbGain.gain.setValueAtTime(0.18, time);
+    const delayLpf = this.ctx.createBiquadFilter();
+    delayLpf.type = 'lowpass';
+    delayLpf.frequency.setValueAtTime(1200, time);
+
+    osc1.connect(lpf); lpf.connect(env); env.connect(this.musicGain);
+    env.connect(delay); delay.connect(delayLpf); delayLpf.connect(fbGain);
+    fbGain.connect(delay); // feedback loop
+    fbGain.connect(this.musicGain);
+
+    osc2.connect(env2); env2.connect(this.musicGain);
+
+    osc1.start(time); osc1.stop(time + Math.min(duration, 3.5) + 0.1);
+    osc2.start(time); osc2.stop(time + Math.min(duration * 1.2, 4.0) + 0.1);
   }
 
   // ──────────────────────────────────────────────────
