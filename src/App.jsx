@@ -418,7 +418,7 @@ export default function App() {
               </div>
               
               <a 
-                href="https://github.com/sandilyakanishk/portfolio-3Dtrek" 
+                href="https://drive.google.com/file/d/1wO3_SnLtr8mm53qHkaOTBHaXUt-kbLTa/view?usp=drive_link" 
                 target="_blank" 
                 rel="noreferrer" 
                 className="resume-btn"
