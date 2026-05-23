@@ -70,7 +70,7 @@ class AudioSystem {
   // ──────────────────────────────────────────────────
   startBgMusic() {
     try {
-      this.bgMusic = new Audio('/music_for_video-just-relax-11157.mp3');
+      this.bgMusic = new Audio((import.meta.env.BASE_URL || '/') + 'music_for_video-just-relax-11157.mp3');
       this.bgMusic.loop   = true;   // repeat forever
       this.bgMusic.volume = 0;
       const target = this.bgMusicVolume;
@@ -92,7 +92,7 @@ class AudioSystem {
   // ──────────────────────────────────────────────────
   startWindAmbient() {
     try {
-      this.windAmbient = new Audio('/storegraphic-soft-wind-477404.mp3');
+      this.windAmbient = new Audio((import.meta.env.BASE_URL || '/') + 'storegraphic-soft-wind-477404.mp3');
       this.windAmbient.loop   = true;
       this.windAmbient.volume = 0;
       const target = this.isMuted ? 0 : this.windAmbientVol;
