@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { KeyboardControls, useProgress } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
@@ -62,9 +62,13 @@ export default function App() {
 
   const handleStartJourney = () => {
     setGameStarted(true);
-    // Initialize & start background procedural audio
-    audioSystem.init();
-    audioSystem.resume();
+    // Initialize & start background procedural audio with safety catches
+    try {
+      audioSystem.init();
+      audioSystem.resume();
+    } catch (err) {
+      console.warn("Procedural audio initialization bypassed or failed:", err);
+    }
   };
 
   const handleToggleMute = () => {
@@ -188,30 +192,32 @@ export default function App() {
             shadows
             camera={{ position: [8, 16, 22], fov: 50 }}
           >
-            <Physics gravity={[0, -14, 0]}>
-              {/* Playable Character (WASD Controls) */}
-              {gameStarted && (
-                <Character 
-                  onPositionChange={handlePositionChange} 
-                  teleportTarget={teleportTarget}
-                  clearTeleport={() => setTeleportTarget(null)}
-                />
-              )}
+            <Suspense fallback={null}>
+              <Physics gravity={[0, -14, 0]}>
+                {/* Playable Character (WASD Controls) */}
+                {gameStarted && (
+                  <Character 
+                    onPositionChange={handlePositionChange} 
+                    teleportTarget={teleportTarget}
+                    clearTeleport={() => setTeleportTarget(null)}
+                  />
+                )}
 
-              {/* Environment (GLB models loader & sensor trigger checkpoints) */}
-              <Environment
-                onCheckpointEnter={handleCheckpointEnter}
-                onCheckpointExit={handleCheckpointExit}
-              />
-
-              {/* Follow Camera (intro panning -> 3rd person game follow) */}
-              {gameStarted && (
-                <Camera 
-                  playerPosRef={playerPosRef} 
-                  onIntroComplete={() => setIntroCompleted(true)}
+                {/* Environment (GLB models loader & sensor trigger checkpoints) */}
+                <Environment
+                  onCheckpointEnter={handleCheckpointEnter}
+                  onCheckpointExit={handleCheckpointExit}
                 />
-              )}
-            </Physics>
+
+                {/* Follow Camera (intro panning -> 3rd person game follow) */}
+                {gameStarted && (
+                  <Camera 
+                    playerPosRef={playerPosRef} 
+                    onIntroComplete={() => setIntroCompleted(true)}
+                  />
+                )}
+              </Physics>
+            </Suspense>
           </Canvas>
         </div>
 
