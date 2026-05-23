@@ -47,23 +47,28 @@ export default function App() {
   // High performance player position tracker
   const playerPosRef = useRef(new THREE.Vector3(0, 1.2, 0));
   const fallTimerRef  = useRef(null);
-  const lastSafePos  = useRef([0, 2.0, 0]);
+
+  // Mirror of getTerrainY from Environment — trail rises 15 units over 160 z-units
+  const getTerrainY = (z) => {
+    if (z > 0) return 0;
+    if (z < -160) return 15;
+    return (-z / 160) * 15;
+  };
 
   const handlePositionChange = (position) => {
     playerPosRef.current.set(position.x, position.y, position.z);
 
-    // Track last safe position above ground
-    if (position.y > 0) {
-      lastSafePos.current = [position.x, position.y + 2, position.z];
-    }
+    // Fall threshold: 8 units below the expected trail surface at this Z
+    const floorY = getTerrainY(position.z);
+    const fallThreshold = floorY - 8;
 
-    // Fall detection — below Y=-8 triggers 2s respawn timer
-    if (position.y < -8 && !fallTimerRef.current) {
+    if (position.y < fallThreshold && !fallTimerRef.current) {
+      // Always respawn at BASE CAMP — never at last checkpoint
       fallTimerRef.current = setTimeout(() => {
-        setTeleportTarget(new THREE.Vector3(...lastSafePos.current));
+        setTeleportTarget(new THREE.Vector3(0, 3, 0));
         fallTimerRef.current = null;
       }, 2000);
-    } else if (position.y >= -8 && fallTimerRef.current) {
+    } else if (position.y >= fallThreshold && fallTimerRef.current) {
       clearTimeout(fallTimerRef.current);
       fallTimerRef.current = null;
     }
@@ -96,14 +101,14 @@ export default function App() {
     setIsMuted(muted);
   };
 
-  // Checkpoint coordinates for navigation board and navbar links
+  // Checkpoint nav positions — matched to continuous terrain heights
   const menuCheckpoints = [
-    { id: 1, label: 'Introduction', pos: [0, 0.4, -2.5] },
-    { id: 2, label: 'Education', pos: [-5, 3.0, -32.0] },
-    { id: 3, label: 'Projects', pos: [5, 5.8, -64.0] },
-    { id: 4, label: 'Experience', pos: [-8, 8.8, -96.0] },
-    { id: 5, label: 'Skills', pos: [6, 12.0, -128.0] },
-    { id: 6, label: 'Contact', pos: [0, 15.5, -160.0] }
+    { id: 1, label: 'Introduction', pos: [0,  3.0,  -5]   },
+    { id: 2, label: 'Education',    pos: [0,  5.5,  -36]  },
+    { id: 3, label: 'Projects',     pos: [0,  8.5,  -67]  },
+    { id: 4, label: 'Experience',   pos: [0, 11.5,  -99]  },
+    { id: 5, label: 'Skills',       pos: [0, 14.5, -131]  },
+    { id: 6, label: 'Contact',      pos: [0, 17.5, -163]  },
   ];
 
   const handleTeleport = (pos) => {
