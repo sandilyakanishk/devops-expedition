@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { KeyboardControls } from '@react-three/drei';
+import { KeyboardControls, useProgress } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
 import { Volume2, VolumeX, ShieldAlert, Award, Play } from 'lucide-react';
 import * as THREE from 'three';
@@ -20,7 +20,6 @@ import Contact from './sections/Contact';
 
 // Audio and GSAP
 import audioSystem from './utils/audio';
-import { playCinematicOpening } from './animations/gsap';
 
 // Keyboard controls map
 const keyboardMap = [
@@ -34,12 +33,17 @@ const keyboardMap = [
 
 export default function App() {
   const [gameStarted, setGameStarted] = useState(false);
+  const [introCompleted, setIntroCompleted] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [activeCheckpoint, setActiveCheckpoint] = useState(null);
   const [visitedCheckpoints, setVisitedCheckpoints] = useState([]);
+  const [teleportTarget, setTeleportTarget] = useState(null);
+  const [dismissLoader, setDismissLoader] = useState(false);
+
+  const { active, progress } = useProgress();
   
   // High performance player position tracker
-  const playerPosRef = useRef(new THREE.Vector3(0, 2, 0));
+  const playerPosRef = useRef(new THREE.Vector3(0, 1.2, 0));
 
   const handlePositionChange = (position) => {
     playerPosRef.current.set(position.x, position.y, position.z);
@@ -68,7 +72,31 @@ export default function App() {
     setIsMuted(muted);
   };
 
-  // Ensure AudioContext resumes on user click if browsers block auto-audio
+  // Checkpoint coordinate points mapping (wooden board teleportation targets)
+  const menuCheckpoints = [
+    { id: 1, label: 'Introduction', pos: [0, 0.4, -2.5] },
+    { id: 2, label: 'Education', pos: [-5, 3.0, -32.0] },
+    { id: 3, label: 'Projects', pos: [5, 5.8, -64.0] },
+    { id: 4, label: 'Experience', pos: [-8, 8.8, -96.0] },
+    { id: 5, label: 'Skills', pos: [6, 12.0, -128.0] },
+    { id: 6, label: 'Contact', pos: [0, 15.5, -160.0] }
+  ];
+
+  const handleTeleport = (pos) => {
+    setTeleportTarget(new THREE.Vector3(...pos));
+  };
+
+  // Delayed dismissal of loader for smoother exit
+  useEffect(() => {
+    if (!active && progress === 100) {
+      const t = setTimeout(() => {
+        setDismissLoader(true);
+      }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [active, progress]);
+
+  // Ensure AudioContext resumes on click
   useEffect(() => {
     const handleGesture = () => {
       if (gameStarted) {
@@ -83,44 +111,120 @@ export default function App() {
     };
   }, [gameStarted]);
 
+  // Loading text script cycling
+  const loadingStatusText = () => {
+    if (progress < 25) return 'Packing the gear...';
+    if (progress < 55) return 'Preparing the trail...';
+    if (progress < 85) return 'Setting up base camp...';
+    return 'Lacing up boots...';
+  };
+
   return (
     <KeyboardControls map={keyboardMap}>
       <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
         
-        {/* 3D RENDERING CANVAS */}
+        {/* ==================================================
+           1. ANIMATED CARTOON LOADING SCREEN
+           ================================================== */}
+        {!dismissLoader && (
+          <div className="loading-screen" style={{ opacity: (!active && progress === 100) ? 0 : 1 }}>
+            
+            {/* Fluffy moving clouds */}
+            <div className="cloud-container">
+              <div className="cartoon-cloud cloud-1" />
+              <div className="cartoon-cloud cloud-2" />
+              <div className="cartoon-cloud cloud-3" />
+              <div className="cartoon-cloud cloud-4" />
+            </div>
+
+            {/* Flying birds */}
+            <div className="birds-container">
+              <div className="bird b1" />
+              <div className="bird b2" />
+              <div className="bird b3" />
+            </div>
+
+            {/* Drifting Leaf Particles */}
+            <div className="particles-container">
+              <div className="leaf-particle l1" />
+              <div className="leaf-particle l2" />
+              <div className="leaf-particle l3" />
+              <div className="leaf-particle l4" />
+              <div className="leaf-particle l5" />
+            </div>
+
+            {/* Rising Campfire Sparks */}
+            <div className="particles-container">
+              <div className="spark-particle s1" />
+              <div className="spark-particle s2" />
+              <div className="spark-particle s3" />
+              <div className="spark-particle s4" />
+            </div>
+
+            {/* Center Loading Info */}
+            <div className="loading-panel">
+              <h1 className="loading-title">TREKKING THROUGH MY JOURNEY</h1>
+              <div className="loading-subtitle">{loadingStatusText()}</div>
+              
+              {/* Rope Trail Progress Bar */}
+              <div className="trail-progress-container">
+                <div className="trail-progress-bar" style={{ width: `${progress}%` }} />
+                <div className="trail-hiker-icon" style={{ left: `${progress}%` }}>
+                  🧭
+                </div>
+              </div>
+            </div>
+
+            {/* Background Mountain Silhouette */}
+            <div className="mountain-silhouette" />
+          </div>
+        )}
+
+        {/* ==================================================
+           2. 3D RENDERING CANVAS
+           ================================================== */}
         <div className="canvas-container">
           <Canvas
             shadows
-            camera={{ position: [0, 6, 11], fov: 50 }}
+            camera={{ position: [8, 16, 22], fov: 50 }}
           >
             <Physics gravity={[0, -14, 0]}>
               {/* Playable Character (WASD Controls) */}
               {gameStarted && (
-                <Character onPositionChange={handlePositionChange} />
+                <Character 
+                  onPositionChange={handlePositionChange} 
+                  teleportTarget={teleportTarget}
+                  clearTeleport={() => setTeleportTarget(null)}
+                />
               )}
 
-              {/* Terrain path, obstacles, scenery, checkpoints */}
+              {/* Environment (GLB models loader & sensor trigger checkpoints) */}
               <Environment
                 onCheckpointEnter={handleCheckpointEnter}
                 onCheckpointExit={handleCheckpointExit}
               />
 
-              {/* Follow Camera tracking player position */}
+              {/* Follow Camera (intro panning -> 3rd person game follow) */}
               {gameStarted && (
-                <Camera playerPosRef={playerPosRef} />
+                <Camera 
+                  playerPosRef={playerPosRef} 
+                  onIntroComplete={() => setIntroCompleted(true)}
+                />
               )}
             </Physics>
           </Canvas>
         </div>
 
-        {/* 2D HUD / FRONTEND OVERLAYS */}
+        {/* ==================================================
+           3. 2D HUD / CONTROLS INTERFACES
+           ================================================== */}
         <div className="ui-layer">
           
-          {/* Landing / Welcome Screen */}
-          {!gameStarted && (
+          {/* Landing Banner */}
+          {dismissLoader && !gameStarted && (
             <div className="landing-banner">
               <h1>KANISHK SANDILYA</h1>
-              <p style={{ color: 'var(--primary)', fontWeight: '700', fontSize: '0.9rem', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              <p style={{ color: 'var(--accent-gold)', fontWeight: '700', fontSize: '0.95rem', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
                 DevOps & Cloud Engineer
               </p>
               <p>
@@ -132,59 +236,45 @@ export default function App() {
             </div>
           )}
 
-          {/* Game HUD Panel */}
-          {gameStarted && (
+          {/* Game HUD Panel (only visible after cinematic opening completes) */}
+          {gameStarted && introCompleted && (
             <>
-              {/* Top Left Title */}
-              <div className="top-left-hud">
-                <span className="hud-title">Kanishk Sandilya</span>
-                <span className="hud-subtitle">DevOps Expedition</span>
+              {/* Top Left Profile info */}
+              <div className="profile-hud">
+                <div className="profile-avatar-container">
+                  <span style={{ fontSize: '20px' }}>🏕️</span>
+                </div>
+                <div className="profile-details">
+                  <span className="profile-greeting">Hello, I'm</span>
+                  <span className="profile-name">KANISHK</span>
+                  <span className="profile-role">Developer | AI Enthusiast | Explorer</span>
+                </div>
               </div>
 
-              {/* Top Right Buttons */}
+              {/* Top Right volume control */}
               <div className="top-right-hud">
                 <button className="hud-btn" onClick={handleToggleMute} title="Toggle Mute">
                   {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                 </button>
               </div>
 
-              {/* Checkpoint Progress Checklist */}
-              <div className="checkpoint-checklist">
-                <div className="checkpoint-checklist-title">Map Checklist</div>
-                
-                <div className={`checklist-item ${activeCheckpoint === 1 ? 'active-item' : ''} ${visitedCheckpoints.includes(1) ? 'visited-item' : ''}`}>
-                  <span className="chk-dot" />
-                  <span>Base Camp (Intro)</span>
-                </div>
-                
-                <div className={`checklist-item ${activeCheckpoint === 2 ? 'active-item' : ''} ${visitedCheckpoints.includes(2) ? 'visited-item' : ''}`}>
-                  <span className="chk-dot" />
-                  <span>Forest Trail (Edu)</span>
-                </div>
-                
-                <div className={`checklist-item ${activeCheckpoint === 3 ? 'active-item' : ''} ${visitedCheckpoints.includes(3) ? 'visited-item' : ''}`}>
-                  <span className="chk-dot" />
-                  <span>River Crossing (Proj)</span>
-                </div>
-                
-                <div className={`checklist-item ${activeCheckpoint === 4 ? 'active-item' : ''} ${visitedCheckpoints.includes(4) ? 'visited-item' : ''}`}>
-                  <span className="chk-dot" />
-                  <span>Mountain Village (Exp)</span>
-                </div>
-                
-                <div className={`checklist-item ${activeCheckpoint === 5 ? 'active-item' : ''} ${visitedCheckpoints.includes(5) ? 'visited-item' : ''}`}>
-                  <span className="chk-dot" />
-                  <span>Snow Slope (Skills)</span>
-                </div>
-                
-                <div className={`checklist-item ${activeCheckpoint === 6 ? 'active-item' : ''} ${visitedCheckpoints.includes(6) ? 'visited-item' : ''}`}>
-                  <span className="chk-dot" />
-                  <span>The Peak (Contact)</span>
-                </div>
+              {/* Left Wooden Sign Board Menu */}
+              <div className="adventure-menu-board">
+                <div className="board-header">Your Adventure</div>
+                {menuCheckpoints.map((cp) => (
+                  <button
+                    key={cp.id}
+                    className={`adventure-item-btn ${activeCheckpoint === cp.id ? 'active-checkpoint-btn' : ''} ${visitedCheckpoints.includes(cp.id) ? 'visited-checkpoint-btn' : ''}`}
+                    onClick={() => handleTeleport(cp.pos)}
+                  >
+                    <span className="btn-indicator" />
+                    <span>{cp.label}</span>
+                  </button>
+                ))}
               </div>
 
-              {/* Controls Help (Bottom Left) */}
-              <div className="controls-hud">
+              {/* Bottom Left WASD Controls Guide */}
+              <div className="controls-hud-cozy">
                 <div className="control-row">
                   <span>Move</span>
                   <span>
@@ -192,7 +282,6 @@ export default function App() {
                     <span className="control-key">A</span>
                     <span className="control-key">S</span>
                     <span className="control-key">D</span>
-                    or <span className="control-key">↑↓←→</span>
                   </span>
                 </div>
                 <div className="control-row">
@@ -203,16 +292,27 @@ export default function App() {
                   <span>Jump</span>
                   <span><span className="control-key">Space</span></span>
                 </div>
-                <div className="control-row">
-                  <span>Look</span>
-                  <span>Move Mouse</span>
-                </div>
+              </div>
+
+              {/* Bottom Center Scroll Mouse Tip */}
+              <div className="scroll-helper-hud">
+                <span className="scroll-mouse-icon">🖱️</span>
+                <span>Move Mouse to Look Around</span>
+              </div>
+
+              {/* Bottom Right Quote Signpost */}
+              <div className="hud-signpost-board">
+                <span className="hud-signpost-text">
+                  "Every step leads to a new chapter."
+                </span>
               </div>
             </>
           )}
 
-          {/* RESUME CARD OVERLAYS */}
-          {gameStarted && (
+          {/* ==================================================
+             4. CHECKPOINT OVERLAY CARD WIDGETS
+             ================================================== */}
+          {gameStarted && introCompleted && (
             <>
               <Intro active={activeCheckpoint === 1} />
               <Education active={activeCheckpoint === 2} />
