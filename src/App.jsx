@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { KeyboardControls, useProgress } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
-import { Volume2, VolumeX, Github, FileText, ThumbsUp, ThumbsDown, MessageSquare, Share2 } from 'lucide-react';
+import { Volume2, VolumeX, Github, FileText, ThumbsUp, ThumbsDown, MessageSquare, Share2, Camera as CameraIcon } from 'lucide-react';
 import * as THREE from 'three';
+import { cameraYawRef, cameraPitchRef, characterRotationRef } from './utils/cameraState';
 
 // 3D Components
 import Character from './components/Character';
@@ -41,33 +42,81 @@ export default function App() {
   const [teleportTarget, setTeleportTarget] = useState(null);
   const [dismissLoader, setDismissLoader] = useState(false);
   const [simulatedProgress, setSimulatedProgress] = useState(0);
+  const [playerZ, setPlayerZ] = useState(0);
+  const [respawnMsg, setRespawnMsg] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const controlsTimerRef = useRef(null);
+
+  const handleToggleControls = () => {
+    setControlsOpen(prev => {
+      const next = !prev;
+      if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+      if (next) {
+        controlsTimerRef.current = setTimeout(() => setControlsOpen(false), 5500);
+      }
+      return next;
+    });
+  };
+
+  // Cinematic floating quotes — shown by Z position
+  const TREK_QUOTES = [
+    { z: -5,   text: 'Welcome, traveler. Every mountain tells a story.' },
+    { z: -25,  text: 'Growth begins where comfort ends.' },
+    { z: -52,  text: 'What we learn shapes who we become.' },
+    { z: -80,  text: 'Built through curiosity and countless late nights.' },
+    { z: -100, text: 'Tools are learned. Persistence is built.' },
+    { z: -122, text: 'Every setback became another route upward.' },
+    { z: -150, text: 'Almost there. The summit awaits.' },
+    { z: -165, text: 'The journey ends here. Connections begin.' },
+  ];
+  const activeQuote = introCompleted
+    ? TREK_QUOTES.slice().reverse().find(q => playerZ <= q.z + 8 && playerZ >= q.z - 12)
+    : null;
 
   const { active } = useProgress();
   
   // High performance player position tracker
   const playerPosRef = useRef(new THREE.Vector3(0, 1.2, 0));
   const fallTimerRef  = useRef(null);
+  const respawnMsgRef = useRef(null);
 
-  // Mirror of getTerrainY from Environment — trail rises 15 units over 160 z-units
+  // Mirror of getTerrainY — trail rises 30 units over 185 z-units
   const getTerrainY = (z) => {
-    if (z > 0) return 0;
-    if (z < -160) return 15;
-    return (-z / 160) * 15;
+    if (z > 0)   return 0;
+    if (z < -185) return 30;
+    return (-z / 185) * 30;
   };
 
   const handlePositionChange = (position) => {
     playerPosRef.current.set(position.x, position.y, position.z);
+    setPlayerZ(position.z);
 
-    // Fall threshold: 8 units below the expected trail surface at this Z
+    // Fall threshold: 9 units below expected terrain surface
     const floorY = getTerrainY(position.z);
-    const fallThreshold = floorY - 8;
+    const fallThreshold = floorY - 9;
 
     if (position.y < fallThreshold && !fallTimerRef.current) {
-      // Always respawn at BASE CAMP — never at last checkpoint
       fallTimerRef.current = setTimeout(() => {
-        setTeleportTarget(new THREE.Vector3(0, 3, 0));
+        // Respawn at NEAREST visited checkpoint (not always base)
+        const checkpointPositions = [
+          [0, 3.5, -8],
+          [0, 8.5, -38],
+          [0, 14,  -70],
+          [0, 19,  -102],
+          [0, 25,  -136],
+          [0, 30,  -168],
+        ];
+        const lastVisited = Math.max(0, ...visitedCheckpoints);
+        const respawnPos  = lastVisited > 0
+          ? checkpointPositions[lastVisited - 1]
+          : [0, 3, 0];
+        setTeleportTarget(new THREE.Vector3(...respawnPos));
+        // Show "Back on trail" message
+        setRespawnMsg(true);
+        clearTimeout(respawnMsgRef.current);
+        respawnMsgRef.current = setTimeout(() => setRespawnMsg(false), 3000);
         fallTimerRef.current = null;
-      }, 2000);
+      }, 1800);
     } else if (position.y >= fallThreshold && fallTimerRef.current) {
       clearTimeout(fallTimerRef.current);
       fallTimerRef.current = null;
@@ -101,14 +150,14 @@ export default function App() {
     setIsMuted(muted);
   };
 
-  // Checkpoint nav positions — matched to continuous terrain heights
+  // Checkpoint nav positions — matched to new 30-unit rise terrain
   const menuCheckpoints = [
-    { id: 1, label: 'Introduction', pos: [0,  3.0,  -5]   },
-    { id: 2, label: 'Education',    pos: [0,  5.5,  -36]  },
-    { id: 3, label: 'Projects',     pos: [0,  8.5,  -67]  },
-    { id: 4, label: 'Experience',   pos: [0, 11.5,  -99]  },
-    { id: 5, label: 'Skills',       pos: [0, 14.5, -131]  },
-    { id: 6, label: 'Contact',      pos: [0, 17.5, -163]  },
+    { id: 1, label: 'About Me',   pos: [0,  3.5,  -8]   },
+    { id: 2, label: 'Education',  pos: [0,  8.5,  -38]  },
+    { id: 3, label: 'Skills',     pos: [0, 14.0,  -70]  },
+    { id: 4, label: 'Projects',   pos: [0, 19.0, -102]  },
+    { id: 5, label: 'Experience', pos: [0, 25.0, -136]  },
+    { id: 6, label: 'Contact',    pos: [0, 30.0, -168]  },
   ];
 
   const handleTeleport = (pos) => {
@@ -146,18 +195,30 @@ export default function App() {
     }
   }, [simulatedProgress]);
 
-  // Ensure AudioContext resumes on click
+  // Ensure AudioContext resumes on click + prevent focus retention on buttons/links
   useEffect(() => {
     const handleGesture = () => {
       if (gameStarted) {
         audioSystem.resume();
       }
     };
+
+    const handleGlobalClick = () => {
+      if (document.activeElement && 
+          (document.activeElement.tagName === 'BUTTON' || 
+           document.activeElement.tagName === 'A')) {
+        document.activeElement.blur();
+      }
+    };
+
     window.addEventListener('click', handleGesture);
     window.addEventListener('keydown', handleGesture);
+    window.addEventListener('click', handleGlobalClick);
+
     return () => {
       window.removeEventListener('click', handleGesture);
       window.removeEventListener('keydown', handleGesture);
+      window.removeEventListener('click', handleGlobalClick);
     };
   }, [gameStarted]);
 
@@ -186,11 +247,43 @@ export default function App() {
             <div className="navbar-logo" onClick={() => handleTeleport([0, 0.4, -2.5])}>
               KS
             </div>
-            <div className="navbar-email">
-              sandilyakanishk@gmail.com
+            
+            <div className="navbar-center">
+              <a href="mailto:sandilyakanishk@gmail.com" className="navbar-email-btn" title="Send Email">
+                sandilyakanishk@gmail.com
+              </a>
             </div>
+
             <nav>
-              <ul className="navbar-links">
+              <ul className="navbar-links" style={{ alignItems: 'center' }}>
+                {/* 🎮 Controls — distinct pill button, leftmost */}
+                <li>
+                  <button
+                    onClick={handleToggleControls}
+                    title="Show Controls"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '5px 14px',
+                      borderRadius: 20,
+                      background: controlsOpen
+                        ? 'linear-gradient(135deg,#f59e0b,#ef4444)'
+                        : 'linear-gradient(135deg,rgba(251,191,36,0.18),rgba(239,68,68,0.12))',
+                      border: '1.5px solid rgba(251,191,36,0.55)',
+                      color: controlsOpen ? '#fff' : '#fbbf24',
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
+                      cursor: 'pointer',
+                      transition: 'all 0.22s ease',
+                      boxShadow: controlsOpen
+                        ? '0 0 14px rgba(251,191,36,0.55)'
+                        : '0 0 8px rgba(251,191,36,0.15)',
+                    }}
+                  >
+                    🎮 Controls
+                  </button>
+                </li>
+
+                {/* Info nav links */}
                 <li>
                   <span className="navbar-link-item" onClick={() => handleTeleport([0, 0.4, -2.5])}>
                     About
@@ -288,9 +381,6 @@ export default function App() {
           {dismissLoader && !gameStarted && (
             <div className="landing-screen">
               <div className="landing-content">
-                {/* Small tag */}
-                <div className="landing-tag">PORTFOLIO · 2025</div>
-
                 {/* Big name */}
                 <h1 className="landing-name">
                   KANISHK<br />SANDILYA
@@ -316,7 +406,11 @@ export default function App() {
                 {/* Day/Night toggle */}
                 <button
                   className="hud-mute-btn"
-                  onClick={() => setIsNight((n) => !n)}
+                  onClick={() => {
+                    const next = !isNight;
+                    setIsNight(next);
+                    try { audioSystem.setCrickets(next); } catch(e) {}
+                  }}
                   title={isNight ? 'Switch to Day' : 'Switch to Night'}
                   style={{ fontSize: '1rem' }}
                 >
@@ -344,6 +438,70 @@ export default function App() {
                   ))}
                 </div>
               </nav>
+
+              {/* ── CONTROLS DROPDOWN PANEL (auto-dismisses) ── */}
+              {controlsOpen && (
+                <div style={{
+                  position: 'fixed', top: 70, left: 20,
+                  background: 'rgba(12,10,8,0.92)',
+                  backdropFilter: 'blur(22px)', WebkitBackdropFilter: 'blur(22px)',
+                  border: '1px solid rgba(255,255,255,0.14)',
+                  borderRadius: 14, padding: '14px 20px',
+                  color: 'rgba(255,255,255,0.80)',
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: 11, letterSpacing: '0.08em', lineHeight: 2.1,
+                  zIndex: 99, pointerEvents: 'none',
+                  boxShadow: '0 8px 36px rgba(0,0,0,0.55)',
+                  animation: 'fadeInDown 0.22s ease',
+                  minWidth: 210,
+                }}>
+                  <div style={{ marginBottom: 8, fontWeight: 700, fontSize: 9, opacity: 0.45, letterSpacing: '0.22em', color: '#fbbf24' }}>CONTROLS</div>
+                  {[
+                    ['W A S D',      'Move forward / back / strafe'],
+                    ['Arrow ◀ ▶',   'Rotate camera left / right'],
+                    ['Arrow ▲ ▼',   'Tilt camera up / down'],
+                    ['Shift',        'Sprint'],
+                    ['Space',        'Jump'],
+                  ].map(([key, desc]) => (
+                    <div key={key} style={{ display:'flex', gap: 10 }}>
+                      <span style={{ opacity: 0.55, minWidth: 80, fontWeight: 600, color: '#93c5fd' }}>{key}</span>
+                      <span>{desc}</span>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 10, fontSize: 9, opacity: 0.38, letterSpacing: '0.12em' }}>AUTO-CLOSES IN 5s</div>
+                </div>
+              )}
+
+              {/* ── CINEMATIC FLOATING QUOTE ── */}
+              <div style={{
+                position: 'fixed', bottom: '20%', left: '50%',
+                transform: 'translateX(-50%)',
+                color: '#fff', fontFamily: "'Outfit', sans-serif",
+                fontSize: 15, letterSpacing: '0.22em',
+                fontStyle: 'italic', fontWeight: 300,
+                textAlign: 'center',
+                textShadow: '0 0 24px rgba(255,255,255,0.45), 0 2px 8px rgba(0,0,0,0.8)',
+                opacity: activeQuote ? 1 : 0,
+                transition: 'opacity 1.2s ease',
+                pointerEvents: 'none', zIndex: 50,
+                whiteSpace: 'nowrap',
+              }}>
+                {activeQuote?.text}
+              </div>
+
+              {/* ── RESPAWN MESSAGE ── */}
+              <div style={{
+                position: 'fixed', top: '42%', left: '50%',
+                transform: 'translateX(-50%)',
+                color: '#fbbf24', fontFamily: "'Outfit', sans-serif",
+                fontSize: 14, letterSpacing: '0.28em', fontWeight: 600,
+                textShadow: '0 0 20px rgba(251,191,36,0.7)',
+                opacity: respawnMsg ? 1 : 0,
+                transition: 'opacity 0.5s ease',
+                pointerEvents: 'none', zIndex: 60,
+              }}>
+                BACK ON TRAIL
+              </div>
 
             </>
           )}
@@ -380,25 +538,59 @@ export default function App() {
             </div>
             
             <div className="footer-center">
-              Kanishk Sandilya • DevOps & Cloud Engineer
+              Kanishk Sandilya — DevOps & Cloud Eng.
             </div>
             
             {/* Right side with polished feedback/social utility icons + Resume */}
             <div className="footer-right">
               <div className="footer-feedback-icons">
-                <button className="feedback-icon-btn" title="Like" onClick={() => alert("Thanks for your feedback!")}>
+                <button 
+                  className="feedback-icon-btn recenter-btn" 
+                  title="Recenter Camera" 
+                  onClick={() => {
+                    cameraYawRef.current = characterRotationRef.current - Math.PI;
+                    cameraPitchRef.current = 0.28;
+                  }}
+                >
+                  <CameraIcon size={15} />
+                </button>
+                <button 
+                  className="feedback-icon-btn" 
+                  title="Like" 
+                  onClick={() => window.open("https://wa.me/917071043805?text=Hi%20Kanishk!%20I%20visited%20your%20portfolio%20and%20wanted%20to%20give%20you%20positive%20feedback%20%E2%9C%A8%20It%20looks%20absolutely%20amazing!", "_blank")}
+                >
                   <ThumbsUp size={15} />
                 </button>
-                <button className="feedback-icon-btn" title="Dislike" onClick={() => alert("Thanks for your feedback!")}>
+                <button 
+                  className="feedback-icon-btn" 
+                  title="Dislike" 
+                  onClick={() => window.open("https://wa.me/917071043805?text=Hi%20Kanishk!%20I%20visited%20your%20portfolio%20and%20wanted%20to%20share%20some%20constructive%20feedback%20and%20suggestions%20for%20improvement.", "_blank")}
+                >
                   <ThumbsDown size={15} />
                 </button>
-                <button className="feedback-icon-btn" title="Comment" onClick={() => handleTeleport([0, 15.5, -160.0])}>
+                <button 
+                  className="feedback-icon-btn" 
+                  title="Comment" 
+                  onClick={() => window.open("https://wa.me/917071043805?text=Hi%20Kanishk!%20I%20visited%20your%20portfolio%20and%20wanted%20to%20leave%20a%20message/comment.", "_blank")}
+                >
                   <MessageSquare size={15} />
                 </button>
-                <button className="feedback-icon-btn" title="Share" onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  alert("Link copied to clipboard!");
-                }}>
+                <button 
+                  className="feedback-icon-btn" 
+                  title="Share" 
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({
+                        title: "Kanishk Sandilya - 3D Interactive DevOps Portfolio",
+                        text: "Explore Kanishk Sandilya's 3D Interactive DevOps Portfolio!",
+                        url: window.location.href
+                      }).catch(() => {});
+                    } else {
+                      navigator.clipboard.writeText(window.location.href);
+                      alert("Link copied to clipboard!");
+                    }
+                  }}
+                >
                   <Share2 size={15} />
                 </button>
               </div>

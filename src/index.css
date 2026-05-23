@@ -21,6 +21,15 @@
   padding: 0;
 }
 
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 body, html, #root {
   width: 100%;
   height: 100%;
@@ -165,11 +174,64 @@ body, html, #root {
   color: rgba(255, 255, 255, 0.65);
 }
 
-.navbar-email {
-  font-size: 0.88rem;
-  font-weight: 500;
+.navbar-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+  text-align: center;
+  z-index: 10;
+}
+
+@media (max-width: 800px) {
+  .navbar-center {
+    display: none;
+  }
+}
+
+.navbar-title {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.navbar-email-btn {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
   color: #a0aec0;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 4px 16px;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.navbar-email-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.15), 0 0 10px rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.navbar-email-btn:active {
+  transform: translateY(0);
 }
 
 .navbar-links {
@@ -320,10 +382,16 @@ body, html, #root {
 }
 
 .footer-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   font-size: 0.8rem;
   font-weight: 500;
   color: #718096;
   letter-spacing: 1px;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .footer-right {
@@ -359,6 +427,18 @@ body, html, #root {
   transform: scale(1.1) translateY(-2px);
   border-color: #fff;
   box-shadow: 0 4px 12px rgba(255, 255, 255, 0.35);
+}
+
+.feedback-icon-btn.recenter-btn {
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+}
+
+.feedback-icon-btn.recenter-btn:hover {
+  background: #38bdf8;
+  color: #0b0f19;
+  border-color: #38bdf8;
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.45);
 }
 
 .resume-btn {
@@ -1091,9 +1171,7 @@ body, html, #root {
   .app-navbar {
     padding: 0 20px;
   }
-  .navbar-email {
-    display: none; /* Hide email on mobile to declutter */
-  }
+
   .navbar-links {
     gap: 16px;
   }

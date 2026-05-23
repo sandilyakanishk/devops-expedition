@@ -1,114 +1,159 @@
-import React, { useRef, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
+// ================================================================
+// Camera.jsx — Cinematic intro + Mouse-drag camera rotation
+// NO pointer lock — cursor always visible, mouse drag rotates view
+// ================================================================
+import { useRef, useEffect } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { cameraYawRef, cameraPitchRef } from '../utils/cameraState';
+
+const CAMERA_DIST   = 7.5;
+const CAMERA_HEIGHT = 3.8;
+const MIN_PITCH     = -0.08;
+const MAX_PITCH     =  0.90;
+const MOUSE_SENS    =  0.0010; // radians per pixel (slowed down for smooth look)
 
 export default function Camera({ playerPosRef, onIntroComplete }) {
-  const introTimeRef = useRef(0);
-  const isIntroPlayingRef = useRef(true);
-  const mouse = useRef({ x: 0, y: 0 });
+  const introTimeRef  = useRef(0);
+  const isIntroRef    = useRef(false); // Skip fly-through intro to start behind the character
+  const pitchRef      = cameraPitchRef;
+  const camPos        = useRef(new THREE.Vector3());
+  const lookPos       = useRef(new THREE.Vector3());
 
-  // Track mouse movements for parallax sway during gameplay
+  const { gl }        = useThree();
+
   useEffect(() => {
-    const handleMouseMove = (event) => {
-      mouse.current.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    if (!isIntroRef.current && onIntroComplete) {
+      onIntroComplete();
+    }
+  }, [onIntroComplete]);
+  
+  // Mouse tracking state (no click-drag required)
+  const lastMouseRef  = useRef({ x: 0, y: 0 });
+  const hasInitializedMouseRef = useRef(false);
+  const smoothYawRef  = useRef(0);
+  const smoothPitchRef = useRef(0.28);
+
+  // ── Mouse listeners — movement-only rotation + optional pointer lock ──
+  useEffect(() => {
+    const handleCanvasClick = () => {
+      if (!isIntroRef.current) {
+        gl.domElement.requestPointerLock?.();
+      }
     };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+
+    const onMouseMove = (e) => {
+      if (isIntroRef.current) return;
+
+      let dx = 0;
+      let dy = 0;
+
+      if (document.pointerLockElement === gl.domElement) {
+        dx = e.movementX;
+        dy = e.movementY;
+      } else {
+        if (!hasInitializedMouseRef.current) {
+          lastMouseRef.current = { x: e.clientX, y: e.clientY };
+          hasInitializedMouseRef.current = true;
+          return;
+        }
+        dx = e.clientX - lastMouseRef.current.x;
+        dy = e.clientY - lastMouseRef.current.y;
+        lastMouseRef.current = { x: e.clientX, y: e.clientY };
+      }
+
+      cameraYawRef.current += dx * MOUSE_SENS;
+      pitchRef.current = THREE.MathUtils.clamp(
+        pitchRef.current - dy * MOUSE_SENS,
+        MIN_PITCH,
+        MAX_PITCH
+      );
+    };
+
+    const onMouseLeave = () => {
+      hasInitializedMouseRef.current = false;
+    };
+
+    const onPointerLockChange = () => {
+      hasInitializedMouseRef.current = false;
+    };
+
+    gl.domElement.addEventListener('click', handleCanvasClick);
+    window.addEventListener('mousemove',    onMouseMove);
+    window.addEventListener('mouseleave',   onMouseLeave);
+    document.addEventListener('pointerlockchange', onPointerLockChange);
+
+    return () => {
+      if (gl?.domElement) {
+        gl.domElement.removeEventListener('click', handleCanvasClick);
+      }
+      window.removeEventListener('mousemove',    onMouseMove);
+      window.removeEventListener('mouseleave',   onMouseLeave);
+      document.removeEventListener('pointerlockchange', onPointerLockChange);
+    };
+  }, [gl]);
 
   useFrame((state, delta) => {
     if (!playerPosRef.current) return;
-
     const camera = state.camera;
-    const playerPos = playerPosRef.current;
+    const pp     = playerPosRef.current;
 
-    // 1. Cinematic Opening Camera Path
-    if (isIntroPlayingRef.current) {
+    if (isIntroRef.current) {
+      // ── Cinematic opening sweep ──────────────────────────────
       introTimeRef.current += delta;
       const t = introTimeRef.current;
-
-      let camPos = new THREE.Vector3();
-      let lookTarget = new THREE.Vector3();
+      let camP  = new THREE.Vector3();
+      let lookT = new THREE.Vector3();
 
       if (t < 1.8) {
-        // Step 1: Sky & Snow Peaks
-        // Interpolate from [8, 16, 22] looking at [0, 15, -120] to [-6, 6.5, 9] looking at [-5, 2.2, -5] (Cabin)
-        const alpha = t / 1.8;
-        const ease = THREE.MathUtils.smoothstep(alpha, 0, 1);
-        
-        camPos.lerpVectors(new THREE.Vector3(8, 16, 22), new THREE.Vector3(-6, 6.5, 9), ease);
-        lookTarget.lerpVectors(new THREE.Vector3(0, 15, -120), new THREE.Vector3(-5, 2.2, -5), ease);
-      } 
-      else if (t < 3.6) {
-        // Step 2: Cozy Log Cabin
-        // Interpolate from cabin focus to campfire and traveller focus [3.5, 2.8, 3.5] looking at [0, 0.8, -2.5]
-        const alpha = (t - 1.8) / 1.8;
-        const ease = THREE.MathUtils.smoothstep(alpha, 0, 1);
-        
-        camPos.lerpVectors(new THREE.Vector3(-6, 6.5, 9), new THREE.Vector3(3.5, 2.8, 3.5), ease);
-        lookTarget.lerpVectors(new THREE.Vector3(-5, 2.2, -5), new THREE.Vector3(0, 0.8, -2.5), ease);
-      } 
-      else if (t < 5.2) {
-        // Step 3: Campfire & Start Gate Focus
-        // Interpolate from campfire to gate entrance focus [0, 2.5, 4.5] looking at [0, 1.2, -6.5]
-        const alpha = (t - 3.6) / 1.6;
-        const ease = THREE.MathUtils.smoothstep(alpha, 0, 1);
-        
-        camPos.lerpVectors(new THREE.Vector3(3.5, 2.8, 3.5), new THREE.Vector3(0, 2.4, 4.5), ease);
-        lookTarget.lerpVectors(new THREE.Vector3(0, 0.8, -2.5), new THREE.Vector3(0, 1.2, -6.5), ease);
-      } 
-      else if (t < 6.8) {
-        // Step 4: Blend to third person follow behind character
-        const alpha = (t - 5.2) / 1.6;
-        const ease = THREE.MathUtils.smoothstep(alpha, 0, 1);
-
-        const targetFollowPos = new THREE.Vector3(
-          playerPos.x,
-          playerPos.y + 4.2,
-          playerPos.z + 8.5
+        const e = THREE.MathUtils.smoothstep(t / 1.8, 0, 1);
+        camP.lerpVectors( new THREE.Vector3(8, 16, 22),   new THREE.Vector3(-6, 6.5, 9),  e);
+        lookT.lerpVectors(new THREE.Vector3(0, 15, -130), new THREE.Vector3(-5, 2.2, -5), e);
+      } else if (t < 3.6) {
+        const e = THREE.MathUtils.smoothstep((t - 1.8) / 1.8, 0, 1);
+        camP.lerpVectors( new THREE.Vector3(-6, 6.5, 9),  new THREE.Vector3(3.5, 2.8, 3.5), e);
+        lookT.lerpVectors(new THREE.Vector3(-5, 2.2, -5), new THREE.Vector3(0, 0.8, -2.5),  e);
+      } else if (t < 5.2) {
+        const e = THREE.MathUtils.smoothstep((t - 3.6) / 1.6, 0, 1);
+        camP.lerpVectors( new THREE.Vector3(3.5, 2.8, 3.5), new THREE.Vector3(0, 2.4, 4.5),  e);
+        lookT.lerpVectors(new THREE.Vector3(0, 0.8, -2.5), new THREE.Vector3(0, 1.2, -6.5), e);
+      } else if (t < 6.8) {
+        const e = THREE.MathUtils.smoothstep((t - 5.2) / 1.6, 0, 1);
+        const followPos = new THREE.Vector3(
+          pp.x + Math.sin(cameraYawRef.current) * CAMERA_DIST,
+          pp.y + CAMERA_HEIGHT,
+          pp.z + Math.cos(cameraYawRef.current) * CAMERA_DIST
         );
-        const targetLookAt = new THREE.Vector3(
-          playerPos.x,
-          playerPos.y + 1.2,
-          playerPos.z
-        );
-
-        camPos.lerpVectors(new THREE.Vector3(0, 2.4, 4.5), targetFollowPos, ease);
-        lookTarget.lerpVectors(new THREE.Vector3(0, 1.2, -6.5), targetLookAt, ease);
-      } 
-      else {
-        // Cinematic complete! Hand over control to gameplay camera
-        isIntroPlayingRef.current = false;
-        if (onIntroComplete) {
-          onIntroComplete();
-        }
+        camP.lerpVectors( new THREE.Vector3(0, 2.4, 4.5), followPos, e);
+        lookT.lerpVectors(new THREE.Vector3(0, 1.2, -6.5), new THREE.Vector3(pp.x, pp.y + 1.2, pp.z), e);
+      } else {
+        isIntroRef.current = false;
+        smoothYawRef.current = cameraYawRef.current;
+        smoothPitchRef.current = pitchRef.current;
+        if (onIntroComplete) onIntroComplete();
+        return;
       }
+      camera.position.copy(camP);
+      camera.lookAt(lookT);
 
-      // Apply coordinates computed during intro path
-      camera.position.copy(camPos);
-      camera.lookAt(lookTarget);
-    } 
-    // 2. Gameplay Third-Person Follow Camera with Mouse Parallax Sway
-    else {
-      const targetX = playerPos.x + mouse.current.x * 2.4;
-      const targetY = playerPos.y + 4.5 + mouse.current.y * 1.0;
-      const targetZ = playerPos.z + 8.5;
+    } else {
+      // ── Gameplay follow camera ────────────────────────────────
+      // Smoothly lerp camera angle targets for buttery mouse-look
+      smoothYawRef.current = THREE.MathUtils.lerp(smoothYawRef.current, cameraYawRef.current, 0.08);
+      smoothPitchRef.current = THREE.MathUtils.lerp(smoothPitchRef.current, pitchRef.current, 0.08);
 
-      camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetX, 0.08);
-      camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetY, 0.08);
-      camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetZ, 0.08);
+      const yaw   = smoothYawRef.current;
+      const pitch = smoothPitchRef.current;
 
-      const targetLookAt = new THREE.Vector3(
-        playerPos.x,
-        playerPos.y + 1.2,
-        playerPos.z
-      );
+      const tx = pp.x + Math.sin(yaw) * CAMERA_DIST;
+      const ty = pp.y + CAMERA_HEIGHT + Math.sin(pitch) * CAMERA_DIST * 0.55;
+      const tz = pp.z + Math.cos(yaw) * CAMERA_DIST;
 
-      // Smooth look-at calculation
-      const currentLookAt = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).add(camera.position);
-      const lerpedLookAt = new THREE.Vector3().lerpVectors(currentLookAt, targetLookAt, 0.12);
-      camera.lookAt(lerpedLookAt);
+      camPos.current.set(tx, ty, tz);
+      camera.position.lerp(camPos.current, 0.1);
+
+      lookPos.current.set(pp.x, pp.y + 1.25, pp.z);
+      camera.lookAt(lookPos.current);
     }
   });
 
