@@ -64,7 +64,17 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
     }
 
     const keys = getKeys();
-    const { forward, backward, left, right, jump, shift } = keys;
+    let { forward, backward, left, right, jump, shift } = keys;
+
+    if (window.mobileControls) {
+      if (window.mobileControls.forward) forward = true;
+      if (window.mobileControls.backward) backward = true;
+      if (window.mobileControls.left) left = true;
+      if (window.mobileControls.right) right = true;
+      if (window.mobileControls.jump) jump = true;
+      if (window.mobileControls.shift) shift = true;
+    }
+
     const velocity = rigidBodyRef.current.linvel();
     const position = rigidBodyRef.current.translation();
     if (onPositionChange) onPositionChange(position);

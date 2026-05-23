@@ -45,7 +45,28 @@ export default function App() {
   const [playerZ, setPlayerZ] = useState(0);
   const [respawnMsg, setRespawnMsg] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileSprint, setMobileSprint] = useState(false);
   const controlsTimerRef = useRef(null);
+
+  // Initialize mobileControls global and responsive check
+  useEffect(() => {
+    window.mobileControls = {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false,
+      jump: false,
+      shift: false
+    };
+
+    const checkMobile = () => {
+      setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 1024);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleToggleControls = () => {
     setControlsOpen(prev => {
@@ -387,7 +408,7 @@ export default function App() {
                 </h1>
 
                 {/* Role */}
-                <p className="landing-role">DevOps & Cloud Engineer</p>
+                <p className="landing-role">DevOps & Cloud Er.</p>
 
                 {/* Start button */}
                 <button className="landing-btn" onClick={handleStartJourney}>
@@ -538,7 +559,7 @@ export default function App() {
             </div>
             
             <div className="footer-center">
-              Kanishk Sandilya — DevOps & Cloud Eng.
+              Kanishk Sandilya — DevOps & Cloud Er.
             </div>
             
             {/* Right side with polished feedback/social utility icons + Resume */}
@@ -606,6 +627,71 @@ export default function App() {
               </a>
             </div>
           </footer>
+        )}
+
+        {/* Mobile Virtual Controls */}
+        {gameStarted && introCompleted && isMobile && (
+          <div className="mobile-controls-overlay">
+            {/* D-Pad on bottom-left */}
+            <div className="mobile-dpad">
+              <div />
+              <button
+                className="dpad-btn"
+                onTouchStart={() => { window.mobileControls.forward = true; }}
+                onTouchEnd={() => { window.mobileControls.forward = false; }}
+              >
+                ▲
+              </button>
+              <div />
+
+              <button
+                className="dpad-btn"
+                onTouchStart={() => { window.mobileControls.left = true; }}
+                onTouchEnd={() => { window.mobileControls.left = false; }}
+              >
+                ◀
+              </button>
+              <div />
+              <button
+                className="dpad-btn"
+                onTouchStart={() => { window.mobileControls.right = true; }}
+                onTouchEnd={() => { window.mobileControls.right = false; }}
+              >
+                ▶
+              </button>
+
+              <div />
+              <button
+                className="dpad-btn"
+                onTouchStart={() => { window.mobileControls.backward = true; }}
+                onTouchEnd={() => { window.mobileControls.backward = false; }}
+              >
+                ▼
+              </button>
+              <div />
+            </div>
+
+            {/* Jump & Sprint on bottom-right */}
+            <div className="mobile-actions">
+              <button
+                className={`action-btn ${mobileSprint ? 'sprint-active' : ''}`}
+                onTouchStart={() => {
+                  const nextSprint = !mobileSprint;
+                  setMobileSprint(nextSprint);
+                  window.mobileControls.shift = nextSprint;
+                }}
+              >
+                RUN
+              </button>
+              <button
+                className="action-btn"
+                onTouchStart={() => { window.mobileControls.jump = true; }}
+                onTouchEnd={() => { window.mobileControls.jump = false; }}
+              >
+                JUMP
+              </button>
+            </div>
+          </div>
         )}
 
       </div>

@@ -2,7 +2,7 @@
 // Environment.jsx — Low-Poly Mountain Trek (reference-matched)
 // Mountain CONE shapes, flat walkable trail segments, stars/birds
 // ================================================================
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
@@ -513,10 +513,94 @@ function ForestDecorations() {
     return arr;
   }, []);
 
+  const trunkRef = useRef();
+  const cone1Ref = useRef();
+  const cone2Ref = useRef();
+  const cone3Ref = useRef();
+  const boulderRef = useRef();
+
+  useEffect(() => {
+    if (!trunkRef.current || !cone1Ref.current || !cone2Ref.current || !cone3Ref.current || !boulderRef.current) return;
+
+    const tempObj = new THREE.Object3D();
+
+    // Populate trees
+    trees.forEach((t, i) => {
+      // Trunk: Cyl pos={[0, 0.55*s, 0]} args={[0.1*s, 0.14*s, 1.1*s, 6]}
+      tempObj.position.set(t.x, t.y + 0.55 * t.scale, t.z);
+      tempObj.rotation.set(0, (i * 0.5) % (Math.PI * 2), 0);
+      tempObj.scale.set(t.scale, t.scale, t.scale);
+      tempObj.updateMatrix();
+      trunkRef.current.setMatrixAt(i, tempObj.matrix);
+
+      // Cone 1: pos={[0, 1.4*s, 0]}
+      tempObj.position.set(t.x, t.y + 1.4 * t.scale, t.z);
+      tempObj.updateMatrix();
+      cone1Ref.current.setMatrixAt(i, tempObj.matrix);
+
+      // Cone 2: pos={[0, 2.1*s, 0]}
+      tempObj.position.set(t.x, t.y + 2.1 * t.scale, t.z);
+      tempObj.updateMatrix();
+      cone2Ref.current.setMatrixAt(i, tempObj.matrix);
+
+      // Cone 3: pos={[0, 2.7*s, 0]}
+      tempObj.position.set(t.x, t.y + 2.7 * t.scale, t.z);
+      tempObj.updateMatrix();
+      cone3Ref.current.setMatrixAt(i, tempObj.matrix);
+    });
+
+    trunkRef.current.instanceMatrix.needsUpdate = true;
+    cone1Ref.current.instanceMatrix.needsUpdate = true;
+    cone2Ref.current.instanceMatrix.needsUpdate = true;
+    cone3Ref.current.instanceMatrix.needsUpdate = true;
+
+    // Populate boulders
+    const tempColor = new THREE.Color();
+    boulders.forEach((b, i) => {
+      tempObj.position.set(b.x, b.y, b.z);
+      tempObj.rotation.set((i * 0.23) % 0.6, (i * 0.77) % 2, (i * 0.15) % 0.4);
+      tempObj.scale.set(b.scale, b.scale, b.scale);
+      tempObj.updateMatrix();
+      boulderRef.current.setMatrixAt(i, tempObj.matrix);
+
+      tempColor.set(b.color);
+      boulderRef.current.setColorAt(i, tempColor);
+    });
+
+    boulderRef.current.instanceMatrix.needsUpdate = true;
+  }, [trees, boulders]);
+
   return (
     <group>
-      {trees.map((t, i)   => <PineTree key={i}  position={[t.x, t.y, t.z]} scale={t.scale} />)}
-      {boulders.map((b,i) => <Boulder  key={i}  position={[b.x, b.y, b.z]} scale={b.scale} color={b.color} />)}
+      {/* Pine Trunks */}
+      <instancedMesh ref={trunkRef} args={[null, null, trees.length]} castShadow>
+        <cylinderGeometry args={[0.1, 0.14, 1.1, 6]} />
+        <meshStandardMaterial color="#5c3d1e" roughness={0.95} flatShading />
+      </instancedMesh>
+
+      {/* Pine Cone 1 */}
+      <instancedMesh ref={cone1Ref} args={[null, null, trees.length]} castShadow>
+        <coneGeometry args={[0.72, 1.5, 7]} />
+        <meshStandardMaterial color="#2d6a4f" roughness={0.85} flatShading />
+      </instancedMesh>
+
+      {/* Pine Cone 2 */}
+      <instancedMesh ref={cone2Ref} args={[null, null, trees.length]} castShadow>
+        <coneGeometry args={[0.5, 1.1, 7]} />
+        <meshStandardMaterial color="#1b4332" roughness={0.88} flatShading />
+      </instancedMesh>
+
+      {/* Pine Cone 3 */}
+      <instancedMesh ref={cone3Ref} args={[null, null, trees.length]} castShadow>
+        <coneGeometry args={[0.3, 0.8, 6]} />
+        <meshStandardMaterial color="#166534" roughness={0.9} flatShading />
+      </instancedMesh>
+
+      {/* Boulders */}
+      <instancedMesh ref={boulderRef} args={[null, null, boulders.length]} castShadow receiveShadow>
+        <dodecahedronGeometry args={[0.5, 0]} />
+        <meshStandardMaterial roughness={0.95} flatShading />
+      </instancedMesh>
     </group>
   );
 }

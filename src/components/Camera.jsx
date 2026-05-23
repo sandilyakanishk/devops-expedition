@@ -28,13 +28,15 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
     }
   }, [onIntroComplete]);
   
-  // Mouse tracking state (no click-drag required)
+  // Mouse & Touch tracking state (no click-drag required for mouse)
   const lastMouseRef  = useRef({ x: 0, y: 0 });
   const hasInitializedMouseRef = useRef(false);
+  const lastTouchRef = useRef({ x: 0, y: 0 });
+  const hasInitializedTouchRef = useRef(false);
   const smoothYawRef  = useRef(0);
   const smoothPitchRef = useRef(0.28);
 
-  // ── Mouse listeners — movement-only rotation + optional pointer lock ──
+  // ── Mouse and Touch listeners ──
   useEffect(() => {
     const handleCanvasClick = () => {
       if (!isIntroRef.current) {
@@ -70,6 +72,35 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
       );
     };
 
+    const onTouchStart = (e) => {
+      if (e.touches.length === 1) {
+        lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        hasInitializedTouchRef.current = true;
+      }
+    };
+
+    const onTouchMove = (e) => {
+      if (isIntroRef.current) return;
+      if (e.touches.length === 1 && hasInitializedTouchRef.current) {
+        const dx = e.touches[0].clientX - lastTouchRef.current.x;
+        const dy = e.touches[0].clientY - lastTouchRef.current.y;
+        
+        lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+
+        const TOUCH_SENS = 0.004; // smooth swipe rotation
+        cameraYawRef.current += dx * TOUCH_SENS;
+        pitchRef.current = THREE.MathUtils.clamp(
+          pitchRef.current - dy * TOUCH_SENS,
+          MIN_PITCH,
+          MAX_PITCH
+        );
+      }
+    };
+
+    const onTouchEnd = () => {
+      hasInitializedTouchRef.current = false;
+    };
+
     const onMouseLeave = () => {
       hasInitializedMouseRef.current = false;
     };
@@ -83,9 +114,16 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
     window.addEventListener('mouseleave',   onMouseLeave);
     document.addEventListener('pointerlockchange', onPointerLockChange);
 
+    gl.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
+    gl.domElement.addEventListener('touchmove',  onTouchMove,  { passive: true });
+    gl.domElement.addEventListener('touchend',   onTouchEnd,   { passive: true });
+
     return () => {
       if (gl?.domElement) {
         gl.domElement.removeEventListener('click', handleCanvasClick);
+        gl.domElement.removeEventListener('touchstart', onTouchStart);
+        gl.domElement.removeEventListener('touchmove',  onTouchMove);
+        gl.domElement.removeEventListener('touchend',   onTouchEnd);
       }
       window.removeEventListener('mousemove',    onMouseMove);
       window.removeEventListener('mouseleave',   onMouseLeave);
