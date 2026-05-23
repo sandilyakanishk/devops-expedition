@@ -77,6 +77,7 @@ function ProceduralCharacter({ onPositionChange, teleportTarget, clearTeleport }
     // Jump logic (rigid body vertical force)
     if (jump && Math.abs(velocity.y) < 0.1) {
       rigidBodyRef.current.setLinvel({ x: velocity.x, y: JUMP_FORCE, z: velocity.z }, true);
+      audioSystem.playJump();
     }
 
     // Walking footsteps sound generator (triggers procedural rustling steps)

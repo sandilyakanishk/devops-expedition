@@ -569,3 +569,117 @@ body, html, #root {
   transform: scale(1.06) translateY(-2px);
   box-shadow: 0 8px 18px rgba(249, 115, 22, 0.55);
 }
+
+/* ================================================
+   GAME INSTRUCTIONS BOX — translucent, above footer
+   ================================================ */
+.game-instructions-box {
+  position: absolute;
+  bottom: 80px;           /* sits above the footer github area */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(5, 10, 18, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 12px 22px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 110;
+  pointer-events: none;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+  animation: giFloat 3s ease-in-out infinite;
+}
+
+@keyframes giFloat {
+  0%, 100% { transform: translateX(-50%) translateY(0px); }
+  50% { transform: translateX(-50%) translateY(-4px); }
+}
+
+.gi-title {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: rgba(251, 191, 36, 0.9);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.gi-grid {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.gi-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.gi-keys {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.gi-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}
+
+.gi-key-wide {
+  min-width: 46px;
+  font-size: 0.62rem;
+}
+
+.gi-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.85);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Scroll Helper — centered bottom */
+.scroll-helper-hud {
+  position: absolute;
+  bottom: 130px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(5, 10, 18, 0.45);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50px;
+  padding: 5px 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.7);
+  letter-spacing: 0.5px;
+  z-index: 110;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.scroll-mouse-icon { font-size: 0.85rem; }

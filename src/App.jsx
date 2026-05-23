@@ -326,38 +326,38 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Bottom Left WASD controls tips */}
-              <div className="controls-hud-cozy">
-                <div className="control-row">
-                  <span>Move</span>
-                  <span>
-                    <span className="control-key">W</span>
-                    <span className="control-key">A</span>
-                    <span className="control-key">S</span>
-                    <span className="control-key">D</span>
-                  </span>
-                </div>
-                <div className="control-row">
-                  <span>Sprint</span>
-                  <span><span className="control-key">Shift</span></span>
-                </div>
-                <div className="control-row">
-                  <span>Jump</span>
-                  <span><span className="control-key">Space</span></span>
-                </div>
-              </div>
-
               {/* Bottom Center mouse look tips */}
               <div className="scroll-helper-hud">
                 <span className="scroll-mouse-icon">🖱️</span>
                 <span>Move Mouse to Look Around</span>
               </div>
 
-              {/* Bottom Right sign board */}
-              <div className="hud-signpost-board">
-                <span className="hud-signpost-text">
-                  "Every step leads to a new chapter."
-                </span>
+              {/* Translucent Game Instructions Box — above footer/GitHub icon */}
+              <div className="game-instructions-box">
+                <div className="gi-title">🎮 Controls</div>
+                <div className="gi-grid">
+                  <div className="gi-item">
+                    <div className="gi-keys">
+                      <span className="gi-key">W</span>
+                      <span className="gi-key">A</span>
+                      <span className="gi-key">S</span>
+                      <span className="gi-key">D</span>
+                    </div>
+                    <span className="gi-label">Move</span>
+                  </div>
+                  <div className="gi-item">
+                    <div className="gi-keys"><span className="gi-key gi-key-wide">Shift</span></div>
+                    <span className="gi-label">Sprint</span>
+                  </div>
+                  <div className="gi-item">
+                    <div className="gi-keys"><span className="gi-key gi-key-wide">Space</span></div>
+                    <span className="gi-label">Jump</span>
+                  </div>
+                  <div className="gi-item">
+                    <div className="gi-keys"><span className="gi-key">🖱️</span></div>
+                    <span className="gi-label">Look</span>
+                  </div>
+                </div>
               </div>
             </>
           )}
