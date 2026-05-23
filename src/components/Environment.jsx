@@ -209,21 +209,23 @@ function ProceduralCampfire({ position }) {
     if (sparksRef.current) {
       sparksRef.current.children.forEach((spark, idx) => {
         const data = sparksData[idx];
-        data.life += delta * data.speedY * 0.65;
-        if (data.life > 1.0) {
-          data.life = 0;
-          data.x = -0.15 + Math.random() * 0.3;
-          data.y = 0.05;
-          data.z = -0.15 + Math.random() * 0.3;
-        }
+        if (data) {
+          data.life += delta * data.speedY * 0.65;
+          if (data.life > 1.0) {
+            data.life = 0;
+            data.x = -0.15 + Math.random() * 0.3;
+            data.y = 0.05;
+            data.z = -0.15 + Math.random() * 0.3;
+          }
 
-        spark.position.y = 0.08 + data.life * 1.5;
-        spark.position.x = data.x + Math.sin(data.life * 5) * 0.07 + data.life * data.speedX * 0.25;
-        spark.position.z = data.z + Math.cos(data.life * 5) * 0.07 + data.life * data.speedZ * 0.25;
-        
-        const alpha = 1 - data.life;
-        spark.scale.setScalar(data.scale * Math.sin(alpha * Math.PI));
-        spark.material.opacity = alpha;
+          spark.position.y = 0.08 + data.life * 1.5;
+          spark.position.x = data.x + Math.sin(data.life * 5) * 0.07 + data.life * data.speedX * 0.25;
+          spark.position.z = data.z + Math.cos(data.life * 5) * 0.07 + data.life * data.speedZ * 0.25;
+          
+          const alpha = 1 - data.life;
+          spark.scale.setScalar(data.scale * Math.sin(alpha * Math.PI));
+          if (spark.material) spark.material.opacity = alpha;
+        }
       });
     }
   });
@@ -334,8 +336,10 @@ function SkyClouds() {
     if (!cloudsRef.current) return;
     cloudsRef.current.children.forEach((cloudGroup, idx) => {
       const data = cloudsData[idx];
-      cloudGroup.position.x += delta * data.speed;
-      if (cloudGroup.position.x > 45) cloudGroup.position.x = -45;
+      if (data) {
+        cloudGroup.position.x += delta * data.speed;
+        if (cloudGroup.position.x > 45) cloudGroup.position.x = -45;
+      }
     });
   });
 
@@ -371,12 +375,14 @@ function ChimneySmoke({ position }) {
     const time = state.clock.getElapsedTime();
     groupRef.current.children.forEach((puff, idx) => {
       const config = smokePuffs[idx];
-      const lifeTime = (time + config.delay) % 4.2;
-      puff.position.y = lifeTime * config.speedY;
-      puff.position.x = Math.sin(lifeTime * 1.8) * 0.08 + lifeTime * config.speedX;
-      const progress = lifeTime / 4.2;
-      puff.scale.setScalar(config.scaleMax * Math.sin(progress * Math.PI));
-      puff.material.opacity = (1 - progress) * 0.55;
+      if (config) {
+        const lifeTime = (time + config.delay) % 4.2;
+        puff.position.y = lifeTime * config.speedY;
+        puff.position.x = Math.sin(lifeTime * 1.8) * 0.08 + lifeTime * config.speedX;
+        const progress = lifeTime / 4.2;
+        puff.scale.setScalar(config.scaleMax * Math.sin(progress * Math.PI));
+        if (puff.material) puff.material.opacity = (1 - progress) * 0.55;
+      }
     });
   });
 
@@ -681,6 +687,15 @@ function WoodenPost({ position }) {
     <mesh position={position} castShadow>
       <cylinderGeometry args={[0.06, 0.07, 1.0, 5]} />
       <meshStandardMaterial color="#5c3818" roughness={0.9} flatShading />
+    </mesh>
+  );
+}
+
+function ProceduralRock({ position, scale = [1, 1, 1], rotation = [0, 0, 0] }) {
+  return (
+    <mesh position={position} scale={scale} rotation={rotation} castShadow receiveShadow>
+      <dodecahedronGeometry args={[0.6]} />
+      <meshStandardMaterial color="#6b7280" roughness={0.8} flatShading />
     </mesh>
   );
 }

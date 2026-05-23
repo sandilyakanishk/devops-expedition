@@ -233,8 +233,12 @@ export default function App() {
           <Canvas
             shadows
             camera={{ position: [8, 16, 22], fov: 50 }}
-            gl={{ alpha: true, antialias: true }}
+            gl={{ antialias: true }}
           >
+            {/* Direct WebGL sky backdrop and cozy fog integration */}
+            <color attach="background" args={["#bae6fd"]} />
+            <fog attach="fog" args={["#bae6fd", 40, 160]} />
+
             <Suspense fallback={null}>
               <Physics gravity={[0, -14, 0]}>
                 {/* Playable Character (WASD Controls) */}
