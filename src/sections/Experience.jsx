@@ -1,19 +1,22 @@
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import { Network, Home, Building2 } from 'lucide-react';
+import { Building2 } from 'lucide-react';
+
+const MARQUEE_TEXT = 'WORK EXPERIENCE \u00a0\u2022\u00a0 DEVOPS JOURNEY \u00a0\u2022\u00a0 CORBUS \u00a0\u2022\u00a0 AGILE & CLOUD \u00a0\u2022\u00a0 ';
 
 export default function Experience({ active }) {
   const containerRef = useRef();
 
   useEffect(() => {
+    if (!containerRef.current) return;
     if (active) {
       gsap.fromTo(containerRef.current,
-        { opacity: 0, y: 50, scale: 0.95 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: 'power3.out' }
+        { opacity: 0, x: -60 },
+        { opacity: 1, x: 0, duration: 0.7, ease: 'power3.out' }
       );
     } else {
       gsap.to(containerRef.current,
-        { opacity: 0, y: -30, scale: 0.95, duration: 0.4, ease: 'power3.in' }
+        { opacity: 0, x: -40, duration: 0.4, ease: 'power3.in' }
       );
     }
   }, [active]);
@@ -22,39 +25,46 @@ export default function Experience({ active }) {
 
   return (
     <div ref={containerRef} className="checkpoint-overlay">
-      <div className="section-card experience-card">
-        <div className="card-header">
-          <div className="icon-badge">
-            <Building2 className="glow-icon" size={24} />
-          </div>
-          <span className="checkpoint-num">Checkpoint 4</span>
+      <div className="section-card">
+
+        <div className="cp-checkpoint-badge">
+          <Building2 size={11} /> Checkpoint 04
         </div>
-        
-        <h1 className="explorer-title">Work Experience</h1>
-        <h2 className="explorer-subtitle">Navigating the professional corporate landscape</h2>
-        
-        <div className="card-divider" />
-        
-        <div className="card-body" style={{ maxHeight: '350px', overflowY: 'auto', paddingRight: '8px' }}>
-          <div className="experience-item">
-            <div className="exp-header">
-              <h3>Graduate Trainee, DevOps Team</h3>
-              <span className="exp-duration">Jan 2025 – July 2025</span>
-            </div>
-            <p className="company-info">Corbus | Manager: Anas Ahmed (+91 91697 03373)</p>
-            <ul className="exp-details">
-              <li>Collaborated to build & maintain automated CI/CD pipelines using Jenkins and GitHub Actions, streamlining engineering workflows.</li>
-              <li>Assisted in provisioning scalable, secure cloud infrastructure on AWS using Terraform and CloudFormation IaC.</li>
-              <li>Contributed to containerization efforts by writing Dockerfiles and managing deployments in a Kubernetes environment.</li>
-              <li>Setup telemetry and active monitoring with Prometheus and Grafana for metrics visualization and alerting configs.</li>
-              <li>Participated in daily Agile stand-ups, sprint planning, and reviews, learning enterprise cloud architectures.</li>
-            </ul>
+
+        <div className="cp-label">What I Did</div>
+
+        <h1 className="cp-mega-title">
+          Work<br />Experience
+        </h1>
+
+        <p className="cp-subtitle">Navigating the professional corporate landscape</p>
+
+        <div className="cp-divider" />
+
+        <div className="cp-body">
+          <div style={{ marginBottom: 6 }}>
+            <div className="cp-section-heading">Graduate Trainee, DevOps</div>
+            <p style={{ fontSize: '0.78rem', color: 'rgba(255,183,3,0.8)', letterSpacing: 2, fontFamily: "'Bebas Neue', sans-serif", marginBottom: 10 }}>
+              CORBUS &nbsp;|&nbsp; JAN 2025 – JULY 2025
+            </p>
+          </div>
+
+          <ul className="cp-exp-list">
+            <li>Built & maintained automated CI/CD pipelines using Jenkins and GitHub Actions, streamlining engineering workflows.</li>
+            <li>Provisioned scalable, secure cloud infrastructure on AWS using Terraform and CloudFormation IaC.</li>
+            <li>Containerized deployments by writing Dockerfiles and managing Kubernetes environments.</li>
+            <li>Setup telemetry and active monitoring with Prometheus and Grafana for metrics visualization and alerting.</li>
+            <li>Participated in daily Agile stand-ups, sprint planning, and enterprise cloud architecture reviews.</li>
+          </ul>
+        </div>
+
+        <div className="cp-footer">
+          <div className="cp-footer-track">
+            <span>{MARQUEE_TEXT}</span>
+            <span>{MARQUEE_TEXT}</span>
           </div>
         </div>
 
-        <div className="card-footer">
-          <span className="pulse-text">Climb up the snowy slope ahead...</span>
-        </div>
       </div>
     </div>
   );

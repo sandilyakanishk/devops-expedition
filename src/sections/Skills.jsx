@@ -1,19 +1,64 @@
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import { Cpu, Cloud, Terminal, Users, Shield } from 'lucide-react';
+import { Cpu } from 'lucide-react';
+
+const MARQUEE_TEXT = 'TECHNICAL ARSENAL \u00a0\u2022\u00a0 DEVOPS & CLOUD \u00a0\u2022\u00a0 SCRIPTING & LINUX \u00a0\u2022\u00a0 GITOPS & IaC \u00a0\u2022\u00a0 ';
+
+const skillGroups = [
+  {
+    title: 'DevOps & Cloud',
+    skills: [
+      { name: 'Kubernetes', level: 'advanced' },
+      { name: 'Docker', level: 'advanced' },
+      { name: 'AWS', level: '' },
+      { name: 'Jenkins / GH Actions', level: 'advanced' },
+      { name: 'Ansible', level: '' },
+      { name: 'Prometheus / Grafana', level: 'advanced' },
+    ],
+  },
+  {
+    title: 'Infrastructure & GitOps',
+    skills: [
+      { name: 'Terraform (IaC)', level: 'advanced' },
+      { name: 'CloudFormation', level: '' },
+      { name: 'GitOps (ArgoCD)', level: '' },
+      { name: 'CI/CD Design', level: 'advanced' },
+      { name: 'Telemetry (OTel)', level: '' },
+    ],
+  },
+  {
+    title: 'Scripting & Linux',
+    skills: [
+      { name: 'Python Automation', level: 'advanced' },
+      { name: 'Bash & Shell', level: 'advanced' },
+      { name: 'Linux CLI', level: 'expert' },
+      { name: 'YAML / Configs', level: 'expert' },
+    ],
+  },
+  {
+    title: 'Soft Skills',
+    skills: [
+      { name: 'Agile Collaboration', level: 'expert' },
+      { name: 'Team Management', level: 'advanced' },
+      { name: 'Client Communication', level: 'advanced' },
+      { name: 'Technical Docs', level: 'expert' },
+    ],
+  },
+];
 
 export default function Skills({ active }) {
   const containerRef = useRef();
 
   useEffect(() => {
+    if (!containerRef.current) return;
     if (active) {
       gsap.fromTo(containerRef.current,
-        { opacity: 0, y: 50, scale: 0.95 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: 'power3.out' }
+        { opacity: 0, x: -60 },
+        { opacity: 1, x: 0, duration: 0.7, ease: 'power3.out' }
       );
     } else {
       gsap.to(containerRef.current,
-        { opacity: 0, y: -30, scale: 0.95, duration: 0.4, ease: 'power3.in' }
+        { opacity: 0, x: -40, duration: 0.4, ease: 'power3.in' }
       );
     }
   }, [active]);
@@ -22,75 +67,42 @@ export default function Skills({ active }) {
 
   return (
     <div ref={containerRef} className="checkpoint-overlay">
-      <div className="section-card skills-card wide-card">
-        <div className="card-header">
-          <div className="icon-badge">
-            <Cpu className="glow-icon" size={24} />
-          </div>
-          <span className="checkpoint-num">Checkpoint 5</span>
+      <div className="section-card">
+
+        <div className="cp-checkpoint-badge">
+          <Cpu size={11} /> Checkpoint 05
         </div>
-        
-        <h1 className="explorer-title">Technical Arsenal</h1>
-        <h2 className="explorer-subtitle">Equipped with tools for cloud orchestration and continuous delivery</h2>
-        
-        <div className="card-divider" />
-        
-        <div className="skills-container" style={{ maxHeight: '350px', overflowY: 'auto', paddingRight: '8px' }}>
-          <div className="skill-category">
-            <div className="cat-title">
-              <Cpu className="cat-icon" size={16} /> DevOps & Cloud
-            </div>
-            <div className="skill-list">
-              <div className="skill-badge"><span className="skill-name">Kubernetes</span><span className="skill-lvl">Advanced</span></div>
-              <div className="skill-badge"><span className="skill-name">Docker</span><span className="skill-lvl">Advanced</span></div>
-              <div className="skill-badge"><span className="skill-name">AWS</span><span className="skill-lvl">Intermediate</span></div>
-              <div className="skill-badge"><span className="skill-name">Jenkins / GH Actions</span><span className="skill-lvl">Advanced</span></div>
-              <div className="skill-badge"><span className="skill-name">Ansible</span><span className="skill-lvl">Intermediate</span></div>
-              <div className="skill-badge"><span className="skill-name">Prometheus / Grafana</span><span className="skill-lvl">Advanced</span></div>
-            </div>
-          </div>
 
-          <div className="skill-category">
-            <div className="cat-title">
-              <Cloud className="cat-icon" size={16} /> Infrastructure & GitOps
-            </div>
-            <div className="skill-list">
-              <div className="skill-badge"><span className="skill-name">Terraform (IaC)</span><span className="skill-lvl">Advanced</span></div>
-              <div className="skill-badge"><span className="skill-name">CloudFormation</span><span className="skill-lvl">Intermediate</span></div>
-              <div className="skill-badge"><span className="skill-name">GitOps (ArgoCD)</span><span className="skill-lvl">Intermediate</span></div>
-              <div className="skill-badge"><span className="skill-name">CI/CD Design</span><span className="skill-lvl">Advanced</span></div>
-              <div className="skill-badge"><span className="skill-name">Telemetry (OTel)</span><span className="skill-lvl">Intermediate</span></div>
-            </div>
-          </div>
+        <div className="cp-label">What I Know</div>
 
-          <div className="skill-category">
-            <div className="cat-title">
-              <Terminal className="cat-icon" size={16} /> Scripting & Linux
-            </div>
-            <div className="skill-list">
-              <div className="skill-badge"><span className="skill-name">Python Automation</span><span className="skill-lvl">Advanced</span></div>
-              <div className="skill-badge"><span className="skill-name">Bash & Shell Scripting</span><span className="skill-lvl">Advanced</span></div>
-              <div className="skill-badge"><span className="skill-name">Linux Command Line</span><span className="skill-lvl">Expert</span></div>
-              <div className="skill-badge"><span className="skill-name">YAML / Configs</span><span className="skill-lvl">Expert</span></div>
-            </div>
-          </div>
+        <h1 className="cp-mega-title">
+          Technical<br />Arsenal
+        </h1>
 
-          <div className="skill-category">
-            <div className="cat-title">
-              <Users className="cat-icon" size={16} /> Collaboration & Soft Skills
+        <p className="cp-subtitle">Equipped for cloud orchestration & continuous delivery</p>
+
+        <div className="cp-divider" />
+
+        <div className="cp-body">
+          {skillGroups.map((grp) => (
+            <div className="cp-skill-group" key={grp.title}>
+              <div className="cp-skill-group-title">{grp.title}</div>
+              <div className="cp-skill-badges">
+                {grp.skills.map(s => (
+                  <span key={s.name} className={`cp-skill-badge ${s.level}`}>{s.name}</span>
+                ))}
+              </div>
             </div>
-            <div className="skill-list">
-              <div className="skill-badge"><span className="skill-name">Agile Collaboration</span><span className="skill-lvl">Expert</span></div>
-              <div className="skill-badge"><span className="skill-name">Team Building & Mgmt</span><span className="skill-lvl">Advanced</span></div>
-              <div className="skill-badge"><span className="skill-name">Client Communication</span><span className="skill-lvl">Advanced</span></div>
-              <div className="skill-badge"><span className="skill-name">Technical Docs</span><span className="skill-lvl">Expert</span></div>
-            </div>
+          ))}
+        </div>
+
+        <div className="cp-footer">
+          <div className="cp-footer-track">
+            <span>{MARQUEE_TEXT}</span>
+            <span>{MARQUEE_TEXT}</span>
           </div>
         </div>
- 
-        <div className="card-footer">
-          <span className="pulse-text">Almost there! Hike up to the ultimate mountain summit...</span>
-        </div>
+
       </div>
     </div>
   );

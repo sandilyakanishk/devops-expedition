@@ -45,9 +45,27 @@ export default function App() {
   
   // High performance player position tracker
   const playerPosRef = useRef(new THREE.Vector3(0, 1.2, 0));
+  const fallTimerRef  = useRef(null);
+  const lastSafePos  = useRef([0, 2.0, 0]);
 
   const handlePositionChange = (position) => {
     playerPosRef.current.set(position.x, position.y, position.z);
+
+    // Track last safe position above ground
+    if (position.y > 0) {
+      lastSafePos.current = [position.x, position.y + 2, position.z];
+    }
+
+    // Fall detection — below Y=-8 triggers 2s respawn timer
+    if (position.y < -8 && !fallTimerRef.current) {
+      fallTimerRef.current = setTimeout(() => {
+        setTeleportTarget(new THREE.Vector3(...lastSafePos.current));
+        fallTimerRef.current = null;
+      }, 2000);
+    } else if (position.y >= -8 && fallTimerRef.current) {
+      clearTimeout(fallTimerRef.current);
+      fallTimerRef.current = null;
+    }
   };
 
   const handleCheckpointEnter = (id) => {
@@ -185,44 +203,27 @@ export default function App() {
         )}
 
         {/* ==================================================
-           2. COZY ANIMATED ADVENTURE LOADING SCREEN
+           2. MINIMALIST LOADING SCREEN
            ================================================== */}
         {!dismissLoader && (
-          <div className="adventure-loading-screen" style={{ opacity: (simulatedProgress === 100) ? 0 : 1 }}>
-            {/* Moving Fluffy Cartoon Clouds */}
-            <div className="loading-cloud cloud-1">☁️</div>
-            <div className="loading-cloud cloud-2">☁️</div>
-            <div className="loading-cloud cloud-3">☁️</div>
+          <div className="min-loading-screen" style={{ opacity: simulatedProgress === 100 ? 0 : 1 }}>
 
-            {/* Flying Birds */}
-            <div className="loading-bird bird-1">🦅</div>
-            <div className="loading-bird bird-2">🦅</div>
-
-            {/* Falling Leaves */}
-            <div className="loading-leaf leaf-1">🍃</div>
-            <div className="loading-leaf leaf-2">🍁</div>
-            <div className="loading-leaf leaf-3">🍃</div>
-            
-            {/* Spark particles */}
-            <div className="loading-spark spark-1">✨</div>
-            <div className="loading-spark spark-2">✨</div>
-
-            {/* Mountain silhouette at bottom */}
-            <div className="loading-mountain-silhouette" />
-
-            {/* Centered Typography & Progress Path */}
-            <div className="loading-center-content">
-              <h1 className="loading-title">TREKKING THROUGH MY JOURNEY</h1>
-              
-              <div className="loading-trail-progress">
-                <div className="loading-trail-bar" style={{ width: `${simulatedProgress}%` }} />
-                <span className="loading-trail-runner" style={{ left: `${simulatedProgress}%` }}>🏃</span>
+            {/* Giant scrolling marquee text */}
+            <div className="min-loading-marquee-wrap">
+              <div className="min-loading-marquee">
+                <span>DEVOPS ENGINEER&nbsp;&nbsp;•&nbsp;&nbsp;CLOUD PRACTITIONER&nbsp;&nbsp;•&nbsp;&nbsp;KANISHK SANDILYA&nbsp;&nbsp;•&nbsp;&nbsp;AWS&nbsp;&nbsp;•&nbsp;&nbsp;KUBERNETES&nbsp;&nbsp;•&nbsp;&nbsp;CI/CD&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+                <span>DEVOPS ENGINEER&nbsp;&nbsp;•&nbsp;&nbsp;CLOUD PRACTITIONER&nbsp;&nbsp;•&nbsp;&nbsp;KANISHK SANDILYA&nbsp;&nbsp;•&nbsp;&nbsp;AWS&nbsp;&nbsp;•&nbsp;&nbsp;KUBERNETES&nbsp;&nbsp;•&nbsp;&nbsp;CI/CD&nbsp;&nbsp;•&nbsp;&nbsp;</span>
               </div>
-              
-              <p className="loading-subtitle">
-                Loading Adventure... {simulatedProgress}%
-              </p>
             </div>
+
+            {/* Small dark pill loader */}
+            <div className="min-loading-pill">
+              <div className="min-loading-pill-bar" style={{ width: `${simulatedProgress}%` }} />
+              <span className="min-loading-pill-text">
+                LOADING&nbsp;&nbsp;{simulatedProgress}%
+              </span>
+            </div>
+
           </div>
         )}
 
@@ -273,92 +274,58 @@ export default function App() {
            ================================================== */}
         <div className="ui-layer">
           
-          {/* Landing / Welcome screen */}
+          {/* Landing / Welcome screen — minimalist */}
           {dismissLoader && !gameStarted && (
-            <div className="landing-banner">
-              <h1>KANISHK SANDILYA</h1>
-              <p style={{ color: 'var(--accent-gold)', fontWeight: '700', fontSize: '0.95rem', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                DevOps & Cloud Engineer
-              </p>
-              <p>
-                Embark on an interactive 3D trekking journey to explore my automated CI/CD pipelines, AWS cloud infrastructure, technical skillsets, and creative projects!
-              </p>
-              <button className="start-btn" onClick={handleStartJourney}>
-                Start Journey
-              </button>
+            <div className="landing-screen">
+              <div className="landing-content">
+                {/* Small tag */}
+                <div className="landing-tag">PORTFOLIO · 2025</div>
+
+                {/* Big name */}
+                <h1 className="landing-name">
+                  KANISHK<br />SANDILYA
+                </h1>
+
+                {/* Role */}
+                <p className="landing-role">DevOps & Cloud Engineer</p>
+
+                {/* Start button */}
+                <button className="landing-btn" onClick={handleStartJourney}>
+                  <span>Start Journey</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12,5 19,12 12,19"/></svg>
+                </button>
+              </div>
             </div>
           )}
 
           {/* Game HUD Panel (visible after cinematic intro completes) */}
           {gameStarted && introCompleted && (
             <>
-              {/* Profile Card */}
-              <div className="profile-hud">
-                <div className="profile-avatar-container">
-                  <span style={{ fontSize: '18px' }}>🏕️</span>
-                </div>
-                <div className="profile-details">
-                  <span className="profile-greeting">Hello, I'm</span>
-                  <span className="profile-name">KANISHK</span>
-                  <span className="profile-role">Developer | AI Enthusiast | Explorer</span>
-                </div>
-              </div>
-
-              {/* Volume Button */}
+              {/* Volume + Mute — top right */}
               <div className="top-right-hud">
-                <button className="hud-btn" onClick={handleToggleMute} title="Toggle Mute">
-                  {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                <button className="hud-mute-btn" onClick={handleToggleMute} title="Toggle Mute">
+                  {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                 </button>
               </div>
 
-              {/* Left Wooden Board Menu */}
-              <div className="adventure-menu-board">
-                <div className="board-header">Your Adventure</div>
-                {menuCheckpoints.map((cp) => (
-                  <button
-                    key={cp.id}
-                    className={`adventure-item-btn ${activeCheckpoint === cp.id ? 'active-checkpoint-btn' : ''} ${visitedCheckpoints.includes(cp.id) ? 'visited-checkpoint-btn' : ''}`}
-                    onClick={() => handleTeleport(cp.pos)}
-                  >
-                    <span className="btn-indicator" />
-                    <span>{cp.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Bottom Center mouse look tips */}
-              <div className="scroll-helper-hud">
-                <span className="scroll-mouse-icon">🖱️</span>
-                <span>Move Mouse to Look Around</span>
-              </div>
-
-              {/* Translucent Game Instructions Box — above footer/GitHub icon */}
-              <div className="game-instructions-box">
-                <div className="gi-title">🎮 Controls</div>
-                <div className="gi-grid">
-                  <div className="gi-item">
-                    <div className="gi-keys">
-                      <span className="gi-key">W</span>
-                      <span className="gi-key">A</span>
-                      <span className="gi-key">S</span>
-                      <span className="gi-key">D</span>
-                    </div>
-                    <span className="gi-label">Move</span>
-                  </div>
-                  <div className="gi-item">
-                    <div className="gi-keys"><span className="gi-key gi-key-wide">Shift</span></div>
-                    <span className="gi-label">Sprint</span>
-                  </div>
-                  <div className="gi-item">
-                    <div className="gi-keys"><span className="gi-key gi-key-wide">Space</span></div>
-                    <span className="gi-label">Jump</span>
-                  </div>
-                  <div className="gi-item">
-                    <div className="gi-keys"><span className="gi-key">🖱️</span></div>
-                    <span className="gi-label">Look</span>
-                  </div>
+              {/* Right-side Vertical Nav Menu */}
+              <nav className="adventure-nav">
+                <div className="adventure-nav-label">Adventure Map</div>
+                <div className="adventure-nav-list">
+                  {menuCheckpoints.map((cp) => (
+                    <button
+                      key={cp.id}
+                      className={`adventure-nav-item ${activeCheckpoint === cp.id ? 'nav-active' : ''} ${visitedCheckpoints.includes(cp.id) ? 'nav-visited' : ''}`}
+                      onClick={() => handleTeleport(cp.pos)}
+                    >
+                      <span className="nav-num">0{cp.id}</span>
+                      <span className="nav-label">{cp.label}</span>
+                      <span className="nav-line" />
+                    </button>
+                  ))}
                 </div>
-              </div>
+              </nav>
+
             </>
           )}
 

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Outfit:wght@400;500;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Outfit:wght@400;500;700;800&family=Black+Ops+One&family=Bebas+Neue&display=swap');
 
 :root {
   --primary-sky: #4ea8de;
@@ -52,6 +52,82 @@ body, html, #root {
 }
 
 /* ==================================================
+   MINIMALIST LOADING SCREEN
+   ================================================== */
+.min-loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #d8e8e0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: opacity 0.6s ease;
+}
+
+/* Giant scrolling text row */
+.min-loading-marquee-wrap {
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.min-loading-marquee {
+  display: flex;
+  white-space: nowrap;
+  animation: marqueeScroll 10s linear infinite;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(4rem, 10vw, 9rem);
+  font-weight: 400;
+  letter-spacing: 4px;
+  color: #0d1117;
+  line-height: 1;
+  will-change: transform;
+}
+
+@keyframes marqueeScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Small dark pill in the centre */
+.min-loading-pill {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0d1117;
+  border-radius: 999px;
+  padding: 10px 22px 10px 10px;
+  min-width: 200px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+}
+
+.min-loading-pill-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: rgba(255,255,255,0.07);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.min-loading-pill-text {
+  position: relative;
+  z-index: 1;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 3px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+/* ==================================================
    HEADER NAVBAR & FOOTER LAYOUT (NEW)
    ================================================== */
 .app-navbar {
@@ -64,38 +140,29 @@ body, html, #root {
   justify-content: space-between;
   align-items: center;
   padding: 0 36px;
-  background: linear-gradient(to bottom, rgba(7, 11, 20, 0.88) 0%, rgba(7, 11, 20, 0) 100%);
-  backdrop-filter: blur(4px);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0) 100%);
   z-index: 120;
   pointer-events: auto;
 }
 
-/* KS Logo Badge */
+/* KS Logo — plain text wordmark like "RC" reference */
 .navbar-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ea580c 0%, #f97316 50%, #fbbf24 100%);
-  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.55), inset 0 1px 0 rgba(255,255,255,0.25);
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 1.05rem;
-  color: #fff;
-  letter-spacing: 1.5px;
+  background: none;
+  box-shadow: none;
+  border: none;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #ffffff;
+  letter-spacing: 0.5px;
   cursor: pointer;
   text-decoration: none;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.25s ease;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  transition: color 0.2s ease;
   flex-shrink: 0;
+  padding: 0;
 }
 .navbar-logo:hover {
-  transform: scale(1.1) rotate(-3deg);
-  box-shadow: 0 6px 20px rgba(251, 191, 36, 0.7), inset 0 1px 0 rgba(255,255,255,0.3);
-  background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
+  color: rgba(255, 255, 255, 0.65);
 }
 
 .navbar-email {
@@ -138,6 +205,88 @@ body, html, #root {
 }
 .navbar-link-item:hover::after {
   width: 100%;
+}
+
+/* ==================================================
+   MINIMALIST LANDING SCREEN
+   ================================================== */
+.landing-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+  padding: 0 7vw;
+  animation: landingFadeIn 0.8s ease both;
+}
+
+@keyframes landingFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.landing-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 640px;
+}
+
+/* Small "PORTFOLIO · 2025" tag */
+.landing-tag {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Big name */
+.landing-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(4rem, 10vw, 9rem);
+  font-weight: 400;
+  line-height: 0.92;
+  letter-spacing: 3px;
+  color: #ffffff;
+  text-shadow: 0 4px 32px rgba(0,0,0,0.3);
+}
+
+/* Role subtitle */
+.landing-role {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: -4px;
+}
+
+/* Start button */
+.landing-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px 28px;
+  background: #0d1117;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  width: fit-content;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.landing-btn:hover {
+  background: #1a2333;
+  transform: translateX(4px);
+  box-shadow: 0 6px 28px rgba(0,0,0,0.4);
 }
 
 /* Footer layout */
@@ -404,85 +553,535 @@ body, html, #root {
 }
 
 /* ==================================================
-   COZY CARD OVERLAYS & HUD WIDGETS
+   RIGHT-SIDE ADVENTURE NAV + MUTE BUTTON
    ================================================== */
-.profile-hud {
-  position: absolute;
-  top: 85px; /* Shift down to avoid overlapping navbar */
-  left: 20px;
-  background: var(--hud-bg);
-  border: 3px solid var(--wood-border);
-  border-radius: 14px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-  pointer-events: auto;
-  z-index: 50;
-}
 
-.profile-avatar-container {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2.5px solid var(--accent-gold);
-  background: #e9c46a;
+/* Mute button — top right, clean */
+.top-right-hud {
+  position: absolute;
+  top: 82px;
+  right: 24px;
+  z-index: 50;
+  pointer-events: auto;
+}
+.hud-mute-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.7);
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.hud-mute-btn:hover {
+  background: rgba(255,183,3,0.12);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
 }
 
-.profile-name {
-  font-weight: 800;
-  font-size: 1rem;
-}
-
-.profile-role {
-  font-size: 0.7rem;
-}
-
-.adventure-menu-board {
+/* Right-side vertical nav */
+.adventure-nav {
   position: absolute;
-  top: 165px; /* Shift down to avoid profile hud */
-  left: 20px;
-  width: 190px;
+  top: 50%;
+  right: 28px;
+  transform: translateY(-50%);
+  z-index: 50;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
 }
 
-.top-right-hud {
-  position: absolute;
-  top: 85px; /* Shift down to avoid navbar */
-  right: 20px;
+/* "ADVENTURE MAP" label above the list */
+.adventure-nav-label {
+  font-family: 'Bebas Neue', 'Cinzel', Georgia, serif;
+  font-size: 0.82rem;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: rgba(255,183,3,0.75);
+  margin-bottom: 16px;
+  text-align: right;
 }
 
+.adventure-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+/* Each nav item */
+.adventure-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 0;
+  text-align: right;
+  flex-direction: row-reverse;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+/* Number */
+.nav-num {
+  font-family: 'Bebas Neue', 'Cinzel', Georgia, serif;
+  font-size: 0.82rem;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.35);
+  transition: color 0.2s;
+  min-width: 26px;
+  text-align: right;
+}
+
+/* Label text */
+.nav-label {
+  font-family: 'Bebas Neue', 'Cinzel', Georgia, serif;
+  font-size: 1.1rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+
+/* Short indicator line */
+.nav-line {
+  width: 16px;
+  height: 1.5px;
+  background: rgba(255,255,255,0.15);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+/* Hover state */
+.adventure-nav-item:hover .nav-label {
+  color: rgba(255,255,255,0.8);
+}
+.adventure-nav-item:hover .nav-num {
+  color: rgba(255,183,3,0.6);
+}
+.adventure-nav-item:hover .nav-line {
+  width: 24px;
+  background: rgba(255,255,255,0.4);
+}
+
+/* Visited state */
+.adventure-nav-item.nav-visited .nav-label {
+  color: rgba(255,255,255,0.5);
+}
+.adventure-nav-item.nav-visited .nav-num {
+  color: rgba(255,183,3,0.4);
+}
+.adventure-nav-item.nav-visited .nav-line {
+  background: rgba(255,183,3,0.3);
+}
+
+/* Active / current checkpoint */
+.adventure-nav-item.nav-active .nav-label {
+  color: var(--accent-gold);
+  text-shadow: 0 0 12px rgba(255,183,3,0.5);
+}
+.adventure-nav-item.nav-active .nav-num {
+  color: var(--accent-gold);
+}
+.adventure-nav-item.nav-active .nav-line {
+  width: 28px;
+  background: var(--accent-gold);
+  box-shadow: 0 0 6px rgba(255,183,3,0.6);
+}
+
+/* ==================================================
+   SIDE PANEL CHECKPOINT OVERLAY — Subtle dark scrim for readability
+   ================================================== */
 .checkpoint-overlay {
   position: absolute;
-  bottom: 85px; /* shift up to not cover footer controls */
-  left: 50%;
-  transform: translateX(-50%);
-  width: 90%;
-  max-width: 530px;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: clamp(320px, 46vw, 580px);
   pointer-events: auto;
   z-index: 20;
+  padding: 0 0 0 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0.35) 60%,
+    rgba(0, 0, 0, 0.0) 100%
+  );
+  animation: sidePanelIn 0.7s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
+@keyframes sidePanelIn {
+  from { opacity: 0; transform: translateX(-60px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* The section card itself — transparent, scrim is on the overlay */
 .section-card {
-  background: rgba(13, 20, 38, 0.9);
-  border: 3.5px solid var(--wood-border);
-  border-radius: 16px;
-  padding: 22px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  position: relative;
 }
 
+/* ==================================================
+   GAME-VIBE TYPOGRAPHY SYSTEM
+   ================================================== */
+
+/* Big adventure label — like "A B O U T   M E" */
+.cp-label {
+  font-family: 'Bebas Neue', 'Cinzel', Georgia, serif;
+  font-size: clamp(0.65rem, 1.2vw, 0.85rem);
+  font-weight: 400;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: fadeSlideUp 0.5s 0.1s both;
+}
+.cp-label::before {
+  content: '';
+  width: 28px;
+  height: 2px;
+  background: var(--accent-gold);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Huge display title — like "K A N I S H K" */
+.cp-mega-title {
+  font-family: 'Bebas Neue', 'Black Ops One', 'Cinzel', Georgia, serif;
+  font-size: clamp(3.5rem, 8vw, 7rem);
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow:
+    0 0 30px rgba(255,183,3,0.35),
+    3px 3px 0 rgba(0,0,0,0.7),
+    6px 6px 0 rgba(0,0,0,0.3);
+  margin-bottom: 10px;
+  animation: fadeSlideUp 0.6s 0.15s both;
+}
+
+/* Subtitle in Cinzel */
+.cp-subtitle {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: clamp(0.75rem, 1.4vw, 1rem);
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 20px;
+  animation: fadeSlideUp 0.6s 0.25s both;
+}
+
+/* Horizontal divider line */
+.cp-divider {
+  width: 100%;
+  height: 1.5px;
+  background: linear-gradient(to right, var(--accent-gold), rgba(255,183,3,0.1), transparent);
+  margin-bottom: 20px;
+  animation: growLine 0.8s 0.35s both;
+}
+@keyframes growLine {
+  from { width: 0; opacity: 0; }
+  to   { width: 100%; opacity: 1; }
+}
+
+/* Body text */
+.cp-body {
+  font-family: var(--font-sans);
+  font-size: clamp(0.82rem, 1.2vw, 0.95rem);
+  font-weight: 400;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.85);
+  max-height: 38vh;
+  overflow-y: auto;
+  padding-right: 12px;
+  animation: fadeSlideUp 0.7s 0.4s both;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,183,3,0.4) transparent;
+}
+.cp-body::-webkit-scrollbar { width: 4px; }
+.cp-body::-webkit-scrollbar-track { background: transparent; }
+.cp-body::-webkit-scrollbar-thumb { background: rgba(255,183,3,0.4); border-radius: 2px; }
+
+/* Animated fade+slide-up for staggered children */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Section-specific heading within body */
+.cp-section-heading {
+  font-family: 'Bebas Neue', 'Cinzel', Georgia, serif;
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  margin: 16px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cp-section-heading::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255,183,3,0.3);
+}
+
+/* Footer hint — scrolling marquee style */
+.cp-footer {
+  margin-top: 18px;
+  overflow: hidden;
+  position: relative;
+  animation: fadeSlideUp 0.7s 0.6s both;
+}
+.cp-footer-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marqueeScroll 14s linear infinite;
+  font-family: 'Bebas Neue', 'Cinzel', serif;
+  font-size: 0.72rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: rgba(255,183,3,0.6);
+  gap: 40px;
+}
+.cp-footer-track span { display: inline-block; }
+@keyframes marqueeScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Checkpoint badge */
+.cp-checkpoint-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,183,3,0.12);
+  border: 1px solid rgba(255,183,3,0.35);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 3px;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  animation: fadeSlideUp 0.5s 0.05s both;
+  width: fit-content;
+}
+
+/* Project card items */
+.cp-project-item {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.cp-project-item:last-child { border-bottom: none; }
+.cp-project-item h3 {
+  font-family: 'Bebas Neue', 'Cinzel', serif;
+  font-size: 1.05rem;
+  letter-spacing: 3px;
+  color: #fff;
+  margin-bottom: 4px;
+}
+.cp-project-item p {
+  font-size: 0.83rem;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+.cp-project-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.cp-tag {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 2px;
+  color: var(--accent-gold);
+  border: 1px solid rgba(255,183,3,0.35);
+  border-radius: 3px;
+  padding: 2px 8px;
+  background: rgba(255,183,3,0.06);
+}
+.cp-link {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.5);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s;
+}
+.cp-link:hover { color: var(--accent-gold); }
+
+/* Skill badges */
+.cp-skill-group {
+  margin-bottom: 14px;
+}
+.cp-skill-group-title {
+  font-family: 'Bebas Neue', serif;
+  font-size: 0.85rem;
+  letter-spacing: 3px;
+  color: var(--accent-gold);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.cp-skill-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cp-skill-badge {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 4px 10px;
+  letter-spacing: 0.5px;
+}
+.cp-skill-badge.advanced { border-color: rgba(255,183,3,0.5); color: var(--accent-gold); }
+.cp-skill-badge.expert { border-color: rgba(110,231,183,0.5); color: #6ee7b7; }
+
+/* Timeline items */
+.cp-timeline-item {
+  padding-left: 18px;
+  border-left: 2px solid rgba(255,183,3,0.3);
+  margin-bottom: 16px;
+  position: relative;
+}
+.cp-timeline-item::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  position: absolute;
+  left: -5px;
+  top: 4px;
+}
+.cp-timeline-date {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 3px;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 3px;
+}
+.cp-timeline-item h3 {
+  font-family: 'Bebas Neue', 'Cinzel', serif;
+  font-size: 1rem;
+  letter-spacing: 2px;
+  color: #fff;
+  margin-bottom: 3px;
+}
+.cp-timeline-item p {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.55;
+}
+
+/* Contact link buttons */
+.cp-contact-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  text-decoration: none;
+  color: rgba(255,255,255,0.85);
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.cp-contact-link:hover { color: var(--accent-gold); }
+.cp-contact-link svg { color: var(--accent-gold); flex-shrink: 0; }
+
+/* Experience list */
+.cp-exp-list {
+  padding-left: 0;
+  list-style: none;
+  margin: 0;
+}
+.cp-exp-list li {
+  font-size: 0.83rem;
+  color: rgba(255,255,255,0.75);
+  line-height: 1.6;
+  padding: 4px 0;
+  padding-left: 14px;
+  position: relative;
+}
+.cp-exp-list li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--accent-gold);
+  font-size: 0.75rem;
+}
+
+/* Social icon grid */
+.cp-social-grid {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+}
+.cp-social-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.7);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.cp-social-btn:hover {
+  background: rgba(255,183,3,0.15);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  transform: translateY(-2px);
+}
+
+/* Legacy compatibility (keep for old card-footer, project-item, skill-badge usages) */
 .card-footer {
   font-size: 0.78rem;
   margin-top: 14px;
 }
-
 .project-item {
   border: 2.2px solid var(--wood-border);
 }
-
 .skill-badge {
   border: 2px solid var(--wood-border);
 }
