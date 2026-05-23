@@ -237,7 +237,7 @@ export default function App() {
           >
             {/* Direct WebGL sky backdrop and cozy fog integration */}
             <color attach="background" args={["#bae6fd"]} />
-            <fog attach="fog" args={["#bae6fd", 40, 160]} />
+            <fog attach="fog" args={["#bae6fd", 15, 95]} />
 
             <Suspense fallback={null}>
               <Physics gravity={[0, -14, 0]}>

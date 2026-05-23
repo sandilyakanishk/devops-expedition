@@ -497,3 +497,61 @@ body, html, #root {
     top: 75px;
   }
 }
+
+/* Welcome Landing Banner */
+.landing-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 480px;
+  background: rgba(13, 20, 38, 0.85);
+  border: 3.5px solid var(--wood-border);
+  border-radius: 18px;
+  padding: 32px;
+  text-align: center;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  z-index: 200;
+  pointer-events: auto;
+}
+
+.landing-banner h1 {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 1.5px;
+  margin-bottom: 6px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.landing-banner p {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+  margin-bottom: 22px;
+}
+
+.start-btn {
+  padding: 12px 32px;
+  background: #ea580c; /* Adventure orange */
+  border: 2.5px solid var(--wood-border);
+  border-radius: 30px;
+  color: #fff;
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: 1.2px;
+  cursor: pointer;
+  box-shadow: 0 5px 12px rgba(234, 88, 12, 0.4);
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+}
+
+.start-btn:hover {
+  background: #f97316;
+  transform: scale(1.06) translateY(-2px);
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.55);
+}
