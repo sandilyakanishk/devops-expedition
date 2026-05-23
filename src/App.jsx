@@ -35,6 +35,7 @@ export default function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [introCompleted, setIntroCompleted] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isNight, setIsNight] = useState(false);
   const [activeCheckpoint, setActiveCheckpoint] = useState(null);
   const [visitedCheckpoints, setVisitedCheckpoints] = useState([]);
   const [teleportTarget, setTeleportTarget] = useState(null);
@@ -165,8 +166,11 @@ export default function App() {
         width: '100vw', 
         height: '100vh', 
         position: 'relative', 
-        background: 'linear-gradient(to bottom, #38bdf8 0%, #bae6fd 60%, #ffedd5 100%)',
-        overflow: 'hidden'
+        background: isNight
+          ? 'linear-gradient(to bottom, #080c18 0%, #0d1422 60%, #111a25 100%)'
+          : 'linear-gradient(to bottom, #38bdf8 0%, #bae6fd 60%, #ffedd5 100%)',
+        overflow: 'hidden',
+        transition: 'background 1.2s ease'
       }}>
         
         {/* ==================================================
@@ -236,9 +240,9 @@ export default function App() {
             camera={{ position: [8, 16, 22], fov: 50 }}
             gl={{ antialias: true }}
           >
-            {/* Direct WebGL sky backdrop and cozy fog integration */}
-            <color attach="background" args={["#bae6fd"]} />
-            <fog attach="fog" args={["#bae6fd", 15, 95]} />
+            {/* Dynamic sky color + fog based on day/night */}
+            <color attach="background" args={[isNight ? '#080c18' : '#bae6fd']} />
+            <fog attach="fog" args={[isNight ? '#080c18' : '#bae6fd', 15, isNight ? 65 : 95]} />
 
             <Suspense fallback={null}>
               <Physics gravity={[0, -14, 0]}>
@@ -251,10 +255,11 @@ export default function App() {
                   />
                 )}
 
-                {/* Environment (100% procedural landscape and lighting) */}
+                {/* Environment — full mountain world */}
                 <Environment
                   onCheckpointEnter={handleCheckpointEnter}
                   onCheckpointExit={handleCheckpointExit}
+                  isNight={isNight}
                 />
 
                 {/* Follow Camera (intro panning -> 3rd person follow) */}
@@ -303,6 +308,15 @@ export default function App() {
             <>
               {/* Volume + Mute — top right */}
               <div className="top-right-hud">
+                {/* Day/Night toggle */}
+                <button
+                  className="hud-mute-btn"
+                  onClick={() => setIsNight((n) => !n)}
+                  title={isNight ? 'Switch to Day' : 'Switch to Night'}
+                  style={{ fontSize: '1rem' }}
+                >
+                  {isNight ? '☀️' : '🌙'}
+                </button>
                 <button className="hud-mute-btn" onClick={handleToggleMute} title="Toggle Mute">
                   {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                 </button>
