@@ -137,10 +137,10 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
       camera.lookAt(lookT);
 
     } else {
-      // ── Gameplay follow camera ────────────────────────────────
-      // Smoothly lerp camera angle targets for buttery mouse-look
-      smoothYawRef.current = THREE.MathUtils.lerp(smoothYawRef.current, cameraYawRef.current, 0.08);
-      smoothPitchRef.current = THREE.MathUtils.lerp(smoothPitchRef.current, pitchRef.current, 0.08);
+      // Smoothly lerp camera angle targets for buttery mouse-look (frame-rate independent)
+      const angleDecay = 1.0 - Math.exp(-5.2 * delta);
+      smoothYawRef.current = THREE.MathUtils.lerp(smoothYawRef.current, cameraYawRef.current, angleDecay);
+      smoothPitchRef.current = THREE.MathUtils.lerp(smoothPitchRef.current, pitchRef.current, angleDecay);
 
       const yaw   = smoothYawRef.current;
       const pitch = smoothPitchRef.current;
@@ -150,7 +150,7 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
       const tz = pp.z + Math.cos(yaw) * CAMERA_DIST;
 
       camPos.current.set(tx, ty, tz);
-      camera.position.lerp(camPos.current, 0.1);
+      camera.position.lerp(camPos.current, 1.0 - Math.exp(-6.56 * delta));
 
       lookPos.current.set(pp.x, pp.y + 1.25, pp.z);
       camera.lookAt(lookPos.current);

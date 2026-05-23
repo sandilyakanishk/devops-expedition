@@ -571,26 +571,92 @@ function Waterfall() {
 // ════════════════════════════════════════════════════════════════
 function NightSky({ isNight }) {
   const COUNT = 1800;
-  const starData = useMemo(() => Array.from({length: COUNT}).map((_, i) => ({
-    x: -250 + Math.random() * 500,
-    y:   15  + Math.random() * 95,
-    z:  -5   - Math.random() * 320,
-    s:  0.03 + Math.random() * 0.15,
-    speed:  1.5 + Math.random() * 4,
-    phase:  Math.random() * Math.PI * 2,
-    color: ['#f8fafc','#fef9c3','#dde9ff','#f0e6ff','#ffffff'][i%5],
-  })), []);
 
-  const meshes = useRef([]);
+  const starSystem = useMemo(() => {
+    const geom = new THREE.BufferGeometry();
+    const positions = new Float32Array(COUNT * 3);
+    const colors = new Float32Array(COUNT * 3);
+    const sizes = new Float32Array(COUNT);
+    const phases = new Float32Array(COUNT);
+    const speeds = new Float32Array(COUNT);
+
+    const colorPalette = [
+      new THREE.Color('#f8fafc'),
+      new THREE.Color('#fef9c3'),
+      new THREE.Color('#dde9ff'),
+      new THREE.Color('#f0e6ff'),
+      new THREE.Color('#ffffff')
+    ];
+
+    for (let i = 0; i < COUNT; i++) {
+      positions[i * 3] = -250 + Math.random() * 500;
+      positions[i * 3 + 1] = 15 + Math.random() * 95;
+      positions[i * 3 + 2] = -5 - Math.random() * 320;
+
+      const col = colorPalette[i % 5];
+      colors[i * 3] = col.r;
+      colors[i * 3 + 1] = col.g;
+      colors[i * 3 + 2] = col.b;
+
+      sizes[i] = 0.05 + Math.random() * 0.2;
+      phases[i] = Math.random() * Math.PI * 2;
+      speeds[i] = 1.0 + Math.random() * 3.0;
+    }
+
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geom.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+    geom.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+    geom.setAttribute('aSpeed', new THREE.BufferAttribute(speeds, 1));
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+      },
+      vertexShader: `
+        uniform float uTime;
+        attribute float aSize;
+        attribute float aPhase;
+        attribute float aSpeed;
+        varying vec3 vColor;
+        varying float vTwinkle;
+        void main() {
+          vColor = color;
+          vTwinkle = 0.2 + abs(sin(uTime * aSpeed + aPhase)) * 0.8;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * mvPosition;
+          gl_PointSize = aSize * (350.0 / -mvPosition.z);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vColor;
+        varying float vTwinkle;
+        void main() {
+          float dist = distance(gl_PointCoord, vec2(0.5));
+          if (dist > 0.5) discard;
+          gl_FragColor = vec4(vColor, vTwinkle * 0.8);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+    });
+
+    return { geom, mat };
+  }, []);
+
+  const milkyWayPositions = useMemo(() => {
+    const arr = new Float32Array(110 * 3);
+    for (let i = 0; i < 110; i++) {
+      arr[i * 3] = -55 + i * 2.3 + Math.random() * 2.5;
+      arr[i * 3 + 1] = 32 + Math.sin(i * 0.28) * 9;
+      arr[i * 3 + 2] = -55 - Math.random() * 80;
+    }
+    return arr;
+  }, []);
 
   useFrame((s) => {
     if (!isNight) return;
-    const t = s.clock.getElapsedTime();
-    meshes.current.forEach((m, i) => {
-      if (!m) return;
-      const d = starData[i];
-      m.material.opacity = 0.2 + Math.abs(Math.sin(t * d.speed + d.phase)) * 0.8;
-    });
+    starSystem.mat.uniforms.uTime.value = s.clock.getElapsedTime();
   });
 
   if (!isNight) return null;
@@ -598,25 +664,20 @@ function NightSky({ isNight }) {
   return (
     <group>
       {/* Regular stars */}
-      {starData.map((d, i) => (
-        <mesh key={i} ref={el => meshes.current[i] = el} position={[d.x, d.y, d.z]}>
-          <sphereGeometry args={[d.s, 3, 3]} />
-          <meshBasicMaterial color={d.color} transparent opacity={0.8} />
-        </mesh>
-      ))}
+      <points geometry={starSystem.geom}>
+        <primitive object={starSystem.mat} attach="material" />
+      </points>
 
       {/* Milky Way band */}
-      {Array.from({length: 110}).map((_, i) => (
-        <mesh key={`mw-${i}`} position={[
-          -55 + i * 2.3 + Math.random() * 2.5,
-          32  + Math.sin(i * 0.28) * 9,
-          -55 - Math.random() * 80,
-        ]}>
-          <sphereGeometry args={[0.04 + Math.random() * 0.09, 3, 3]} />
-          <meshBasicMaterial color="#c7d2f8" transparent
-            opacity={0.18 + Math.random() * 0.32} />
-        </mesh>
-      ))}
+      <points>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            args={[milkyWayPositions, 3]}
+          />
+        </bufferGeometry>
+        <pointsMaterial color="#c7d2f8" size={0.15} transparent opacity={0.3} sizeAttenuation />
+      </points>
 
       {/* Moon */}
       <mesh position={[-42, 60, -155]}>
@@ -784,37 +845,90 @@ function WindLeaves() {
 // ════════════════════════════════════════════════════════════════
 function SnowParticles() {
   const COUNT = 80;
-  const flakes = useMemo(()=>Array.from({length:COUNT}).map((_,i)=>({
-    x: -8+Math.random()*16, z: -105-Math.random()*80,
-    phase: Math.random()*Math.PI*2, speed: 0.35+Math.random()*0.5,
-    drift: -0.22+Math.random()*0.44, size: 0.03+Math.random()*0.07,
-  })),[]);
-  const meshes = useRef([]);
 
-  useFrame((s)=>{
-    const t = s.clock.getElapsedTime();
-    meshes.current.forEach((m,i)=>{
-      if (!m) return;
-      const d = flakes[i];
-      const ty = getTerrainY(d.z);
-      const baseY = ty+11+(i%5)*2.2;
-      const cycle = (t*d.speed+d.phase)%9;
-      m.position.y = baseY-cycle*1.1;
-      m.position.x = d.x+Math.sin(t*1.2+d.phase+i)*0.35+cycle*d.drift*0.12;
-      if (m.position.y < ty-0.2) { m.position.y=baseY; m.position.x=d.x; }
+  const snowSystem = useMemo(() => {
+    const geom = new THREE.BufferGeometry();
+    const positions = new Float32Array(COUNT * 3);
+    const phases = new Float32Array(COUNT);
+    const speeds = new Float32Array(COUNT);
+    const drifts = new Float32Array(COUNT);
+    const sizes = new Float32Array(COUNT);
+    const baseYs = new Float32Array(COUNT);
+    const terrainYs = new Float32Array(COUNT);
+
+    for (let i = 0; i < COUNT; i++) {
+      const x = -8 + Math.random() * 16;
+      const z = -105 - Math.random() * 80;
+      const ty = getTerrainY(z);
+
+      positions[i * 3] = x;
+      positions[i * 3 + 1] = ty + 9;
+      positions[i * 3 + 2] = z;
+
+      phases[i] = Math.random() * Math.PI * 2;
+      speeds[i] = 0.35 + Math.random() * 0.5;
+      drifts[i] = -0.22 + Math.random() * 0.44;
+      sizes[i] = 0.03 + Math.random() * 0.07;
+      baseYs[i] = ty + 11 + (i % 5) * 2.2;
+      terrainYs[i] = ty;
+    }
+
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geom.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+    geom.setAttribute('aSpeed', new THREE.BufferAttribute(speeds, 1));
+    geom.setAttribute('aDrift', new THREE.BufferAttribute(drifts, 1));
+    geom.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+    geom.setAttribute('aBaseY', new THREE.BufferAttribute(baseYs, 1));
+    geom.setAttribute('aTerrainY', new THREE.BufferAttribute(terrainYs, 1));
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+      },
+      vertexShader: `
+        uniform float uTime;
+        attribute float aPhase;
+        attribute float aSpeed;
+        attribute float aDrift;
+        attribute float aSize;
+        attribute float aBaseY;
+        attribute float aTerrainY;
+        void main() {
+          float cycle = mod(uTime * aSpeed + aPhase, 9.0);
+          vec3 pos = position;
+          pos.y = aBaseY - cycle * 1.1;
+          pos.x = position.x + sin(uTime * 1.2 + aPhase) * 0.35 + cycle * aDrift * 0.12;
+          if (pos.y < aTerrainY - 0.2) {
+            pos.y = aBaseY;
+            pos.x = position.x;
+          }
+          vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+          gl_Position = projectionMatrix * mvPosition;
+          gl_PointSize = aSize * (350.0 / -mvPosition.z);
+        }
+      `,
+      fragmentShader: `
+        void main() {
+          float dist = distance(gl_PointCoord, vec2(0.5));
+          if (dist > 0.5) discard;
+          gl_FragColor = vec4(0.94, 0.976, 1.0, 0.9);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
     });
+
+    return { geom, mat };
+  }, []);
+
+  useFrame((s) => {
+    snowSystem.mat.uniforms.uTime.value = s.clock.getElapsedTime();
   });
 
   return (
-    <group>
-      {flakes.map((d,i)=>(
-        <mesh key={i} ref={el=>meshes.current[i]=el}
-          position={[d.x, getTerrainY(d.z)+9, d.z]}>
-          <sphereGeometry args={[d.size,4,4]} />
-          <meshBasicMaterial color="#f0f9ff" />
-        </mesh>
-      ))}
-    </group>
+    <points geometry={snowSystem.geom}>
+      <primitive object={snowSystem.mat} attach="material" />
+    </points>
   );
 }
 
@@ -825,56 +939,85 @@ function Fireflies({ isNight }) {
   if (!isNight) return null;
 
   const COUNT = 160;
-  const particles = useMemo(() => {
-    return Array.from({ length: COUNT }).map((_, i) => {
+
+  const firefliesSystem = useMemo(() => {
+    const geom = new THREE.BufferGeometry();
+    const positions = new Float32Array(COUNT * 3);
+    const sizes = new Float32Array(COUNT);
+    const phases = new Float32Array(COUNT);
+    const speeds = new Float32Array(COUNT * 3);
+    const amplitudes = new Float32Array(COUNT);
+
+    for (let i = 0; i < COUNT; i++) {
       const z = -5 - Math.random() * 175;
       const cx = getPathCenterX(z);
       const ty = getTerrainY(z);
+
+      positions[i * 3] = cx + (Math.random() - 0.5) * 16;
+      positions[i * 3 + 1] = ty + 0.6 + Math.random() * 5.0;
+      positions[i * 3 + 2] = z;
+
+      sizes[i] = 0.035 + Math.random() * 0.05;
+      phases[i] = Math.random() * Math.PI * 2;
       
-      return {
-        z,
-        baseX: cx + (Math.random() - 0.5) * 16,
-        baseY: ty + 0.6 + Math.random() * 5.0,
-        speedX: 0.18 + Math.random() * 0.4,
-        speedY: 0.25 + Math.random() * 0.5,
-        speedZ: 0.12 + Math.random() * 0.3,
-        amplitude: 0.35 + Math.random() * 0.8,
-        size: 0.035 + Math.random() * 0.05,
-        phase: Math.random() * Math.PI * 2,
-      };
+      speeds[i * 3] = 0.18 + Math.random() * 0.4;
+      speeds[i * 3 + 1] = 0.25 + Math.random() * 0.5;
+      speeds[i * 3 + 2] = 0.12 + Math.random() * 0.3;
+
+      amplitudes[i] = 0.35 + Math.random() * 0.8;
+    }
+
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geom.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+    geom.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+    geom.setAttribute('aSpeed', new THREE.BufferAttribute(speeds, 3));
+    geom.setAttribute('aAmplitude', new THREE.BufferAttribute(amplitudes, 1));
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+      },
+      vertexShader: `
+        uniform float uTime;
+        attribute float aSize;
+        attribute float aPhase;
+        attribute vec3 aSpeed;
+        attribute float aAmplitude;
+        void main() {
+          vec3 pos = position;
+          pos.x += sin(uTime * aSpeed.x + aPhase) * aAmplitude;
+          pos.y += cos(uTime * aSpeed.y + aPhase) * (aAmplitude * 0.55);
+          pos.z += sin(uTime * aSpeed.z + aPhase) * (aAmplitude * 0.35);
+
+          vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+          gl_Position = projectionMatrix * mvPosition;
+          float scale = (0.55 + sin(uTime * 4.4 + aPhase) * 0.45) * 1.25;
+          gl_PointSize = aSize * scale * (350.0 / -mvPosition.z);
+        }
+      `,
+      fragmentShader: `
+        void main() {
+          float dist = distance(gl_PointCoord, vec2(0.5));
+          if (dist > 0.5) discard;
+          float alpha = 1.0 - (dist * 2.0);
+          gl_FragColor = vec4(0.639, 0.902, 0.208, alpha * 0.9);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
     });
+
+    return { geom, mat };
   }, []);
 
-  const meshes = useRef([]);
-
   useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    meshes.current.forEach((mesh, i) => {
-      if (!mesh) return;
-      const p = particles[i];
-      
-      mesh.position.x = p.baseX + Math.sin(t * p.speedX + p.phase) * p.amplitude;
-      mesh.position.y = p.baseY + Math.cos(t * p.speedY + p.phase) * (p.amplitude * 0.55);
-      mesh.position.z = p.z + Math.sin(t * p.speedZ + p.phase) * (p.amplitude * 0.35);
-      
-      const scale = (0.55 + Math.sin(t * 4.4 + p.phase) * 0.45) * 1.25;
-      mesh.scale.setScalar(scale);
-    });
+    firefliesSystem.mat.uniforms.uTime.value = state.clock.getElapsedTime();
   });
 
   return (
-    <group>
-      {particles.map((p, i) => (
-        <mesh 
-          key={i} 
-          ref={(el) => (meshes.current[i] = el)}
-          position={[p.baseX, p.baseY, p.z]}
-        >
-          <sphereGeometry args={[p.size, 4, 4]} />
-          <meshBasicMaterial color="#a3e635" />
-        </mesh>
-      ))}
-    </group>
+    <points geometry={firefliesSystem.geom}>
+      <primitive object={firefliesSystem.mat} attach="material" />
+    </points>
   );
 }
 

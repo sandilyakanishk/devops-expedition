@@ -79,10 +79,11 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
     const isMoving = forward || backward || left || right;
     const speed    = shift ? SPEED_RUN : SPEED_WALK;
 
+    const velDecay = 1.0 - Math.exp((isMoving ? -18.0 : -20.5) * delta);
     rigidBodyRef.current.setLinvel({
-      x: THREE.MathUtils.lerp(velocity.x, moveDir.x * speed, isMoving ? 0.25 : 0.28),
+      x: THREE.MathUtils.lerp(velocity.x, moveDir.x * speed, velDecay),
       y: velocity.y,
-      z: THREE.MathUtils.lerp(velocity.z, moveDir.z * speed, isMoving ? 0.25 : 0.28),
+      z: THREE.MathUtils.lerp(velocity.z, moveDir.z * speed, velDecay),
     }, true);
 
     if (jump && Math.abs(velocity.y) < 0.12) {
@@ -98,13 +99,13 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
       }
     }
 
-    // Face movement direction smoothly
+    // Face movement direction smoothly (frame-rate independent)
     if (isMoving) {
       const angle = Math.atan2(moveDir.x, moveDir.z);
       let diff = angle - characterRef.current.rotation.y;
       while (diff < -Math.PI) diff += Math.PI * 2;
       while (diff >  Math.PI) diff -= Math.PI * 2;
-      characterRef.current.rotation.y += diff * 0.16;
+      characterRef.current.rotation.y += diff * (1.0 - Math.exp(-10.9 * delta));
     }
 
     // Limb animation
@@ -118,11 +119,13 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
       if (bodyBobRef.current)  bodyBobRef.current.position.y  =  Math.abs(Math.sin(t * spd * 2)) * (shift ? 0.07 : 0.034);
     } else {
       const lerp = THREE.MathUtils.lerp;
-      if (leftLegRef.current)  leftLegRef.current.rotation.x  = lerp(leftLegRef.current.rotation.x,  0, 0.14);
-      if (rightLegRef.current) rightLegRef.current.rotation.x = lerp(rightLegRef.current.rotation.x, 0, 0.14);
-      if (leftArmRef.current)  leftArmRef.current.rotation.x  = lerp(leftArmRef.current.rotation.x,  0, 0.14);
-      if (rightArmRef.current) rightArmRef.current.rotation.x = lerp(rightArmRef.current.rotation.x, 0, 0.14);
-      if (bodyBobRef.current)  bodyBobRef.current.position.y  = lerp(bodyBobRef.current.position.y, Math.sin(t * 1.6) * 0.012, 0.10);
+      const limbDecay = 1.0 - Math.exp(-9.4 * delta);
+      const bobDecay = 1.0 - Math.exp(-6.56 * delta);
+      if (leftLegRef.current)  leftLegRef.current.rotation.x  = lerp(leftLegRef.current.rotation.x,  0, limbDecay);
+      if (rightLegRef.current) rightLegRef.current.rotation.x = lerp(rightLegRef.current.rotation.x, 0, limbDecay);
+      if (leftArmRef.current)  leftArmRef.current.rotation.x  = lerp(leftArmRef.current.rotation.x,  0, limbDecay);
+      if (rightArmRef.current) rightArmRef.current.rotation.x = lerp(rightArmRef.current.rotation.x, 0, limbDecay);
+      if (bodyBobRef.current)  bodyBobRef.current.position.y  = lerp(bodyBobRef.current.position.y, Math.sin(t * 1.6) * 0.012, bobDecay);
     }
     characterRotationRef.current = characterRef.current.rotation.y;
   });
