@@ -39,8 +39,9 @@ export default function App() {
   const [visitedCheckpoints, setVisitedCheckpoints] = useState([]);
   const [teleportTarget, setTeleportTarget] = useState(null);
   const [dismissLoader, setDismissLoader] = useState(false);
+  const [simulatedProgress, setSimulatedProgress] = useState(0);
 
-  const { active, progress } = useProgress();
+  const { active } = useProgress();
   
   // High performance player position tracker
   const playerPosRef = useRef(new THREE.Vector3(0, 1.2, 0));
@@ -94,15 +95,32 @@ export default function App() {
     setTeleportTarget(new THREE.Vector3(...pos));
   };
 
-  // Delayed dismissal of loader for smoother exit
+  // Smoothly simulate progress from 0% to 100%
   useEffect(() => {
-    if (!active && progress === 100) {
+    const interval = setInterval(() => {
+      setSimulatedProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          return 100;
+        }
+        const increment = Math.floor(Math.random() * 12) + 8;
+        const next = prev + increment;
+        return next > 100 ? 100 : next;
+      });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Delayed dismissal of loader for smoother exit once progress hits 100%
+  useEffect(() => {
+    if (simulatedProgress === 100) {
       const t = setTimeout(() => {
         setDismissLoader(true);
-      }, 1000);
+      }, 600);
       return () => clearTimeout(t);
     }
-  }, [active, progress]);
+  }, [simulatedProgress]);
 
   // Ensure AudioContext resumes on click
   useEffect(() => {
@@ -170,7 +188,7 @@ export default function App() {
            2. COZY ANIMATED ADVENTURE LOADING SCREEN
            ================================================== */}
         {!dismissLoader && (
-          <div className="adventure-loading-screen" style={{ opacity: (!active && progress === 100) ? 0 : 1 }}>
+          <div className="adventure-loading-screen" style={{ opacity: (simulatedProgress === 100) ? 0 : 1 }}>
             {/* Moving Fluffy Cartoon Clouds */}
             <div className="loading-cloud cloud-1">☁️</div>
             <div className="loading-cloud cloud-2">☁️</div>
@@ -197,12 +215,12 @@ export default function App() {
               <h1 className="loading-title">TREKKING THROUGH MY JOURNEY</h1>
               
               <div className="loading-trail-progress">
-                <div className="loading-trail-bar" style={{ width: `${Math.round(progress)}%` }} />
-                <span className="loading-trail-runner" style={{ left: `${Math.round(progress)}%` }}>🏃</span>
+                <div className="loading-trail-bar" style={{ width: `${simulatedProgress}%` }} />
+                <span className="loading-trail-runner" style={{ left: `${simulatedProgress}%` }}>🏃</span>
               </div>
               
               <p className="loading-subtitle">
-                Loading Adventure... {Math.round(progress)}%
+                Loading Adventure... {simulatedProgress}%
               </p>
             </div>
           </div>
