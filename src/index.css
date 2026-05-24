@@ -1365,7 +1365,7 @@ body, html, #root {
    MOBILE TOUCH CONTROLS OVERLAY
    ================================================== */
 .mobile-controls-overlay {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
@@ -1401,7 +1401,7 @@ body, html, #root {
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: manipulation;
+  touch-action: none;
   transition: background 0.1s, transform 0.1s;
 }
 
@@ -1442,7 +1442,7 @@ body, html, #root {
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: manipulation;
+  touch-action: none;
   transition: all 0.15s ease;
 }
 
@@ -1463,12 +1463,156 @@ body, html, #root {
   .game-instructions-box, .scroll-helper-hud, .adventure-nav, .app-navbar .navbar-links {
     display: none !important;
   }
-  
+}
+
+@media (max-width: 1024px) and (orientation: portrait) {
   .checkpoint-overlay {
     width: 100vw !important;
     padding: 24px 16px !important;
     background: rgba(11, 15, 25, 0.95) !important;
     justify-content: flex-start !important;
     overflow-y: auto !important;
+  }
+}
+
+@media (max-width: 1024px) and (orientation: landscape) {
+  .checkpoint-overlay {
+    width: 48vw !important;
+    padding: 20px !important;
+    background: rgba(11, 15, 25, 0.92) !important;
+    justify-content: flex-start !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* Portrait Orientation Prompt */
+.landscape-prompt {
+  display: none;
+}
+
+@media (max-width: 1024px) and (orientation: portrait) {
+  .landscape-prompt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(12, 10, 8, 0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: #fff;
+    z-index: 99999;
+    text-align: center;
+    padding: 30px;
+    box-sizing: border-box;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .phone-icon {
+    width: 40px;
+    height: 72px;
+    border: 3px solid rgba(255, 255, 255, 0.85);
+    border-radius: 6px;
+    position: relative;
+    margin-bottom: 24px;
+    animation: rotateDevice 2.5s ease-in-out infinite;
+  }
+
+  .phone-icon::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 50%;
+  }
+
+  .landscape-prompt-title {
+    font-family: 'Bebas Neue', 'Cinzel', Georgia, serif;
+    font-size: 1.8rem;
+    letter-spacing: 3px;
+    color: #fbbf24;
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+  }
+
+  .landscape-prompt-desc {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    max-width: 280px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+  }
+}
+
+@keyframes rotateDevice {
+  0% {
+    transform: rotate(0deg);
+  }
+  35% {
+    transform: rotate(-90deg);
+  }
+  70% {
+    transform: rotate(-90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.fullscreen-prompt-btn {
+  margin-top: 22px;
+  padding: 11px 26px;
+  background: #fbbf24;
+  border: none;
+  border-radius: 20px;
+  color: #0c0a08;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(251, 191, 36, 0.4);
+  transition: all 0.2s ease;
+  pointer-events: auto;
+  text-transform: uppercase;
+}
+
+.fullscreen-prompt-btn:active {
+  transform: scale(0.95);
+  background: #f59e0b;
+}
+
+/* Scaling down mobile controls on small viewports (like landscape phones) */
+@media (max-height: 480px) {
+  .mobile-dpad {
+    bottom: 12px;
+    left: 12px;
+    width: 110px;
+    height: 110px;
+    gap: 4px;
+  }
+  
+  .mobile-actions {
+    bottom: 12px;
+    right: 12px;
+    gap: 6px;
+  }
+  
+  .action-btn {
+    width: 46px;
+    height: 46px;
+    font-size: 0.65rem;
+  }
+  
+  .dpad-btn {
+    font-size: 1rem;
+    border-radius: 8px;
   }
 }

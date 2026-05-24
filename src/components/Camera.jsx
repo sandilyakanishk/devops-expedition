@@ -11,7 +11,6 @@ const CAMERA_DIST   = 7.5;
 const CAMERA_HEIGHT = 3.8;
 const MIN_PITCH     = -0.08;
 const MAX_PITCH     =  0.90;
-const MOUSE_SENS    =  0.0010; // radians per pixel (slowed down for smooth look)
 
 export default function Camera({ playerPosRef, onIntroComplete }) {
   const introTimeRef  = useRef(0);
@@ -28,108 +27,69 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
     }
   }, [onIntroComplete]);
   
-  // Mouse & Touch tracking state (no click-drag required for mouse)
-  const lastMouseRef  = useRef({ x: 0, y: 0 });
-  const hasInitializedMouseRef = useRef(false);
+  // Touch tracking state (no click-drag required for mouse)
   const lastTouchRef = useRef({ x: 0, y: 0 });
   const hasInitializedTouchRef = useRef(false);
   const smoothYawRef  = useRef(0);
   const smoothPitchRef = useRef(0.28);
+  const lookTouchIdRef = useRef(null);
 
-  // ── Mouse and Touch listeners ──
+  // ── Touch and Wheel listeners ──
   useEffect(() => {
-    const handleCanvasClick = () => {
-      if (!isIntroRef.current) {
-        gl.domElement.requestPointerLock?.();
-      }
-    };
-
-    const onMouseMove = (e) => {
-      if (isIntroRef.current) return;
-
-      let dx = 0;
-      let dy = 0;
-
-      if (document.pointerLockElement === gl.domElement) {
-        dx = e.movementX;
-        dy = e.movementY;
-      } else {
-        if (!hasInitializedMouseRef.current) {
-          lastMouseRef.current = { x: e.clientX, y: e.clientY };
-          hasInitializedMouseRef.current = true;
-          return;
-        }
-        dx = e.clientX - lastMouseRef.current.x;
-        dy = e.clientY - lastMouseRef.current.y;
-        lastMouseRef.current = { x: e.clientX, y: e.clientY };
-      }
-
-      cameraYawRef.current += dx * MOUSE_SENS;
-      pitchRef.current = THREE.MathUtils.clamp(
-        pitchRef.current - dy * MOUSE_SENS,
-        MIN_PITCH,
-        MAX_PITCH
-      );
-    };
-
     const onTouchStart = (e) => {
-      if (e.touches.length === 1) {
-        lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      if (lookTouchIdRef.current === null && e.targetTouches.length > 0) {
+        const touch = e.targetTouches[0];
+        lookTouchIdRef.current = touch.identifier;
+        lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
         hasInitializedTouchRef.current = true;
       }
     };
 
     const onTouchMove = (e) => {
       if (isIntroRef.current) return;
-      if (e.touches.length === 1 && hasInitializedTouchRef.current) {
-        const dx = e.touches[0].clientX - lastTouchRef.current.x;
-        const dy = e.touches[0].clientY - lastTouchRef.current.y;
-        
-        lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      if (lookTouchIdRef.current !== null && hasInitializedTouchRef.current) {
+        const touch = Array.from(e.touches).find(t => t.identifier === lookTouchIdRef.current);
+        if (touch) {
+          const dx = touch.clientX - lastTouchRef.current.x;
+          const dy = touch.clientY - lastTouchRef.current.y;
+          
+          lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
 
-        const TOUCH_SENS = 0.004; // smooth swipe rotation
-        cameraYawRef.current += dx * TOUCH_SENS;
-        pitchRef.current = THREE.MathUtils.clamp(
-          pitchRef.current - dy * TOUCH_SENS,
-          MIN_PITCH,
-          MAX_PITCH
-        );
+          const TOUCH_SENS = 0.005; // smooth swipe rotation
+          cameraYawRef.current += dx * TOUCH_SENS;
+          pitchRef.current = THREE.MathUtils.clamp(
+            pitchRef.current - dy * TOUCH_SENS,
+            MIN_PITCH,
+            MAX_PITCH
+          );
+        }
       }
     };
 
-    const onTouchEnd = () => {
-      hasInitializedTouchRef.current = false;
+    const onTouchEnd = (e) => {
+      if (lookTouchIdRef.current !== null) {
+        const hasEnded = Array.from(e.changedTouches).some(t => t.identifier === lookTouchIdRef.current);
+        if (hasEnded) {
+          lookTouchIdRef.current = null;
+          hasInitializedTouchRef.current = false;
+        }
+      }
     };
-
-    const onMouseLeave = () => {
-      hasInitializedMouseRef.current = false;
-    };
-
-    const onPointerLockChange = () => {
-      hasInitializedMouseRef.current = false;
-    };
-
-    gl.domElement.addEventListener('click', handleCanvasClick);
-    window.addEventListener('mousemove',    onMouseMove);
-    window.addEventListener('mouseleave',   onMouseLeave);
-    document.addEventListener('pointerlockchange', onPointerLockChange);
 
     gl.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
     gl.domElement.addEventListener('touchmove',  onTouchMove,  { passive: true });
     gl.domElement.addEventListener('touchend',   onTouchEnd,   { passive: true });
+    gl.domElement.addEventListener('touchcancel',onTouchEnd,   { passive: true });
 
     return () => {
       if (gl?.domElement) {
-        gl.domElement.removeEventListener('click', handleCanvasClick);
         gl.domElement.removeEventListener('touchstart', onTouchStart);
         gl.domElement.removeEventListener('touchmove',  onTouchMove);
         gl.domElement.removeEventListener('touchend',   onTouchEnd);
+        gl.domElement.removeEventListener('touchcancel',onTouchEnd);
       }
-      window.removeEventListener('mousemove',    onMouseMove);
-      window.removeEventListener('mouseleave',   onMouseLeave);
-      document.removeEventListener('pointerlockchange', onPointerLockChange);
     };
-  }, [gl]);
+  }, [gl, pitchRef]);
 
   useFrame((state, delta) => {
     if (!playerPosRef.current) return;

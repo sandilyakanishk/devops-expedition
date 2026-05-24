@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { Briefcase, ExternalLink, Workflow, Cloud, Bot, Film, Sparkles } from 'lucide-react';
 
@@ -44,20 +44,19 @@ export default function Projects({ active }) {
     if (!containerRef.current) return;
     if (active) {
       gsap.fromTo(containerRef.current,
-        { opacity: 0, x: -60 },
+        { opacity: 0, x: -60, display: 'block' },
         { opacity: 1, x: 0, duration: 0.7, ease: 'power3.out' }
       );
     } else {
       gsap.to(containerRef.current,
-        { opacity: 0, x: -40, duration: 0.4, ease: 'power3.in' }
+        { opacity: 0, x: -40, duration: 0.4, ease: 'power3.in',
+          onComplete: () => { if (containerRef.current) containerRef.current.style.display = 'none'; } }
       );
     }
   }, [active]);
 
-  if (!active) return null;
-
   return (
-    <div ref={containerRef} className="checkpoint-overlay">
+    <div ref={containerRef} className="checkpoint-overlay" style={{ display: active ? 'block' : 'none' }}>
       <div className="section-card">
 
         <div className="cp-checkpoint-badge">

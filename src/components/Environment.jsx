@@ -2,26 +2,24 @@
 // Environment.jsx — Low-Poly Mountain Trek (reference-matched)
 // Mountain CONE shapes, flat walkable trail segments, stars/birds
 // ================================================================
-import React, { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 
-// ── Terrain math ──────────────────────────────────────────────────
-export const TRAIL_LENGTH = 185;
-export const TRAIL_RISE   = 30;
+const isMobileDevice = typeof window !== 'undefined' && !!window.isMobileDevice;
 
-export function getTerrainY(z) {
-  if (z > 0)              return 0;
-  if (z < -TRAIL_LENGTH)  return TRAIL_RISE;
-  return (-z / TRAIL_LENGTH) * TRAIL_RISE;
+// ── Terrain math ──────────────────────────────────────────────────
+const TRAIL_LENGTH = 185;
+const TRAIL_RISE   = 0;
+
+function getTerrainY(z) {
+  return 0;
 }
-// Path center gently winds left/right
-export function getPathCenterX(z) {
-  if (z > 0 || z < -TRAIL_LENGTH) return 0;
-  const t = -z / TRAIL_LENGTH;
-  return Math.sin(t * Math.PI * 1.8) * 2.2;
+// Path center is perfectly straight
+function getPathCenterX(z) {
+  return 0;
 }
 
 // ── Tiny geometry helpers ─────────────────────────────────────────
@@ -39,34 +37,12 @@ const Cyl = ({ pos, args, color, rot = [0,0,0], rough = 0.82 }) => (
   </mesh>
 );
 
-// ── Pine Tree ─────────────────────────────────────────────────────
-function PineTree({ position, scale = 1 }) {
-  const [x, y, z] = position;
-  const s = scale;
-  return (
-    <group position={[x, y, z]}>
-      <Cyl pos={[0, 0.55*s, 0]} args={[0.1*s, 0.14*s, 1.1*s, 6]} color="#5c3d1e" rough={0.95} />
-      <mesh castShadow position={[0, 1.4*s, 0]}>
-        <coneGeometry args={[0.72*s, 1.5*s, 7]} />
-        <meshStandardMaterial color="#2d6a4f" roughness={0.85} flatShading />
-      </mesh>
-      <mesh castShadow position={[0, 2.1*s, 0]}>
-        <coneGeometry args={[0.5*s,  1.1*s, 7]} />
-        <meshStandardMaterial color="#1b4332" roughness={0.88} flatShading />
-      </mesh>
-      <mesh castShadow position={[0, 2.7*s, 0]}>
-        <coneGeometry args={[0.3*s,  0.8*s, 6]} />
-        <meshStandardMaterial color="#166534" roughness={0.9}  flatShading />
-      </mesh>
-    </group>
-  );
-}
 
 // ── Boulder ───────────────────────────────────────────────────────
 function Boulder({ position, scale = 1, color = '#6b7280' }) {
-  const r = useRef([Math.random()*0.6, Math.random()*2, Math.random()*0.4]);
+  const r = useMemo(() => [Math.random()*0.6, Math.random()*2, Math.random()*0.4], []);
   return (
-    <mesh position={position} rotation={r.current} castShadow receiveShadow>
+    <mesh position={position} rotation={r} castShadow receiveShadow>
       <dodecahedronGeometry args={[0.5 * scale, 0]} />
       <meshStandardMaterial color={color} roughness={0.95} flatShading />
     </mesh>
@@ -77,17 +53,42 @@ function Boulder({ position, scale = 1, color = '#6b7280' }) {
 function Campfire({ position, isNight }) {
   const flameRef = useRef();
   const glowRef  = useRef();
+  const groupRef = useRef();
   const embers   = useRef([]);
   const [px, py, pz] = position;
+  const transitionRef = useRef(isNight ? 1 : 0);
 
-  useFrame((s) => {
+  useFrame((s, delta) => {
+    const pzVal = window.playerZ || 0;
+    const dist = Math.abs(pz - pzVal);
+    const cullDist = isMobileDevice ? 35 : 70;
+    if (dist > cullDist) {
+      if (groupRef.current) groupRef.current.visible = false;
+      return;
+    }
+    if (groupRef.current) groupRef.current.visible = true;
+
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const tVal = transitionRef.current;
+
     const t = s.clock.getElapsedTime();
     if (flameRef.current) {
       flameRef.current.scale.y = 1 + Math.sin(t * 14) * 0.2;
       flameRef.current.rotation.y = t * 0.9;
     }
-    if (glowRef.current)
-      glowRef.current.intensity = (isNight ? 4 : 2) + Math.sin(t * 15) * 0.7;
+    if (glowRef.current) {
+      const isNear = dist < 30;
+      glowRef.current.visible = isNear;
+      if (isNear) {
+        const baseIntensity = 2 + tVal * 2;
+        glowRef.current.intensity = baseIntensity + Math.sin(t * 15) * 0.7;
+      }
+    }
     embers.current.forEach((m, i) => {
       if (!m) return;
       m.position.y = 0.3 + ((t * (0.5 + i*0.15) + i) % 1.5) * 0.8;
@@ -96,7 +97,7 @@ function Campfire({ position, isNight }) {
   });
 
   return (
-    <group position={[px, py, pz]}>
+    <group ref={groupRef} position={[px, py, pz]}>
       {[0,60,120,180,240,300].map((deg, i) => (
         <mesh key={i} castShadow
           position={[Math.cos(deg*Math.PI/180)*0.4, 0.06, Math.sin(deg*Math.PI/180)*0.4]}
@@ -127,7 +128,7 @@ function Campfire({ position, isNight }) {
         <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={3}
           transparent opacity={0.7} depthWrite={false} />
       </mesh>
-      <pointLight ref={glowRef} color="#ff8c00" intensity={2.5} distance={10} />
+      {!isMobileDevice && <pointLight ref={glowRef} color="#ff8c00" intensity={2.5} distance={10} />}
     </group>
   );
 }
@@ -183,15 +184,50 @@ function WoodenHut({ position }) {
 // ── Lantern Post ──────────────────────────────────────────────────
 function LanternPost({ position, isNight }) {
   const lRef = useRef();
-  useFrame((s) => {
-    if (lRef.current)
-      lRef.current.intensity = isNight
-        ? (3 + Math.sin(s.clock.getElapsedTime() * 11) * 0.3)
-        : 0;
+  const matRef = useRef();
+  const groupRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
+
+  const color1 = useMemo(() => new THREE.Color("#555555"), []);
+  const color2 = useMemo(() => new THREE.Color("#fef08a"), []);
+  const tempCol = useMemo(() => new THREE.Color(), []);
+
+  useFrame((s, delta) => {
+    const pzVal = window.playerZ || 0;
+    const dist = Math.abs(pz - pzVal);
+    const cullDist = isMobileDevice ? 30 : 60;
+    if (dist > cullDist) {
+      if (groupRef.current) groupRef.current.visible = false;
+      return;
+    }
+    if (groupRef.current) groupRef.current.visible = true;
+
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+
+    if (lRef.current) {
+      const isNear = dist < 25;
+      lRef.current.visible = isNear;
+      if (isNear) {
+        lRef.current.intensity = t * (5 + Math.sin(s.clock.getElapsedTime() * 11) * 0.5);
+      }
+    }
+    if (matRef.current) {
+      tempCol.lerpColors(color1, color2, t);
+      matRef.current.color.copy(tempCol);
+      matRef.current.emissiveIntensity = t * 2.5;
+      matRef.current.opacity = 0.4 + t * 0.52;
+    }
   });
+
   const [px, py, pz] = position;
   return (
-    <group position={[px, py, pz]}>
+    <group ref={groupRef} position={[px, py, pz]}>
       <Cyl pos={[0, 1.1, 0]} args={[0.04, 0.04, 2.4, 5]} color="#374151" />
       <mesh position={[0, 2.3, 0]} castShadow>
         <boxGeometry args={[0.28, 0.36, 0.28]} />
@@ -200,14 +236,15 @@ function LanternPost({ position, isNight }) {
       <mesh position={[0, 2.3, 0]}>
         <boxGeometry args={[0.2, 0.28, 0.2]} />
         <meshStandardMaterial
-          color={isNight ? "#fef08a" : "#555555"}
+          ref={matRef}
+          color="#555555"
           emissive="#fbbf24"
-          emissiveIntensity={isNight ? 2.5 : 0}
+          emissiveIntensity={0}
           transparent
-          opacity={isNight ? 0.92 : 0.4}
+          opacity={0.4}
         />
       </mesh>
-      <pointLight ref={lRef} position={[0, 2.3, 0]} color="#ff9f00" intensity={isNight ? 2 : 0} distance={6} />
+      {!isMobileDevice && <pointLight ref={lRef} position={[0, 2.3, 0]} color="#ff9f00" intensity={0} distance={12} />}
     </group>
   );
 }
@@ -215,14 +252,60 @@ function LanternPost({ position, isNight }) {
 // ── Fire Torch (Stair Lamp) ───────────────────────────────────────
 function FireTorch({ position, isNight }) {
   const flameRef = useRef();
-  useFrame((s) => {
-    if (flameRef.current && isNight) {
-      flameRef.current.scale.y = 1 + Math.sin(s.clock.getElapsedTime() * 12 + position[2]) * 0.15;
+  const matRef = useRef();
+  const lRef = useRef();
+  const groupRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
+
+  const color1 = useMemo(() => new THREE.Color("#27272a"), []);
+  const color2 = useMemo(() => new THREE.Color("#ff7f00"), []);
+  const emissive1 = useMemo(() => new THREE.Color("#000000"), []);
+  const emissive2 = useMemo(() => new THREE.Color("#ff3300"), []);
+  const tempCol = useMemo(() => new THREE.Color(), []);
+  const tempEmissive = useMemo(() => new THREE.Color(), []);
+
+  useFrame((s, delta) => {
+    const pzVal = window.playerZ || 0;
+    const dist = Math.abs(pz - pzVal);
+    const cullDist = isMobileDevice ? 25 : 55;
+    if (dist > cullDist) {
+      if (groupRef.current) groupRef.current.visible = false;
+      return;
+    }
+    if (groupRef.current) groupRef.current.visible = true;
+
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+
+    if (flameRef.current) {
+      const scaleY = 1 + Math.sin(s.clock.getElapsedTime() * 12 + position[2]) * 0.15 * t;
+      flameRef.current.scale.set(1, scaleY, 1);
+    }
+    if (matRef.current) {
+      tempCol.lerpColors(color1, color2, t);
+      tempEmissive.lerpColors(emissive1, emissive2, t);
+      matRef.current.color.copy(tempCol);
+      matRef.current.emissive.copy(tempEmissive);
+      matRef.current.emissiveIntensity = t * 3;
+      matRef.current.opacity = 1.0 - t * 0.1;
+    }
+    if (lRef.current) {
+      const isNear = dist < 10;
+      lRef.current.visible = isNear;
+      if (isNear) {
+        lRef.current.intensity = t * (2 + Math.sin(s.clock.getElapsedTime() * 14 + position[2]) * 0.4);
+      }
     }
   });
+
   const [px, py, pz] = position;
   return (
-    <group position={[px, py, pz]}>
+    <group ref={groupRef} position={[px, py, pz]}>
       {/* Wooden post */}
       <Cyl pos={[0, 0.4, 0]} args={[0.02, 0.025, 0.8, 5]} color="#7c3d11" />
       {/* Metal bracket / bowl holder */}
@@ -234,13 +317,17 @@ function FireTorch({ position, isNight }) {
       <mesh ref={flameRef} position={[0, 0.9, 0]}>
         <coneGeometry args={[0.05, 0.18, 5]} />
         <meshStandardMaterial
-          color={isNight ? "#ff7f00" : "#27272a"}
-          emissive={isNight ? "#ff3300" : "#000000"}
-          emissiveIntensity={isNight ? 3 : 0}
-          transparent={isNight}
-          opacity={isNight ? 0.9 : 1.0}
+          ref={matRef}
+          color="#27272a"
+          emissive="#000000"
+          emissiveIntensity={0}
+          transparent
+          opacity={1.0}
         />
       </mesh>
+      {!isMobileDevice && (
+        <pointLight ref={lRef} position={[0, 0.9, 0]} color="#ff7f00" intensity={0} distance={8} />
+      )}
     </group>
   );
 }
@@ -270,7 +357,26 @@ function WoodenSign({ position, text, rotation = 0 }) {
 // MOUNTAIN BODY — cone-based low-poly mountain (like the reference)
 // ════════════════════════════════════════════════════════════════
 function MountainBody({ isNight }) {
-  const grassCol = isNight ? '#14532d' : '#22c55e';
+  const grassMatRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
+  const color1 = useMemo(() => new THREE.Color('#22c55e'), []);
+  const color2 = useMemo(() => new THREE.Color('#14532d'), []);
+  const tempCol = useMemo(() => new THREE.Color(), []);
+
+  useFrame((s, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+    if (grassMatRef.current) {
+      tempCol.lerpColors(color1, color2, t);
+      grassMatRef.current.color.copy(tempCol);
+    }
+  });
+
   const rockCol  = '#4b5563';
   const darkRock = '#374151';
   const snowCol  = '#e2e8f0';
@@ -280,7 +386,7 @@ function MountainBody({ isNight }) {
       {/* ── Wide green base cone ── */}
       <mesh castShadow receiveShadow position={[0, -4, -92]}>
         <coneGeometry args={[58, 22, 8]} />
-        <meshStandardMaterial color={grassCol} roughness={0.92} flatShading />
+        <meshStandardMaterial ref={grassMatRef} color="#22c55e" roughness={0.92} flatShading />
       </mesh>
 
       {/* ── Mid mountain rocky body ── */}
@@ -333,7 +439,25 @@ function MountainBody({ isNight }) {
 // SURROUNDING MOUNTAINS — cone shapes on both sides (no wall blocks)
 // ════════════════════════════════════════════════════════════════
 function SurroundingMountains({ isNight }) {
-  const grassC = isNight ? '#14532d' : '#16a34a';
+  const grassMatRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
+  const color1 = useMemo(() => new THREE.Color('#16a34a'), []);
+  const color2 = useMemo(() => new THREE.Color('#14532d'), []);
+  const tempCol = useMemo(() => new THREE.Color(), []);
+
+  useFrame((s, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+    if (grassMatRef.current) {
+      tempCol.lerpColors(color1, color2, t);
+      grassMatRef.current.color.copy(tempCol);
+    }
+  });
 
   const mountains = [
     // Left side
@@ -357,18 +481,18 @@ function SurroundingMountains({ isNight }) {
       {mountains.map((m, i) => (
         <group key={i} position={m.pos}>
           {/* Green base */}
-          <mesh castShadow receiveShadow>
+          <mesh receiveShadow>
             <coneGeometry args={[m.r * 1.6, m.h * 0.38, 7]} />
-            <meshStandardMaterial color={grassC} roughness={0.92} flatShading />
+            <meshStandardMaterial ref={grassMatRef} color="#16a34a" roughness={0.92} flatShading />
           </mesh>
           {/* Rocky body */}
-          <mesh castShadow position={[0, m.h * 0.25, 0]}>
+          <mesh position={[0, m.h * 0.25, 0]}>
             <coneGeometry args={[m.r * 0.95, m.h * 0.68, 6]} />
             <meshStandardMaterial color={m.rocky ? '#374151' : '#4b5563'} roughness={0.94} flatShading />
           </mesh>
           {/* Snow cap on tall ones */}
           {m.h > 40 && (
-            <mesh castShadow position={[0, m.h * 0.62, 0]}>
+            <mesh position={[0, m.h * 0.62, 0]}>
               <coneGeometry args={[m.r * 0.35, m.h * 0.22, 5]} />
               <meshStandardMaterial color="#e2e8f0" roughness={0.82} flatShading />
             </mesh>
@@ -392,10 +516,42 @@ function WalkableTrail({ isNight }) {
   const HALF_D    = SEG_DEPTH / 2;
   const HALF_H    = 0.4;
 
-  const grassC = isNight ? '#166534' : '#22c55e';
+  const grassMatRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
+  const color1 = useMemo(() => new THREE.Color('#22c55e'), []);
+  const color2 = useMemo(() => new THREE.Color('#166534'), []);
+  const tempCol = useMemo(() => new THREE.Color(), []);
+
+  useFrame((s, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+    if (grassMatRef.current) {
+      tempCol.lerpColors(color1, color2, t);
+      grassMatRef.current.color.copy(tempCol);
+    }
+  });
+
   const rockC  = '#6b7280';
   const snowC  = '#f0f9ff';
   const dirtC  = '#92400e';
+
+  const materials = useMemo(() => {
+    return {
+      snow: new THREE.MeshStandardMaterial({ color: snowC, roughness: 0.93, flatShading: true }),
+      rock: new THREE.MeshStandardMaterial({ color: rockC, roughness: 0.93, flatShading: true }),
+      grass: new THREE.MeshStandardMaterial({ color: '#22c55e', roughness: 0.93, flatShading: true }),
+    };
+  }, []);
+
+  materials.grass.name = "grassMaterial";
+  grassMatRef.current = materials.grass;
+
+  const slopeAngle = -Math.atan(TRAIL_RISE / TRAIL_LENGTH);
 
   return (
     <group>
@@ -406,44 +562,76 @@ function WalkableTrail({ isNight }) {
         const t  = (i + 0.5) / SEG_COUNT;
 
         // Surface colour shifts from grass → rock → snow near summit
-        const surfColor = t > 0.88
-          ? snowC
+        const materialToUse = t > 0.88
+          ? materials.snow
           : t > 0.66
-            ? rockC
-            : grassC;
+            ? materials.rock
+            : materials.grass;
 
         const side = i % 2 === 0 ? 1 : -1;
+
+        // Deterministic pseudo-randomness for rocks
+        const r1 = Math.abs(Math.sin(i * 18.23));
+        const r2 = Math.abs(Math.cos(i * 27.54));
+        const r3 = Math.abs(Math.sin(i * 38.82));
+        const r4 = Math.abs(Math.cos(i * 49.19));
+
+        const rock1_x = (r1 - 0.5) * 2.2;
+        const rock1_z = (r2 - 0.5) * SEG_DEPTH;
+        const rock1_scale = 0.42 + r1 * 0.38;
+        const rock1_rot = r2 * Math.PI;
+
+        const rock2_x = (r3 - 0.5) * 2.2;
+        const rock2_z = (r4 - 0.5) * SEG_DEPTH;
+        const rock2_scale = 0.38 + r3 * 0.38;
+        const rock2_rot = r4 * Math.PI;
+
+        const color1 = r1 > 0.66 ? '#57534e' : r1 > 0.33 ? '#78716c' : '#44403c';
+        const color2 = r3 > 0.66 ? '#78716c' : r3 > 0.33 ? '#44403c' : '#57534e';
+
         return (
           <group key={i}>
-            <RigidBody type="fixed" position={[cx, y, z]}>
+            <RigidBody type="fixed" position={[cx, y, z]} rotation={[slopeAngle, 0, 0]}>
               <CuboidCollider args={[HALF_W, HALF_H, HALF_D]} />
-              <mesh receiveShadow castShadow>
+              
+              {/* Trail surface */}
+              <mesh receiveShadow>
                 <boxGeometry args={[SEG_WIDTH, HALF_H * 2, SEG_DEPTH]} />
-                <meshStandardMaterial color={surfColor} roughness={0.93} flatShading />
+                <primitive object={materialToUse} attach="material" />
               </mesh>
-              {/* Wide mountain base slope directly underneath the trail (grounds floating trees & boulders) */}
-              <mesh receiveShadow castShadow position={[0, -1.2, 0]}>
+              
+              {/* Wide mountain base slope directly underneath the trail */}
+              <mesh receiveShadow position={[0, -1.2, 0]}>
                 <boxGeometry args={[26, 2.4, SEG_DEPTH + 0.1]} />
-                <meshStandardMaterial color={surfColor} roughness={0.94} flatShading />
+                <primitive object={materialToUse} attach="material" />
               </mesh>
-            </RigidBody>
-            <FireTorch position={[cx + side * 3.8, y + HALF_H, z]} isNight={isNight} />
-          </group>
-        );
-      })}
 
-      {/* ── Dirt path strip (visual only) ── */}
-      {Array.from({ length: SEG_COUNT }).map((_, i) => {
-        const z  = -(i + 0.5) * SEG_STEP;
-        const y  = getTerrainY(z) + 0.42;
-        const cx = getPathCenterX(z);
-        const t  = (i + 0.5) / SEG_COUNT;
-        if (t > 0.66) return null;          // no dirt on rocks/snow
-        return (
-          <mesh key={i} position={[cx, y, z]} receiveShadow>
-            <boxGeometry args={[3.2, 0.06, SEG_DEPTH + 0.4]} />
-            <meshStandardMaterial color={dirtC} roughness={0.97} />
-          </mesh>
+              {/* Dirt path strip (visual only) */}
+              {t <= 0.66 && (
+                <mesh position={[0, 0.42, 0]} receiveShadow>
+                  <boxGeometry args={[3.2, 0.06, SEG_DEPTH + 0.4]} />
+                  <meshStandardMaterial color={dirtC} roughness={0.97} />
+                </mesh>
+              )}
+
+              {/* Rocky trail slabs (visual only) */}
+              {t <= 0.88 && (
+                <group position={[0, 0.43, 0]}>
+                  <mesh position={[rock1_x, 0, rock1_z]} rotation={[0.04, rock1_rot, 0.04]} receiveShadow scale={[rock1_scale * 1.6, 0.08, rock1_scale]}>
+                    <dodecahedronGeometry args={[0.5, 0]} />
+                    <meshStandardMaterial color={color1} roughness={0.96} flatShading />
+                  </mesh>
+                  <mesh position={[rock2_x, 0, rock2_z]} rotation={[-0.04, rock2_rot, -0.04]} receiveShadow scale={[rock2_scale * 1.6, 0.08, rock2_scale]}>
+                    <dodecahedronGeometry args={[0.5, 0]} />
+                    <meshStandardMaterial color={color2} roughness={0.96} flatShading />
+                  </mesh>
+                </group>
+              )}
+            </RigidBody>
+            {(!isMobileDevice || i % 3 === 0) && (
+              <FireTorch position={[cx + side * 3.8, y + HALF_H, z]} isNight={isNight} />
+            )}
+          </group>
         );
       })}
 
@@ -455,7 +643,7 @@ function WalkableTrail({ isNight }) {
         const side = i % 2 === 0 ? 1 : -1;
         return (
           <mesh key={i} position={[cx + side * (1.9 + (i%4)*0.35), ty, z]}
-            rotation={[0, i * 0.8, 0]}>
+            rotation={[slopeAngle, i * 0.8, 0]}>
             <dodecahedronGeometry args={[0.1 + (i%4)*0.04, 0]} />
             <meshStandardMaterial color="#78716c" roughness={0.95} flatShading />
           </mesh>
@@ -468,7 +656,7 @@ function WalkableTrail({ isNight }) {
         const cx = getPathCenterX(z);
         const ty = getTerrainY(z) + 0.5;
         return (
-          <mesh key={i} position={[cx + (i%2===0?2.8:-2.8), ty, z]} receiveShadow>
+          <mesh key={i} position={[cx + (i%2===0?2.8:-2.8), ty, z]} receiveShadow rotation={[slopeAngle, 0, 0]}>
             <boxGeometry args={[2.2, 0.08, 1.5]} />
             <meshStandardMaterial color="#f0f9ff" roughness={0.85} />
           </mesh>
@@ -491,7 +679,7 @@ function ForestDecorations() {
       const side  = i % 2 === 0 ? -1 : 1;
       const dist  = 4.5 + (i % 5) * 1.8;
       const scale = 0.65 + (i % 4) * 0.25;
-      if (ty < TRAIL_RISE - 3) arr.push({ x: cx + side*dist, y: ty, z, scale });
+      if (z > -165) arr.push({ x: cx + side*dist, y: ty, z, scale });
     }
     return arr;
   }, []);
@@ -654,7 +842,7 @@ function Waterfall() {
 // NIGHT SKY — 600 twinkling stars + Milky Way + Moon
 // ════════════════════════════════════════════════════════════════
 function NightSky({ isNight }) {
-  const COUNT = 1800;
+  const COUNT = isMobileDevice ? 400 : 1800;
 
   const starSystem = useMemo(() => {
     const geom = new THREE.BufferGeometry();
@@ -696,6 +884,7 @@ function NightSky({ isNight }) {
     const mat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
+        uOpacity: { value: 0 },
       },
       vertexShader: `
         uniform float uTime;
@@ -713,12 +902,13 @@ function NightSky({ isNight }) {
         }
       `,
       fragmentShader: `
+        uniform float uOpacity;
         varying vec3 vColor;
         varying float vTwinkle;
         void main() {
           float dist = distance(gl_PointCoord, vec2(0.5));
           if (dist > 0.5) discard;
-          gl_FragColor = vec4(vColor, vTwinkle * 0.8);
+          gl_FragColor = vec4(vColor, vTwinkle * 0.8 * uOpacity);
         }
       `,
       transparent: true,
@@ -738,17 +928,51 @@ function NightSky({ isNight }) {
     return arr;
   }, []);
 
-  useFrame((s) => {
-    if (!isNight) return;
-    starSystem.mat.uniforms.uTime.value = s.clock.getElapsedTime();
-  });
+  const pointsRef = useRef();
+  const milkyWayMatRef = useRef();
+  const moonMatRef = useRef();
+  const moonGlowMatRef = useRef();
+  const moonLightRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
 
-  if (!isNight) return null;
+  useFrame((s, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+    const isVisible = t > 0.001;
+
+    if (pointsRef.current) pointsRef.current.visible = isVisible;
+    if (milkyWayMatRef.current) {
+      milkyWayMatRef.current.opacity = t * 0.3;
+      milkyWayMatRef.current.visible = isVisible;
+    }
+    if (moonMatRef.current) {
+      moonMatRef.current.opacity = t;
+      moonMatRef.current.visible = isVisible;
+    }
+    if (moonGlowMatRef.current) {
+      moonGlowMatRef.current.opacity = t * 0.08;
+      moonGlowMatRef.current.visible = isVisible;
+    }
+    if (moonLightRef.current) {
+      moonLightRef.current.intensity = t * 1.4;
+      moonLightRef.current.visible = isVisible;
+    }
+
+    if (isVisible) {
+      starSystem.mat.uniforms.uTime.value = s.clock.getElapsedTime();
+      starSystem.mat.uniforms.uOpacity.value = t;
+    }
+  });
 
   return (
     <group>
       {/* Regular stars */}
-      <points geometry={starSystem.geom}>
+      <points ref={pointsRef} geometry={starSystem.geom}>
         <primitive object={starSystem.mat} attach="material" />
       </points>
 
@@ -760,20 +984,20 @@ function NightSky({ isNight }) {
             args={[milkyWayPositions, 3]}
           />
         </bufferGeometry>
-        <pointsMaterial color="#c7d2f8" size={0.15} transparent opacity={0.3} sizeAttenuation />
+        <pointsMaterial ref={milkyWayMatRef} color="#c7d2f8" size={0.15} transparent opacity={0.3} sizeAttenuation />
       </points>
 
       {/* Moon */}
       <mesh position={[-42, 60, -155]}>
         <sphereGeometry args={[5.5, 14, 14]} />
-        <meshBasicMaterial color="#fef9c3" />
+        <meshBasicMaterial ref={moonMatRef} color="#fef9c3" transparent opacity={0} />
       </mesh>
       {/* Moon glow */}
       <mesh position={[-42, 60, -155]}>
         <sphereGeometry args={[7.5, 10, 10]} />
-        <meshBasicMaterial color="#fef9c3" transparent opacity={0.08} />
+        <meshBasicMaterial ref={moonGlowMatRef} color="#fef9c3" transparent opacity={0} />
       </mesh>
-      <pointLight position={[-42, 60, -155]} color="#fef9c3" intensity={1.4} distance={500} />
+      <pointLight ref={moonLightRef} position={[-42, 60, -155]} color="#fef9c3" intensity={0} distance={500} />
     </group>
   );
 }
@@ -791,19 +1015,41 @@ function DayClouds({ isNight }) {
   })), []);
 
   const refs = useRef([]);
+  const groupRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
 
-  useFrame(() => {
-    refs.current.forEach((c, i) => {
-      if (!c) return;
-      c.position.x += cloudData[i].speed;
-      if (c.position.x > 72) c.position.x = -72;
-    });
+  const sharedMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: new THREE.Color("#f8fafc"),
+    transparent: true,
+    opacity: 0.88,
+    roughness: 0.92,
+    depthWrite: false,
+  }), []);
+
+  useFrame((s, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+    const isVisible = (1 - t) > 0.001;
+
+    if (groupRef.current) groupRef.current.visible = isVisible;
+
+    if (isVisible) {
+      sharedMaterial.opacity = (1 - t) * 0.88;
+      refs.current.forEach((c, i) => {
+        if (!c) return;
+        c.position.x += cloudData[i].speed;
+        if (c.position.x > 72) c.position.x = -72;
+      });
+    }
   });
 
-  if (isNight) return null;
-
   return (
-    <group>
+    <group ref={groupRef}>
       {cloudData.map((d, i) => (
         <group key={i} ref={el => refs.current[i] = el}
           position={[d.x, d.y, d.z]} scale={d.scale}>
@@ -814,8 +1060,7 @@ function DayClouds({ isNight }) {
           ].map(([cx,cy,cz], j) => (
             <mesh key={j} position={[cx, cy, cz]}>
               <sphereGeometry args={[0.82+(j%3)*0.24, 6, 5]} />
-              <meshStandardMaterial color="#f8fafc" transparent
-                opacity={0.88} roughness={0.92} depthWrite={false} />
+              <primitive object={sharedMaterial} attach="material" />
             </mesh>
           ))}
         </group>
@@ -841,42 +1086,71 @@ function AnimatedBirds({ isNight }) {
   const birdRefs = useRef([]);
   const lRefs    = useRef([]);
   const rRefs    = useRef([]);
+  const groupRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
 
-  useFrame((s) => {
-    const t = s.clock.getElapsedTime();
-    birdRefs.current.forEach((b, i) => {
-      if (!b) return;
-      b.position.x += birds[i].speed * 0.016;
-      b.position.y = birds[i].y + Math.sin(t*0.38 + birds[i].phase)*1.3;
-      if (b.position.x > 55) b.position.x = -50;
-    });
-    lRefs.current.forEach((w, i) => {
-      if (!w) return;
-      w.rotation.z = -0.28 + Math.sin(t*birds[i].flap + birds[i].phase)*0.52;
-    });
-    rRefs.current.forEach((w, i) => {
-      if (!w) return;
-      w.rotation.z =  0.28 - Math.sin(t*birds[i].flap + birds[i].phase)*0.52;
-    });
+  const wingMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    color: new THREE.Color("#1f2937"),
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 1
+  }), []);
+  
+  const bodyMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    color: new THREE.Color("#111827"),
+    transparent: true,
+    opacity: 1
+  }), []);
+
+  useFrame((s, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+    const isVisible = (1 - t) > 0.001;
+
+    if (groupRef.current) groupRef.current.visible = isVisible;
+
+    if (isVisible) {
+      wingMaterial.opacity = 1 - t;
+      bodyMaterial.opacity = 1 - t;
+      
+      const time = s.clock.getElapsedTime();
+      birdRefs.current.forEach((b, i) => {
+        if (!b) return;
+        b.position.x += birds[i].speed * 0.016;
+        b.position.y = birds[i].y + Math.sin(time*0.38 + birds[i].phase)*1.3;
+        if (b.position.x > 55) b.position.x = -50;
+      });
+      lRefs.current.forEach((w, i) => {
+        if (!w) return;
+        w.rotation.z = -0.28 + Math.sin(time*birds[i].flap + birds[i].phase)*0.52;
+      });
+      rRefs.current.forEach((w, i) => {
+        if (!w) return;
+        w.rotation.z =  0.28 - Math.sin(time*birds[i].flap + birds[i].phase)*0.52;
+      });
+    }
   });
 
-  if (isNight) return null;
-
   return (
-    <group>
+    <group ref={groupRef}>
       {birds.map((d, i) => (
         <group key={i} ref={el => birdRefs.current[i]=el} position={[d.x, d.y, d.z]}>
           <mesh ref={el => lRefs.current[i]=el} position={[-0.26,0,0]}>
             <planeGeometry args={[0.58, 0.17]} />
-            <meshBasicMaterial color="#1f2937" side={THREE.DoubleSide} />
+            <primitive object={wingMaterial} attach="material" />
           </mesh>
           <mesh ref={el => rRefs.current[i]=el} position={[0.26,0,0]}>
             <planeGeometry args={[0.58, 0.17]} />
-            <meshBasicMaterial color="#1f2937" side={THREE.DoubleSide} />
+            <primitive object={wingMaterial} attach="material" />
           </mesh>
           <mesh>
             <sphereGeometry args={[0.08,4,4]} />
-            <meshBasicMaterial color="#111827" />
+            <primitive object={bodyMaterial} attach="material" />
           </mesh>
         </group>
       ))}
@@ -888,6 +1162,7 @@ function AnimatedBirds({ isNight }) {
 // WIND LEAVES
 // ════════════════════════════════════════════════════════════════
 function WindLeaves() {
+  if (isMobileDevice) return null;
   const COUNT = 30;
   const leafData = useMemo(() => Array.from({length:COUNT}).map((_,i)=>({
     startX: -6+Math.random()*12, startY: 1+Math.random()*4,
@@ -928,7 +1203,7 @@ function WindLeaves() {
 // SNOW PARTICLES (upper trail)
 // ════════════════════════════════════════════════════════════════
 function SnowParticles() {
-  const COUNT = 80;
+  const COUNT = isMobileDevice ? 25 : 80;
 
   const snowSystem = useMemo(() => {
     const geom = new THREE.BufferGeometry();
@@ -1020,8 +1295,6 @@ function SnowParticles() {
 // FIREFLIES (night time only)
 // ════════════════════════════════════════════════════════════════
 function Fireflies({ isNight }) {
-  if (!isNight) return null;
-
   const COUNT = 160;
 
   const firefliesSystem = useMemo(() => {
@@ -1060,6 +1333,7 @@ function Fireflies({ isNight }) {
     const mat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
+        uOpacity: { value: 0 },
       },
       vertexShader: `
         uniform float uTime;
@@ -1080,11 +1354,12 @@ function Fireflies({ isNight }) {
         }
       `,
       fragmentShader: `
+        uniform float uOpacity;
         void main() {
           float dist = distance(gl_PointCoord, vec2(0.5));
           if (dist > 0.5) discard;
           float alpha = 1.0 - (dist * 2.0);
-          gl_FragColor = vec4(0.639, 0.902, 0.208, alpha * 0.9);
+          gl_FragColor = vec4(0.639, 0.902, 0.208, alpha * 0.9 * uOpacity);
         }
       `,
       transparent: true,
@@ -1094,12 +1369,29 @@ function Fireflies({ isNight }) {
     return { geom, mat };
   }, []);
 
-  useFrame((state) => {
-    firefliesSystem.mat.uniforms.uTime.value = state.clock.getElapsedTime();
+  const pointsRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
+
+  useFrame((state, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+    const isVisible = t > 0.001;
+    
+    if (pointsRef.current) pointsRef.current.visible = isVisible;
+    
+    if (isVisible) {
+      firefliesSystem.mat.uniforms.uTime.value = state.clock.getElapsedTime();
+      firefliesSystem.mat.uniforms.uOpacity.value = t;
+    }
   });
 
   return (
-    <points geometry={firefliesSystem.geom}>
+    <points ref={pointsRef} geometry={firefliesSystem.geom}>
       <primitive object={firefliesSystem.mat} attach="material" />
     </points>
   );
@@ -1109,8 +1401,41 @@ function Fireflies({ isNight }) {
 // FOG CLOUD BANDS (ground mist)
 // ════════════════════════════════════════════════════════════════
 function MistBands({ isNight }) {
-  const color = isNight ? '#1e2942' : '#e2e8f0';
+  if (isMobileDevice) return null;
   const zPositions = [-22,-55,-88,-125,-162];
+
+  const mistMatRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
+  
+  const color1 = useMemo(() => new THREE.Color('#e2e8f0'), []);
+  const color2 = useMemo(() => new THREE.Color('#1e2942'), []);
+  const tempCol = useMemo(() => new THREE.Color(), []);
+
+  const sharedMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: new THREE.Color('#e2e8f0'),
+    transparent: true,
+    opacity: 0.11,
+    depthWrite: false,
+  }), []);
+
+  mistMatRef.current = sharedMaterial;
+
+  useFrame((s, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+    
+    if (mistMatRef.current) {
+      tempCol.lerpColors(color1, color2, t);
+      mistMatRef.current.color.copy(tempCol);
+      mistMatRef.current.opacity = 0.11 + t * 0.05;
+    }
+  });
+
   return (
     <group>
       {zPositions.map((z, i) => {
@@ -1121,8 +1446,7 @@ function MistBands({ isNight }) {
             {[-1,0,1,2,-2].map(j => (
               <mesh key={j} position={[cx+j*5, ty+0.35+i*0.15, z+j*2]}>
                 <sphereGeometry args={[2.4+j*0.4, 6, 5]} />
-                <meshStandardMaterial color={color} transparent
-                  opacity={0.11+(isNight?0.05:0)} depthWrite={false} />
+                <primitive object={sharedMaterial} attach="material" />
               </mesh>
             ))}
           </group>
@@ -1166,14 +1490,38 @@ function CheckpointArch({ z, label, isNight }) {
     return tex;
   }, [label]);
 
+  const groupRef = useRef();
+
   useFrame((s) => {
+    const pzVal = window.playerZ || 0;
+    const dist = Math.abs(z - pzVal);
+    const cullDist = isMobileDevice ? 25 : 55;
+    
+    if (dist > cullDist) {
+      if (groupRef.current) groupRef.current.visible = false;
+      return;
+    }
+    if (groupRef.current) groupRef.current.visible = true;
+
     const t = s.clock.getElapsedTime();
-    if (flameRef.current)  flameRef.current.intensity  = (isNight ? 4 : 1.2) + Math.sin(t * 11) * 0.6;
-    if (flameRef2.current) flameRef2.current.intensity = (isNight ? 4 : 1.2) + Math.sin(t * 9 + 1) * 0.6;
+    if (flameRef.current) {
+      const isNear = dist < 25;
+      flameRef.current.visible = isNear;
+      if (isNear) {
+        flameRef.current.intensity = (isNight ? 4 : 1.2) + Math.sin(t * 11) * 0.6;
+      }
+    }
+    if (flameRef2.current) {
+      const isNear = dist < 25;
+      flameRef2.current.visible = isNear;
+      if (isNear) {
+        flameRef2.current.intensity = (isNight ? 4 : 1.2) + Math.sin(t * 9 + 1) * 0.6;
+      }
+    }
   });
 
   return (
-    <group>
+    <group ref={groupRef}>
       {/* Left post */}
       <Cyl pos={[cx - 4.2, ty + 1.65, z]} args={[0.12, 0.14, 3.3, 7]} color="#7c3d11" rough={0.92} />
       {/* Right post */}
@@ -1203,14 +1551,14 @@ function CheckpointArch({ z, label, isNight }) {
         <sphereGeometry args={[0.09, 6, 6]} />
         <meshStandardMaterial color="#ff7700" emissive="#ff4400" emissiveIntensity={3} />
       </mesh>
-      <pointLight ref={flameRef} position={[cx - 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />
+      {!isMobileDevice && <pointLight ref={flameRef} position={[cx - 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />}
       {/* Right torch */}
       <Cyl pos={[cx + 4.2, ty + 3.6, z]} args={[0.05, 0.07, 0.28, 6]} color="#7c3d11" />
       <mesh position={[cx + 4.2, ty + 3.78, z]}>
         <sphereGeometry args={[0.09, 6, 6]} />
         <meshStandardMaterial color="#ff7700" emissive="#ff4400" emissiveIntensity={3} />
       </mesh>
-      <pointLight ref={flameRef2} position={[cx + 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />
+      {!isMobileDevice && <pointLight ref={flameRef2} position={[cx + 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />}
       {/* Flag pennants on posts */}
       {[[-4.2, '#ef4444'], [4.2, '#3b82f6']].map(([ox, col], i) => (
         <mesh key={i} position={[cx + ox + (ox < 0 ? 0.3 : -0.3), ty + 3.28, z - 0.04]}>
@@ -1298,8 +1646,17 @@ function SkillLog({ position, skill, rotation = 0 }) {
 // ════════════════════════════════════════════════════════════════
 function Zone_AboutMe({ z, isNight }) {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
+  const groupRef = useRef();
+
+  useFrame(() => {
+    if (!groupRef.current) return;
+    const pzVal = window.playerZ || 0;
+    const dist = Math.abs(z - pzVal);
+    groupRef.current.visible = (dist < 55);
+  });
+
   return (
-    <group>
+    <group ref={groupRef}>
       <CheckpointArch z={z + 4} label="ABOUT ME" isNight={isNight} />
       <Campfire position={[cx+2.5, ty+0.46, z]} isNight={isNight} />
       <WoodenHut position={[cx-5, ty+0.46, z-1]} />
@@ -1336,8 +1693,17 @@ function Zone_AboutMe({ z, isNight }) {
 
 function Zone_Education({ z, isNight }) {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
+  const groupRef = useRef();
+
+  useFrame(() => {
+    if (!groupRef.current) return;
+    const pzVal = window.playerZ || 0;
+    const dist = Math.abs(z - pzVal);
+    groupRef.current.visible = (dist < 55);
+  });
+
   return (
-    <group>
+    <group ref={groupRef}>
       <CheckpointArch z={z + 4} label="EDUCATION" isNight={isNight} />
       {['#1e40af','#b91c1c','#16a34a','#7c3d11'].map((c,i)=>(
         <Box key={i} pos={[cx-4,ty+0.5+i*0.14,z]} size={[0.9,0.13,0.7]} color={c} rot={[0,(i%2)*0.12,0]} />
@@ -1368,7 +1734,19 @@ function Zone_Education({ z, isNight }) {
 function Zone_Skills({ z, isNight }) {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const glowRef = useRef();
-  useFrame((s) => { if (glowRef.current) glowRef.current.intensity = 1 + Math.sin(s.clock.getElapsedTime() * 4) * 0.4; });
+  const groupRef = useRef();
+
+  useFrame((s) => {
+    if (!groupRef.current) return;
+    const pzVal = window.playerZ || 0;
+    const dist = Math.abs(z - pzVal);
+    const visible = dist < 55;
+    groupRef.current.visible = visible;
+
+    if (visible && glowRef.current) {
+      glowRef.current.intensity = 1 + Math.sin(s.clock.getElapsedTime() * 4) * 0.4;
+    }
+  });
 
   // All skills get their own wooden log — arranged left-right across the trail
   const skills = [
@@ -1391,7 +1769,7 @@ function Zone_Skills({ z, isNight }) {
   const row2 = skills.slice(6, 12);
 
   return (
-    <group>
+    <group ref={groupRef}>
       <CheckpointArch z={z + 5} label="SKILLS" isNight={isNight} />
 
       {/* ── Row 1 logs (closer to player) ── */}
@@ -1417,7 +1795,7 @@ function Zone_Skills({ z, isNight }) {
         <planeGeometry args={[0.98,0.55]} />
         <meshStandardMaterial color="#0f172a" emissive="#38bdf8" emissiveIntensity={0.7} transparent opacity={0.95} />
       </mesh>
-      <pointLight ref={glowRef} position={[cx+6.5, ty+1.66, z-0.5]} color="#38bdf8" intensity={1.2} distance={4} />
+      {!isMobileDevice && <pointLight ref={glowRef} position={[cx+6.5, ty+1.66, z-0.5]} color="#38bdf8" intensity={1.2} distance={4} />}
 
       {/* ── Server rack left ── */}
       <Box pos={[cx-6.5, ty+1.46, z]} size={[0.6,2.0,0.8]} color="#1f2937" />
@@ -1444,13 +1822,26 @@ function Zone_Skills({ z, isNight }) {
 function Zone_Projects({ z, isNight }) {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const screenRefs = useRef([]);
-  useFrame((s)=>{
-    const t=s.clock.getElapsedTime();
-    screenRefs.current.forEach((m,i)=>{if(m) m.position.y=ty+2.06+Math.sin(t*0.8+i)*0.09;});
+  const groupRef = useRef();
+
+  useFrame((s) => {
+    if (!groupRef.current) return;
+    const pzVal = window.playerZ || 0;
+    const dist = Math.abs(z - pzVal);
+    const visible = dist < 55;
+    groupRef.current.visible = visible;
+
+    if (visible) {
+      const t = s.clock.getElapsedTime();
+      screenRefs.current.forEach((m, i) => {
+        if (m) m.position.y = ty + 2.06 + Math.sin(t * 0.8 + i) * 0.09;
+      });
+    }
   });
+
   const projects=[{title:'Cloud Infra',color:'#38bdf8'},{title:'DevOps Pipeline',color:'#34d399'},{title:'AI Monitor',color:'#a78bfa'}];
   return (
-    <group>
+    <group ref={groupRef}>
       <CheckpointArch z={z + 4} label="PROJECTS" isNight={isNight} />
       {projects.map((p,i)=>(
         <group key={i} ref={el=>screenRefs.current[i]=el} position={[cx-3.5+i*3.5,ty+2.06,z-0.5]}>
@@ -1462,7 +1853,7 @@ function Zone_Projects({ z, isNight }) {
             <meshBasicMaterial color={p.color} transparent opacity={0.8} /></mesh>
           <mesh position={[0,-0.65,0]}><boxGeometry args={[0.1,0.35,0.1]} />
             <meshStandardMaterial color="#374151" roughness={0.8} /></mesh>
-          <pointLight position={[0,0,-0.5]} color={p.color} intensity={0.8} distance={3} />
+          {!isMobileDevice && <pointLight position={[0,0,-0.5]} color={p.color} intensity={0.8} distance={3} />}
         </group>
       ))}
       {/* Hologram sphere */}
@@ -1470,7 +1861,7 @@ function Zone_Projects({ z, isNight }) {
         <sphereGeometry args={[0.5,12,12]} />
         <meshStandardMaterial color="#38bdf8" transparent opacity={0.22} emissive="#0ea5e9" emissiveIntensity={0.6} depthWrite={false} wireframe />
       </mesh>
-      <pointLight position={[cx-5,ty+2.26,z-0.5]} color="#38bdf8" intensity={0.9} distance={4} />
+      {!isMobileDevice && <pointLight position={[cx-5,ty+2.26,z-0.5]} color="#38bdf8" intensity={0.9} distance={4} />}
       <WoodenSign position={[cx,ty+0.46,z+3]} text="PROJECTS" />
       <Campfire position={[cx+6, ty+0.46, z+2]} isNight={isNight} />
       <LanternPost position={[cx-5, ty+0.46, z+1]} isNight={isNight} />
@@ -1485,13 +1876,29 @@ function Zone_Projects({ z, isNight }) {
 function Zone_Experience({ z, isNight }) {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const flagRefs = useRef([]);
-  useFrame((s)=>{
-    const t=s.clock.getElapsedTime();
-    flagRefs.current.forEach((m,i)=>{if(m){m.rotation.z=Math.sin(t*2.5+i)*0.15;m.scale.x=1+Math.sin(t*4+i)*0.08;}});
+  const groupRef = useRef();
+
+  useFrame((s) => {
+    if (!groupRef.current) return;
+    const pzVal = window.playerZ || 0;
+    const dist = Math.abs(z - pzVal);
+    const visible = dist < 55;
+    groupRef.current.visible = visible;
+
+    if (visible) {
+      const t = s.clock.getElapsedTime();
+      flagRefs.current.forEach((m, i) => {
+        if (m) {
+          m.rotation.z = Math.sin(t * 2.5 + i) * 0.15;
+          m.scale.x = 1 + Math.sin(t * 4 + i) * 0.08;
+        }
+      });
+    }
   });
+
   const flags=[{color:'#ef4444',text:'CLOUD'},{color:'#3b82f6',text:'DEVOPS'},{color:'#22c55e',text:'LINUX'}];
   return (
-    <group>
+    <group ref={groupRef}>
       <CheckpointArch z={z + 4} label="EXPERIENCE" isNight={isNight} />
       {flags.map((f,i)=>(
         <group key={i} position={[cx-4.5+i*4.5,ty+0.46,z]}>
@@ -1564,14 +1971,24 @@ function Zone_Contact({ z, isNight }) {
     return tex;
   }, []);
 
-  useFrame((s)=>{
-    const t=s.clock.getElapsedTime();
-    if(beaconRef.current) beaconRef.current.intensity=2.5+Math.sin(t*2.8)*1.2;
-    if(sigRef.current) sigRef.current.scale.setScalar(1+Math.sin(t*1.8)*0.12);
+  const groupRef = useRef();
+
+  useFrame((s) => {
+    if (!groupRef.current) return;
+    const pzVal = window.playerZ || 0;
+    const dist = Math.abs(z - pzVal);
+    const visible = dist < 55;
+    groupRef.current.visible = visible;
+
+    if (visible) {
+      const t = s.clock.getElapsedTime();
+      if (beaconRef.current) beaconRef.current.intensity = 2.5 + Math.sin(t * 2.8) * 1.2;
+      if (sigRef.current) sigRef.current.scale.setScalar(1 + Math.sin(t * 1.8) * 0.12);
+    }
   });
 
   return (
-    <group>
+    <group ref={groupRef}>
       {/* Signal tower */}
       <group position={[cx+5,ty+0.46,z-1]}>
         {[[-0.4,-0.4],[0.4,-0.4],[-0.4,0.4],[0.4,0.4]].map(([lx,lz],i)=>(
@@ -1586,7 +2003,7 @@ function Zone_Contact({ z, isNight }) {
           <sphereGeometry args={[0.16,8,8]} />
           <meshBasicMaterial color="#ef4444" />
         </mesh>
-        <pointLight ref={beaconRef} position={[0,6.2,0]} color="#ef4444" intensity={3} distance={14} />
+        {!isMobileDevice && <pointLight ref={beaconRef} position={[0,6.2,0]} color="#ef4444" intensity={3} distance={14} />}
       </group>
       
       {/* Satellite dish */}
@@ -1607,8 +2024,8 @@ function Zone_Contact({ z, isNight }) {
         <sphereGeometry args={[0.38,12,12]} />
         <meshStandardMaterial color="#22d3ee" emissive="#0ea5e9" emissiveIntensity={2.5} transparent opacity={0.85} />
       </mesh>
-      <pointLight position={[cx,ty+3.66,z-2]} color="#22d3ee"
-        intensity={isNight?5:2.5} distance={16} />
+      {!isMobileDevice && <pointLight position={[cx,ty+3.66,z-2]} color="#22d3ee"
+        intensity={isNight?5:2.5} distance={16} />}
       
       {/* Attractive Summit Wooden Sign Board */}
       <group position={[cx, ty + 0.46, z - 3.2]}>
@@ -1653,30 +2070,199 @@ function CheckpointSensors({ onCheckpointEnter, onCheckpointExit }) {
   );
 }
 
+
+
 // ── Lighting ──────────────────────────────────────────────────────
 function Lighting({ isNight }) {
+  const ambRef = useRef();
+  const dirRef = useRef();
+  const hemiRef = useRef();
+  const pointRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
+
+  const colors = useMemo(() => {
+    return {
+      ambDay: new THREE.Color('#fef9c3'),
+      ambDawn: new THREE.Color('#fbbf24'),
+      ambNight: new THREE.Color('#1e2942'),
+
+      dirDay: new THREE.Color('#fff8e1'),
+      dirDawn: new THREE.Color('#ea580c'),
+      dirNight: new THREE.Color('#3b5bdb'),
+
+      hemiSkyDay: new THREE.Color('#bae6fd'),
+      hemiSkyDawn: new THREE.Color('#fbbf24'),
+      hemiSkyNight: new THREE.Color('#0f172a'),
+
+      hemiGndDay: new THREE.Color('#6b7280'),
+      hemiGndDawn: new THREE.Color('#7c2d12'),
+      hemiGndNight: new THREE.Color('#111827'),
+
+      skyDay: new THREE.Color('#bae6fd'),
+      skyDawn: new THREE.Color('#ea580c'),
+      skyNight: new THREE.Color('#080c18'),
+    };
+  }, []);
+
+  const positions = useMemo(() => {
+    return {
+      dirPosDay: new THREE.Vector3(18, 28, 8),
+      dirPosDawn: new THREE.Vector3(0, 10, -5),
+      dirPosNight: new THREE.Vector3(-20, 30, -10),
+    };
+  }, []);
+
+  const values = {
+    ambIntDay: 0.55,
+    ambIntDawn: 0.5,
+    ambIntNight: 0.25,
+
+    dirIntDay: 1.35,
+    dirIntDawn: 0.9,
+    dirIntNight: 0.45,
+
+    hemiIntDay: 0.45,
+    hemiIntDawn: 0.35,
+    hemiIntNight: 0.35,
+
+    fogNearDay: 15,
+    fogNearDawn: 10,
+    fogNearNight: 5,
+
+    fogFarDay: 95,
+    fogFarDawn: 80,
+    fogFarNight: 65,
+  };
+
+  const { tempColor1, tempColor2, tempColor3, tempColor4, tempColor5, tempVector1 } = useMemo(() => {
+    return {
+      tempColor1: new THREE.Color(),
+      tempColor2: new THREE.Color(),
+      tempColor3: new THREE.Color(),
+      tempColor4: new THREE.Color(),
+      tempColor5: new THREE.Color(),
+      tempVector1: new THREE.Vector3(),
+    };
+  }, []);
+
+  useFrame((state, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+    let u = 0;
+
+    const currentAmbCol = tempColor1;
+    let currentAmbInt = 0;
+
+    const currentDirCol = tempColor2;
+    let currentDirInt = 0;
+    const currentDirPos = tempVector1;
+
+    const currentHemiSkyCol = tempColor3;
+    const currentHemiGndCol = tempColor4;
+    let currentHemiInt = 0;
+
+    const currentSkyCol = tempColor5;
+    let currentFogNear = 0;
+    let currentFogFar = 0;
+
+    if (t < 0.5) {
+      u = t * 2;
+      currentAmbCol.lerpColors(colors.ambDay, colors.ambDawn, u);
+      currentAmbInt = THREE.MathUtils.lerp(values.ambIntDay, values.ambIntDawn, u);
+
+      currentDirCol.lerpColors(colors.dirDay, colors.dirDawn, u);
+      currentDirInt = THREE.MathUtils.lerp(values.dirIntDay, values.dirIntDawn, u);
+      currentDirPos.lerpVectors(positions.dirPosDay, positions.dirPosDawn, u);
+
+      currentHemiSkyCol.lerpColors(colors.hemiSkyDay, colors.hemiSkyDawn, u);
+      currentHemiGndCol.lerpColors(colors.hemiGndDay, colors.hemiGndDawn, u);
+      currentHemiInt = THREE.MathUtils.lerp(values.hemiIntDay, values.hemiIntDawn, u);
+
+      currentSkyCol.lerpColors(colors.skyDay, colors.skyDawn, u);
+      currentFogNear = THREE.MathUtils.lerp(values.fogNearDay, values.fogNearDawn, u);
+      currentFogFar = THREE.MathUtils.lerp(values.fogFarDay, values.fogFarDawn, u);
+    } else {
+      u = (t - 0.5) * 2;
+      currentAmbCol.lerpColors(colors.ambDawn, colors.ambNight, u);
+      currentAmbInt = THREE.MathUtils.lerp(values.ambIntDawn, values.ambIntNight, u);
+
+      currentDirCol.lerpColors(colors.dirDawn, colors.dirNight, u);
+      currentDirInt = THREE.MathUtils.lerp(values.dirIntDawn, values.dirIntNight, u);
+      currentDirPos.lerpVectors(positions.dirPosDawn, positions.dirPosNight, u);
+
+      currentHemiSkyCol.lerpColors(colors.hemiSkyDawn, colors.hemiSkyNight, u);
+      currentHemiGndCol.lerpColors(colors.hemiGndDawn, colors.hemiGndNight, u);
+      currentHemiInt = THREE.MathUtils.lerp(values.hemiIntDawn, values.hemiIntNight, u);
+
+      currentSkyCol.lerpColors(colors.skyDawn, colors.skyNight, u);
+      currentFogNear = THREE.MathUtils.lerp(values.fogNearDawn, values.fogNearNight, u);
+      currentFogFar = THREE.MathUtils.lerp(values.fogFarDawn, values.fogFarNight, u);
+    }
+
+    if (ambRef.current) {
+      ambRef.current.color.copy(currentAmbCol);
+      ambRef.current.intensity = currentAmbInt;
+    }
+    if (dirRef.current) {
+      dirRef.current.color.copy(currentDirCol);
+      dirRef.current.intensity = currentDirInt;
+      dirRef.current.position.copy(currentDirPos);
+    }
+    if (hemiRef.current) {
+      hemiRef.current.color.copy(currentHemiSkyCol);
+      hemiRef.current.groundColor.copy(currentHemiGndCol);
+      hemiRef.current.intensity = currentHemiInt;
+    }
+    if (pointRef.current) {
+      if (t > 0.5) {
+        pointRef.current.intensity = u * 1.2;
+      } else {
+        pointRef.current.intensity = 0;
+      }
+    }
+
+    const { scene } = state;
+    if (scene.background) {
+      scene.background.copy(currentSkyCol);
+    }
+    if (scene.fog) {
+      scene.fog.color.copy(currentSkyCol);
+      scene.fog.near = currentFogNear;
+      scene.fog.far = currentFogFar;
+    }
+  });
+
   return (
     <>
-      <ambientLight intensity={isNight ? 0.12 : 0.55}
-        color={isNight ? '#1e2942' : '#fef9c3'} />
-      <directionalLight castShadow
-        position={isNight ? [-20,30,-10] : [18,28,8]}
-        intensity={isNight ? 0.18 : 1.35}
-        color={isNight ? '#3b5bdb' : '#fff8e1'}
-        shadow-mapSize={[2048,2048]}
+      <ambientLight ref={ambRef} />
+      <directionalLight
+        ref={dirRef}
+        castShadow
+        shadow-mapSize={[1024, 1024]}
         shadow-camera-far={250}
-        shadow-camera-left={-65} shadow-camera-right={65}
-        shadow-camera-top={65}  shadow-camera-bottom={-65}
+        shadow-camera-left={-65}
+        shadow-camera-right={65}
+        shadow-camera-top={65}
+        shadow-camera-bottom={-65}
       />
-      {isNight && <pointLight position={[15,45,-80]} color="#7dd3fc" intensity={1.2} distance={200} />}
-      <hemisphereLight
-        skyColor={isNight ? '#0f172a' : '#bae6fd'}
-        groundColor={isNight ? '#111827' : '#6b7280'}
-        intensity={isNight ? 0.22 : 0.45}
-      />
+      <hemisphereLight ref={hemiRef} />
+      {!isMobileDevice && (
+        <pointLight
+          ref={pointRef}
+          position={[15, 45, -80]}
+          color="#7dd3fc"
+          distance={200}
+        />
+      )}
     </>
   );
 }
+
 
 // ── Main Environment ──────────────────────────────────────────────
 export default function Environment({ onCheckpointEnter, onCheckpointExit, isNight }) {
@@ -1693,7 +2279,7 @@ export default function Environment({ onCheckpointEnter, onCheckpointExit, isNig
       <WalkableTrail isNight={isNight} />
 
       {/* ── MOUNTAIN VISUALS ── */}
-      <group position={[0, 0, -95]}>
+      <group position={[0, 0, -150]}>
         <MountainBody isNight={isNight} />
       </group>
       <SurroundingMountains isNight={isNight} />

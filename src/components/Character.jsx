@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useKeyboardControls } from '@react-three/drei';
 import { RigidBody, CapsuleCollider } from '@react-three/rapier';
@@ -13,7 +13,7 @@ const HAIR    = '#2a1500';
 const CAP     = '#1a1a1a'; // Adidas Black Cap
 const CAP_D   = '#111111'; // Adidas Black Cap Dark
 const JACKET  = '#eaeaea'; // Adidas T-shirt (light grey)
-const JACKET_D= '#cccccc'; // Adidas T-shirt Dark
+const _JACKET_D= '#cccccc'; // Adidas T-shirt Dark (unused, reserved for future)
 const COLLAR  = '#eaeaea'; // Adidas T-shirt collar
 const PANTS   = '#18181b'; // Adidas Black track pants
 const BOOT    = '#ffffff'; // Adidas White sneakers
@@ -29,7 +29,7 @@ const IND_O   = '#FF9933';
 const IND_G   = '#138808';
 const IND_B   = '#000080';
 
-export default function Character({ onPositionChange, teleportTarget, clearTeleport }) {
+export default function Character({ onPositionChange, teleportTarget, clearTeleport, isNight }) {
   const rigidBodyRef    = useRef();
   const characterRef    = useRef();
   const leftLegRef      = useRef();
@@ -42,8 +42,8 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
 
   const [, getKeys] = useKeyboardControls();
 
-  const SPEED_WALK = 4.0;
-  const SPEED_RUN  = 7.2;
+  const SPEED_WALK = 10.0;
+  const SPEED_RUN  = 18.0;
   const JUMP_FORCE = 5.8;
 
   useEffect(() => {
@@ -58,9 +58,14 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
     if (!rigidBodyRef.current || !characterRef.current) return;
     const t = state.clock.getElapsedTime();
 
-    // Headlamp glow at night (App passes isNight via env but we just always pulse)
+    // Headlamp glow at night
     if (headlampRef.current) {
-      headlampRef.current.intensity = 0; // off by default; turned on when isNight
+      const targetIntensity = isNight ? 4.5 : 0;
+      headlampRef.current.intensity = THREE.MathUtils.lerp(
+        headlampRef.current.intensity,
+        targetIntensity,
+        1.0 - Math.exp(-6.0 * delta)
+      );
     }
 
     const keys = getKeys();
@@ -77,6 +82,7 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
 
     const velocity = rigidBodyRef.current.linvel();
     const position = rigidBodyRef.current.translation();
+    window.playerZ = position.z;
     if (onPositionChange) onPositionChange(position);
 
     // Movement direction relative to camera yaw
@@ -151,7 +157,7 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
     >
       <CapsuleCollider args={[0.42, 0.28]} position={[0, 0.72, 0]} />
 
-      <group ref={characterRef} position={[0, 0.67, 0]}>
+      <group ref={characterRef} position={[0, 0.67, 0]} rotation={[0, Math.PI, 0]}>
         <group ref={bodyBobRef}>
 
           {/* ══════════════════════════════════════════
@@ -273,7 +279,7 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
                 <circleGeometry args={[0.022, 8]} />
                 <meshStandardMaterial color="#ffe880" emissive="#ffdf40" emissiveIntensity={0.5} />
               </mesh>
-              <pointLight ref={headlampRef} color="#ffe0a0" intensity={0} distance={7} position={[0, 0, 0.05]} />
+              <pointLight ref={headlampRef} color="#ffedd5" intensity={0} distance={16} position={[0, 0.2, 0.8]} decay={1.5} />
             </group>
           </group>
           {/* end HEAD */}

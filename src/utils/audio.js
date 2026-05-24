@@ -667,33 +667,45 @@ class AudioSystem {
   // ──────────────────────────────────────────────────
   toggleMute() {
     this.isMuted = !this.isMuted;
+
     // Web Audio SFX/ambience chain
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.linearRampToValueAtTime(
+      this.masterGain.gain.setValueAtTime(
         this.isMuted ? 0 : 1.0,
-        this.ctx.currentTime + 0.3
+        this.ctx.currentTime
       );
     }
-    // MP3 background music
-    if (this.bgMusic) {
-      const vol = this.isMuted ? 0 : this.bgMusicVolume;
-      // Smooth fade over 0.3 s
-      const steps = 15;
-      const start = this.bgMusic.volume;
-      const delta = (vol - start) / steps;
-      let s = 0;
-      const t = setInterval(() => {
-        s++;
-        this.bgMusic.volume = Math.max(0, Math.min(1, start + delta * s));
-        if (s >= steps) clearInterval(t);
-      }, 20);
+
+    if (this.isMuted) {
+      if (this.ctx && this.ctx.state === 'running') {
+        this.ctx.suspend();
+      }
+      if (this.bgMusic) {
+        this.bgMusic.pause();
+      }
+      if (this.windAmbient) {
+        this.windAmbient.pause();
+      }
+    } else {
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
+      if (this.bgMusic) {
+        this.bgMusic.play().catch(() => {});
+        this.bgMusic.volume = this.bgMusicVolume;
+      }
+      if (this.windAmbient) {
+        this.windAmbient.play().catch(() => {});
+        this.windAmbient.volume = this.windAmbientVol;
+      }
     }
+
     return this.isMuted;
   }
 
   resume() {
     // Resume Web Audio context
-    if (this.ctx && this.ctx.state === 'suspended') {
+    if (this.ctx && this.ctx.state === 'suspended' && !this.isMuted) {
       this.ctx.resume();
     }
     // Resume MP3 if it got paused by autoplay policy
@@ -707,6 +719,20 @@ class AudioSystem {
       const fi = setInterval(() => {
         step++;
         this.bgMusic.volume = Math.min(target, (step / steps) * target);
+        if (step >= steps) clearInterval(fi);
+      }, 50);
+    }
+    // Resume MP3 wind ambient if it got paused by autoplay policy
+    if (this.windAmbient && this.windAmbient.paused && !this.isMuted) {
+      this.windAmbient.volume = 0;
+      this.windAmbient.play().catch(() => {});
+      // Fade back in
+      const target = this.windAmbientVol;
+      const steps  = 30;
+      let   step   = 0;
+      const fi = setInterval(() => {
+        step++;
+        this.windAmbient.volume = Math.min(target, (step / steps) * target);
         if (step >= steps) clearInterval(fi);
       }, 50);
     }

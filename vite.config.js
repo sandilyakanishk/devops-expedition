@@ -5,4 +5,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/portfolio-3Dtrek/',
+  server: {
+    allowedHosts: ['.ngrok-free.app']
+  },
+  preview: {
+    allowedHosts: ['.ngrok-free.app']
+  }
 })

@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect, Suspense } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { KeyboardControls, useProgress } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
-import { Volume2, VolumeX, Github, FileText, ThumbsUp, ThumbsDown, MessageSquare, Share2, Camera as CameraIcon } from 'lucide-react';
+import { Volume2, VolumeX, Github, FileText, ThumbsUp, ThumbsDown, MessageSquare, Share2, Camera as CameraIcon, Maximize, Minimize } from 'lucide-react';
 import * as THREE from 'three';
 import { cameraYawRef, cameraPitchRef, characterRotationRef } from './utils/cameraState';
 
@@ -42,11 +42,27 @@ export default function App() {
   const [teleportTarget, setTeleportTarget] = useState(null);
   const [dismissLoader, setDismissLoader] = useState(false);
   const [simulatedProgress, setSimulatedProgress] = useState(0);
-  const [playerZ, setPlayerZ] = useState(0);
+  const [currentQuote, setCurrentQuote] = useState(null);
   const [respawnMsg, setRespawnMsg] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const mobile = ('ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || window.innerWidth <= 1024);
+    window.isMobileDevice = mobile;
+    return mobile;
+  });
   const [mobileSprint, setMobileSprint] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [supportsFullscreen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const docEl = document.documentElement;
+    return !!(
+      docEl.requestFullscreen ||
+      docEl.webkitRequestFullscreen ||
+      docEl.mozRequestFullScreen ||
+      docEl.msRequestFullscreen
+    );
+  });
   const controlsTimerRef = useRef(null);
 
   // Initialize mobileControls global and responsive check
@@ -61,12 +77,58 @@ export default function App() {
     };
 
     const checkMobile = () => {
-      setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 1024);
+      const mobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 1024);
+      setIsMobile(mobile);
+      window.isMobileDevice = mobile;
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Listen to fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(
+        !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement)
+      );
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
+  const handleToggleFullscreen = () => {
+    const docEl = document.documentElement;
+    if (!isFullscreen) {
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {});
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen().catch(() => {});
+      } else if (docEl.mozRequestFullScreen) {
+        docEl.mozRequestFullScreen().catch(() => {});
+      } else if (docEl.msRequestFullscreen) {
+        docEl.msRequestFullscreen().catch(() => {});
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen().catch(() => {});
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen().catch(() => {});
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen().catch(() => {});
+      }
+    }
+  };
 
   const handleToggleControls = () => {
     setControlsOpen(prev => {
@@ -90,27 +152,33 @@ export default function App() {
     { z: -150, text: 'Almost there. The summit awaits.' },
     { z: -165, text: 'The journey ends here. Connections begin.' },
   ];
-  const activeQuote = introCompleted
-    ? TREK_QUOTES.slice().reverse().find(q => playerZ <= q.z + 8 && playerZ >= q.z - 12)
-    : null;
 
-  const { active } = useProgress();
+
+  useProgress(); // keep asset loading tracked by drei
   
   // High performance player position tracker
   const playerPosRef = useRef(new THREE.Vector3(0, 1.2, 0));
   const fallTimerRef  = useRef(null);
   const respawnMsgRef = useRef(null);
 
-  // Mirror of getTerrainY — trail rises 30 units over 185 z-units
+  // Mirror of getTerrainY — trail is completely flat
   const getTerrainY = (z) => {
-    if (z > 0)   return 0;
-    if (z < -185) return 30;
-    return (-z / 185) * 30;
+    return 0;
   };
 
   const handlePositionChange = (position) => {
     playerPosRef.current.set(position.x, position.y, position.z);
-    setPlayerZ(position.z);
+
+    // Update active quote only when it changes to prevent frame-rate App re-renders
+    const z = position.z;
+    const activeQ = introCompleted
+      ? TREK_QUOTES.slice().reverse().find(q => z <= q.z + 8 && z >= q.z - 12)
+      : null;
+    const nextText = activeQ ? activeQ.text : null;
+    if (window.currentQuoteText !== nextText) {
+      window.currentQuoteText = nextText;
+      setCurrentQuote(nextText);
+    }
 
     // Fall threshold: 9 units below expected terrain surface
     const floorY = getTerrainY(position.z);
@@ -120,17 +188,17 @@ export default function App() {
       fallTimerRef.current = setTimeout(() => {
         // Respawn at NEAREST visited checkpoint (not always base)
         const checkpointPositions = [
-          [0, 3.5, -8],
-          [0, 8.5, -38],
-          [0, 14,  -70],
-          [0, 19,  -102],
-          [0, 25,  -136],
-          [0, 30,  -168],
+          [0, 0.8, -8],
+          [0, 0.8, -38],
+          [0, 0.8, -70],
+          [0, 0.8, -102],
+          [0, 0.8, -136],
+          [0, 0.8, -168],
         ];
         const lastVisited = Math.max(0, ...visitedCheckpoints);
         const respawnPos  = lastVisited > 0
           ? checkpointPositions[lastVisited - 1]
-          : [0, 3, 0];
+          : [0, 0.8, 0];
         setTeleportTarget(new THREE.Vector3(...respawnPos));
         // Show "Back on trail" message
         setRespawnMsg(true);
@@ -157,6 +225,16 @@ export default function App() {
 
   const handleStartJourney = () => {
     setGameStarted(true);
+    setActiveCheckpoint(1);
+    // Request fullscreen on start if on mobile
+    if (isMobile) {
+      const docEl = document.documentElement;
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {});
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen().catch(() => {});
+      }
+    }
     // Initialize & start background procedural audio
     try {
       audioSystem.init();
@@ -173,12 +251,12 @@ export default function App() {
 
   // Checkpoint nav positions — matched to new 30-unit rise terrain
   const menuCheckpoints = [
-    { id: 1, label: 'About Me',   pos: [0,  3.5,  -8]   },
-    { id: 2, label: 'Education',  pos: [0,  8.5,  -38]  },
-    { id: 3, label: 'Skills',     pos: [0, 14.0,  -70]  },
-    { id: 4, label: 'Projects',   pos: [0, 19.0, -102]  },
-    { id: 5, label: 'Experience', pos: [0, 25.0, -136]  },
-    { id: 6, label: 'Contact',    pos: [0, 30.0, -168]  },
+    { id: 1, label: 'About Me',   pos: [0,  0.8,  -8]   },
+    { id: 2, label: 'Education',  pos: [0,  0.8,  -38]  },
+    { id: 3, label: 'Skills',     pos: [0,  0.8,  -70]  },
+    { id: 4, label: 'Projects',   pos: [0,  0.8, -102]  },
+    { id: 5, label: 'Experience', pos: [0,  0.8, -136]  },
+    { id: 6, label: 'Contact',    pos: [0,  0.8, -168]  },
   ];
 
   const handleTeleport = (pos) => {
@@ -306,17 +384,17 @@ export default function App() {
 
                 {/* Info nav links */}
                 <li>
-                  <span className="navbar-link-item" onClick={() => handleTeleport([0, 0.4, -2.5])}>
+                  <span className="navbar-link-item" onClick={() => handleTeleport([0, 0.8, -8.0])}>
                     About
                   </span>
                 </li>
                 <li>
-                  <span className="navbar-link-item" onClick={() => handleTeleport([5, 5.8, -64.0])}>
+                  <span className="navbar-link-item" onClick={() => handleTeleport([0, 0.8, -102.0])}>
                     Work
                   </span>
                 </li>
                 <li>
-                  <span className="navbar-link-item" onClick={() => handleTeleport([0, 15.5, -160.0])}>
+                  <span className="navbar-link-item" onClick={() => handleTeleport([0, 0.8, -168.0])}>
                     Contact
                   </span>
                 </li>
@@ -355,13 +433,14 @@ export default function App() {
            ================================================== */}
         <div className="canvas-container">
           <Canvas
-            shadows
+            shadows={!isMobile}
             camera={{ position: [8, 16, 22], fov: 50 }}
-            gl={{ antialias: true }}
+            gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
+            dpr={[1, 1.5]}
           >
-            {/* Dynamic sky color + fog based on day/night */}
-            <color attach="background" args={[isNight ? '#080c18' : '#bae6fd']} />
-            <fog attach="fog" args={[isNight ? '#080c18' : '#bae6fd', 15, isNight ? 65 : 95]} />
+            {/* Sky color & fog — updated smoothly in Environment.jsx / Lighting */}
+            <color attach="background" args={['#bae6fd']} />
+            <fog attach="fog" args={['#bae6fd', 15, 95]} />
 
             <Suspense fallback={null}>
               <Physics gravity={[0, -14, 0]}>
@@ -371,6 +450,7 @@ export default function App() {
                     onPositionChange={handlePositionChange} 
                     teleportTarget={teleportTarget}
                     clearTeleport={() => setTeleportTarget(null)}
+                    isNight={isNight}
                   />
                 )}
 
@@ -430,7 +510,7 @@ export default function App() {
                   onClick={() => {
                     const next = !isNight;
                     setIsNight(next);
-                    try { audioSystem.setCrickets(next); } catch(e) {}
+                    try { audioSystem.setCrickets(next); } catch { /* audio not init */ }
                   }}
                   title={isNight ? 'Switch to Day' : 'Switch to Night'}
                   style={{ fontSize: '1rem' }}
@@ -440,6 +520,11 @@ export default function App() {
                 <button className="hud-mute-btn" onClick={handleToggleMute} title="Toggle Mute">
                   {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                 </button>
+                {supportsFullscreen && (
+                  <button className="hud-mute-btn" onClick={handleToggleFullscreen} title="Toggle Fullscreen">
+                    {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+                  </button>
+                )}
               </div>
 
               {/* Right-side Vertical Nav Menu */}
@@ -474,18 +559,19 @@ export default function App() {
                   zIndex: 99, pointerEvents: 'none',
                   boxShadow: '0 8px 36px rgba(0,0,0,0.55)',
                   animation: 'fadeInDown 0.22s ease',
-                  minWidth: 210,
+                  minWidth: 240,
                 }}>
                   <div style={{ marginBottom: 8, fontWeight: 700, fontSize: 9, opacity: 0.45, letterSpacing: '0.22em', color: '#fbbf24' }}>CONTROLS</div>
                   {[
                     ['W A S D',      'Move forward / back / strafe'],
+                    ['Mouse Scroll', 'Orbit camera in 360° circle'],
                     ['Arrow ◀ ▶',   'Rotate camera left / right'],
                     ['Arrow ▲ ▼',   'Tilt camera up / down'],
                     ['Shift',        'Sprint'],
                     ['Space',        'Jump'],
                   ].map(([key, desc]) => (
                     <div key={key} style={{ display:'flex', gap: 10 }}>
-                      <span style={{ opacity: 0.55, minWidth: 80, fontWeight: 600, color: '#93c5fd' }}>{key}</span>
+                      <span style={{ opacity: 0.55, minWidth: 90, fontWeight: 600, color: '#93c5fd' }}>{key}</span>
                       <span>{desc}</span>
                     </div>
                   ))}
@@ -502,12 +588,12 @@ export default function App() {
                 fontStyle: 'italic', fontWeight: 300,
                 textAlign: 'center',
                 textShadow: '0 0 24px rgba(255,255,255,0.45), 0 2px 8px rgba(0,0,0,0.8)',
-                opacity: activeQuote ? 1 : 0,
+                opacity: currentQuote ? 1 : 0,
                 transition: 'opacity 1.2s ease',
                 pointerEvents: 'none', zIndex: 50,
                 whiteSpace: 'nowrap',
               }}>
-                {activeQuote?.text}
+                {currentQuote}
               </div>
 
               {/* ── RESPAWN MESSAGE ── */}
@@ -637,8 +723,9 @@ export default function App() {
               <div />
               <button
                 className="dpad-btn"
-                onTouchStart={() => { window.mobileControls.forward = true; }}
-                onTouchEnd={() => { window.mobileControls.forward = false; }}
+                onTouchStart={(e) => { e.preventDefault(); window.mobileControls.forward = true; }}
+                onTouchEnd={(e) => { e.preventDefault(); window.mobileControls.forward = false; }}
+                onTouchCancel={(e) => { e.preventDefault(); window.mobileControls.forward = false; }}
               >
                 ▲
               </button>
@@ -646,16 +733,18 @@ export default function App() {
 
               <button
                 className="dpad-btn"
-                onTouchStart={() => { window.mobileControls.left = true; }}
-                onTouchEnd={() => { window.mobileControls.left = false; }}
+                onTouchStart={(e) => { e.preventDefault(); window.mobileControls.left = true; }}
+                onTouchEnd={(e) => { e.preventDefault(); window.mobileControls.left = false; }}
+                onTouchCancel={(e) => { e.preventDefault(); window.mobileControls.left = false; }}
               >
                 ◀
               </button>
               <div />
               <button
                 className="dpad-btn"
-                onTouchStart={() => { window.mobileControls.right = true; }}
-                onTouchEnd={() => { window.mobileControls.right = false; }}
+                onTouchStart={(e) => { e.preventDefault(); window.mobileControls.right = true; }}
+                onTouchEnd={(e) => { e.preventDefault(); window.mobileControls.right = false; }}
+                onTouchCancel={(e) => { e.preventDefault(); window.mobileControls.right = false; }}
               >
                 ▶
               </button>
@@ -663,8 +752,9 @@ export default function App() {
               <div />
               <button
                 className="dpad-btn"
-                onTouchStart={() => { window.mobileControls.backward = true; }}
-                onTouchEnd={() => { window.mobileControls.backward = false; }}
+                onTouchStart={(e) => { e.preventDefault(); window.mobileControls.backward = true; }}
+                onTouchEnd={(e) => { e.preventDefault(); window.mobileControls.backward = false; }}
+                onTouchCancel={(e) => { e.preventDefault(); window.mobileControls.backward = false; }}
               >
                 ▼
               </button>
@@ -675,7 +765,8 @@ export default function App() {
             <div className="mobile-actions">
               <button
                 className={`action-btn ${mobileSprint ? 'sprint-active' : ''}`}
-                onTouchStart={() => {
+                onTouchStart={(e) => {
+                  e.preventDefault();
                   const nextSprint = !mobileSprint;
                   setMobileSprint(nextSprint);
                   window.mobileControls.shift = nextSprint;
@@ -685,14 +776,43 @@ export default function App() {
               </button>
               <button
                 className="action-btn"
-                onTouchStart={() => { window.mobileControls.jump = true; }}
-                onTouchEnd={() => { window.mobileControls.jump = false; }}
+                onTouchStart={(e) => { e.preventDefault(); window.mobileControls.jump = true; }}
+                onTouchEnd={(e) => { e.preventDefault(); window.mobileControls.jump = false; }}
+                onTouchCancel={(e) => { e.preventDefault(); window.mobileControls.jump = false; }}
               >
                 JUMP
               </button>
             </div>
           </div>
         )}
+
+        {/* Landscape Orientation Rotate Prompt */}
+        <div className="landscape-prompt">
+          <div className="phone-icon" />
+          <h2 className="landscape-prompt-title">Rotate Your Device</h2>
+          <p className="landscape-prompt-desc" style={{ marginBottom: 15 }}>
+            Please turn your device to landscape mode for the best mountain trekking experience.
+          </p>
+          {supportsFullscreen ? (
+            <button className="fullscreen-prompt-btn" onClick={handleToggleFullscreen}>
+              {isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+            </button>
+          ) : (
+            <div style={{
+              fontSize: '0.78rem',
+              lineHeight: 1.45,
+              maxWidth: 320,
+              margin: '12px auto 0',
+              padding: '10px 16px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: '8px',
+              color: 'rgba(255, 255, 255, 0.65)'
+            }}>
+              💡 <strong>iOS Safari Tip:</strong> iPhone does not support fullscreen buttons. Tap the <strong>Share</strong> button and choose <strong>"Add to Home Screen"</strong> to run it in full screen!
+            </div>
+          )}
+        </div>
 
       </div>
     </KeyboardControls>
