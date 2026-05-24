@@ -55,6 +55,11 @@ export default function App() {
     if (typeof window === 'undefined') return false;
     return window.innerWidth <= 640;
   });
+  const [isPortraitPhone, setIsPortraitPhone] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches;
+    return (coarsePointer || window.innerWidth <= 1024) && window.innerHeight > window.innerWidth;
+  });
   const [mobileSprint, setMobileSprint] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [supportsFullscreen] = useState(() => {
@@ -81,14 +86,23 @@ export default function App() {
     };
 
     const checkMobile = () => {
-      const mobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 1024);
+      const viewportWidth = window.visualViewport?.width || window.innerWidth;
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const mobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0 || viewportWidth <= 1024);
       setIsMobile(mobile);
-      setIsPhone(window.innerWidth <= 640);
+      setIsPhone(viewportWidth <= 640);
+      setIsPortraitPhone(mobile && viewportHeight > viewportWidth);
       window.isMobileDevice = mobile;
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener('orientationchange', checkMobile);
+    window.visualViewport?.addEventListener('resize', checkMobile);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('orientationchange', checkMobile);
+      window.visualViewport?.removeEventListener('resize', checkMobile);
+    };
   }, []);
 
   // Listen to fullscreen changes
@@ -132,6 +146,33 @@ export default function App() {
       } else if (document.msExitFullscreen) {
         document.msExitFullscreen().catch(() => {});
       }
+    }
+  };
+
+  const requestMobileFullscreen = async ({ lockLandscape = false } = {}) => {
+    const docEl = document.documentElement;
+    const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+
+    try {
+      if (!fullscreenElement) {
+        if (docEl.requestFullscreen) {
+          await docEl.requestFullscreen();
+        } else if (docEl.webkitRequestFullscreen) {
+          await docEl.webkitRequestFullscreen();
+        } else if (docEl.mozRequestFullScreen) {
+          await docEl.mozRequestFullScreen();
+        } else if (docEl.msRequestFullscreen) {
+          await docEl.msRequestFullscreen();
+        }
+      }
+
+      if (lockLandscape && window.screen?.orientation?.lock) {
+        await window.screen.orientation.lock('landscape').catch(() => {});
+      }
+    } catch {
+      // Mobile browsers can reject fullscreen/orientation requests unless triggered by a tap.
+    } finally {
+      window.dispatchEvent(new Event('resize'));
     }
   };
 
@@ -233,12 +274,7 @@ export default function App() {
     setActiveCheckpoint(1);
     // Request fullscreen on start if on mobile
     if (isMobile) {
-      const docEl = document.documentElement;
-      if (docEl.requestFullscreen) {
-        docEl.requestFullscreen().catch(() => {});
-      } else if (docEl.webkitRequestFullscreen) {
-        docEl.webkitRequestFullscreen().catch(() => {});
-      }
+      requestMobileFullscreen({ lockLandscape: true });
     }
     // Initialize & start background procedural audio
     try {
@@ -338,7 +374,7 @@ export default function App() {
       */}
       <div style={{ 
         width: '100vw', 
-        height: '100vh', 
+        height: '100dvh', 
         position: 'relative', 
         background: isNight
           ? 'linear-gradient(to bottom, #080c18 0%, #0d1422 60%, #111a25 100%)'
@@ -441,12 +477,13 @@ export default function App() {
            3. 3D RENDERING CANVAS (TRANSPARENT TO SHOW BACKGROUND GRADIENT)
            ================================================== */}
         <div className="canvas-container">
+          {!isPortraitPhone && (
           <Canvas
             shadows={!isMobile}
             camera={{ position: [8, 16, 22], fov: 50 }}
             gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
-            dpr={[1, isMobile ? 1.15 : 1.6]}
-            performance={{ min: isMobile ? 0.45 : 0.65 }}
+            dpr={[1, isMobile ? 1 : 1.6]}
+            performance={{ min: isMobile ? 0.35 : 0.65, debounce: isMobile ? 250 : 200 }}
           >
             {/* Sky color & fog — updated smoothly in Environment.jsx / Lighting */}
             <color attach="background" args={['#bae6fd']} />
@@ -483,6 +520,7 @@ export default function App() {
               </Physics>
             </Suspense>
           </Canvas>
+          )}
         </div>
 
         {/* ==================================================
@@ -806,15 +844,15 @@ export default function App() {
         )}
 
         {/* Landscape Orientation Rotate Prompt */}
-        <div className="landscape-prompt">
+        <div className={`landscape-prompt ${isPortraitPhone ? 'show' : ''}`} aria-hidden={!isPortraitPhone}>
           <div className="phone-icon" />
-          <h2 className="landscape-prompt-title">iPhone Mode</h2>
+          <h2 className="landscape-prompt-title">Rotate Your Phone</h2>
           <p className="landscape-prompt-desc" style={{ marginBottom: 15 }}>
-            Portrait controls are enabled. Use the pads below after starting the journey.
+            Turn your Android or iPhone sideways for the full 3D portfolio experience.
           </p>
           {supportsFullscreen ? (
-            <button className="fullscreen-prompt-btn" onClick={handleToggleFullscreen}>
-              {isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+            <button className="fullscreen-prompt-btn" onClick={() => requestMobileFullscreen({ lockLandscape: true })}>
+              {isFullscreen ? 'Lock Landscape' : 'Fullscreen Landscape'}
             </button>
           ) : (
             <div style={{

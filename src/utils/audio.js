@@ -20,7 +20,7 @@ class AudioSystem {
     this.bgMusic        = null;
     this.bgMusicVolume  = 0.75;
     this.windAmbient    = null;
-    this.windAmbientVol = 0.18; // subtle real wind
+    this.windAmbientVol = 0.075; // soft background wind
   }
 
   init() {
@@ -37,7 +37,7 @@ class AudioSystem {
 
     // Sub-gains for mixing
     this.ambienceGain = this.ctx.createGain();
-    this.ambienceGain.gain.setValueAtTime(0.18, this.ctx.currentTime); // softer wind so guitar is clear
+    this.ambienceGain.gain.setValueAtTime(0.12, this.ctx.currentTime); // softer ambience so wind never feels harsh
     this.ambienceGain.connect(this.masterGain);
 
     this.musicGain = this.ctx.createGain();
@@ -153,7 +153,7 @@ class AudioSystem {
     highpass.type = 'highpass';
     highpass.frequency.setValueAtTime(2200, this.ctx.currentTime);
     const leafGain = this.ctx.createGain();
-    leafGain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+    leafGain.gain.setValueAtTime(0.035, this.ctx.currentTime);
     leafNoise.connect(highpass);
     highpass.connect(leafGain);
     leafGain.connect(this.ambienceGain);
