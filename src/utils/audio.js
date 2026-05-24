@@ -21,6 +21,8 @@ class AudioSystem {
     this.bgMusicVolume  = 0.75;
     this.windAmbient    = null;
     this.windAmbientVol = 0.075; // soft background wind
+    this.streamMusic    = null;
+    this.streamMusicVol = 0.55;
   }
 
   init() {
@@ -63,6 +65,7 @@ class AudioSystem {
     this.startWindAmbient();
     this.startCricketChorus();
     this.scheduleCricketChirps();
+    this.startStreamMusic();
   }
 
   // ──────────────────────────────────────────────────
@@ -107,6 +110,79 @@ class AudioSystem {
     } catch (err) {
       console.warn('Wind ambient load failed:', err);
     }
+  }
+
+  // ──────────────────────────────────────────────────
+  // WATER STREAM AUDIO
+  // ──────────────────────────────────────────────────
+  startStreamMusic() {
+    try {
+      this.streamMusic = new Audio((import.meta.env.BASE_URL || '/') + 'u_g4b6tnje0y-water-stream-512531.mp3');
+      this.streamMusic.loop   = true;
+      this.streamMusic.volume = 0; // Starts completely silent
+      this.streamMusic.play().catch(() => {});
+    } catch (err) {
+      console.warn('Stream sound load failed:', err);
+    }
+  }
+
+  updateStreamVolume(px, py, pz) {
+    if (!this.streamMusic || this.isMuted) return;
+
+    const STREAM_POINTS = [
+      { x: 14, y: 12.0, z: -170 },
+      { x: 12.5, y: 9.8, z: -150 },
+      { x: 11, y: 7.6, z: -130 },
+      { x: 13, y: 5.8, z: -110 },
+      { x: 12, y: 4.4, z: -90 },
+      { x: 9.5, y: 3.2, z: -70 },
+      { x: 11.5, y: 2.1, z: -50 },
+      { x: 10, y: 1.1, z: -30 },
+      { x: 8.5, y: 0.2, z: -15 },
+      { x: 7.5, y: -0.1, z: -5 },
+      { x: 7.5, y: -0.1, z: 5 },
+    ];
+
+    const getDistanceToSegment = (p, a, b) => {
+      const abx = b.x - a.x;
+      const aby = b.y - a.y;
+      const abz = b.z - a.z;
+      const apx = p.x - a.x;
+      const apy = p.y - a.y;
+      const apz = p.z - a.z;
+      const abLen2 = abx * abx + aby * aby + abz * abz;
+      if (abLen2 === 0) return Math.hypot(apx, apy, apz);
+      let t = (apx * abx + apy * aby + apz * abz) / abLen2;
+      t = Math.max(0, Math.min(1, t));
+      const projx = a.x + t * abx;
+      const projy = a.y + t * aby;
+      const projz = a.z + t * abz;
+      return Math.hypot(p.x - projx, p.y - projy, p.z - projz);
+    };
+
+    let minDist = Infinity;
+    for (let i = 0; i < STREAM_POINTS.length - 1; i++) {
+      const d = getDistanceToSegment({ x: px, y: py, z: pz }, STREAM_POINTS[i], STREAM_POINTS[i + 1]);
+      if (d < minDist) minDist = d;
+    }
+
+    const maxVol = 0.22;
+    const minVol = 0.0;
+    const minDistance = 4.0;
+    const maxDistance = 15.0;
+
+    let targetVolume;
+    if (minDist <= minDistance) {
+      targetVolume = maxVol;
+    } else if (minDist >= maxDistance) {
+      targetVolume = minVol;
+    } else {
+      const t = (minDist - minDistance) / (maxDistance - minDistance);
+      targetVolume = maxVol * (1.0 - t) + minVol * t;
+    }
+
+    // Smooth volume transition to prevent clicks/abrupt changes
+    this.streamMusic.volume = this.streamMusic.volume * 0.9 + targetVolume * 0.1;
   }
 
   // ──────────────────────────────────────────────────
@@ -686,6 +762,9 @@ class AudioSystem {
       if (this.windAmbient) {
         this.windAmbient.pause();
       }
+      if (this.streamMusic) {
+        this.streamMusic.pause();
+      }
     } else {
       if (this.ctx && this.ctx.state === 'suspended') {
         this.ctx.resume();
@@ -697,6 +776,9 @@ class AudioSystem {
       if (this.windAmbient) {
         this.windAmbient.play().catch(() => {});
         this.windAmbient.volume = this.windAmbientVol;
+      }
+      if (this.streamMusic) {
+        this.streamMusic.play().catch(() => {});
       }
     }
 
@@ -735,6 +817,10 @@ class AudioSystem {
         this.windAmbient.volume = Math.min(target, (step / steps) * target);
         if (step >= steps) clearInterval(fi);
       }, 50);
+    }
+    // Resume MP3 stream if it got paused by autoplay policy
+    if (this.streamMusic && this.streamMusic.paused && !this.isMuted) {
+      this.streamMusic.play().catch(() => {});
     }
   }
 }

@@ -284,6 +284,13 @@ export default function App() {
   const handlePositionChange = (position) => {
     playerPosRef.current.set(position.x, position.y, position.z);
 
+    // Update audio stream volume based on distance to the river/stream
+    try {
+      audioSystem.updateStreamVolume(position.x, position.y, position.z);
+    } catch (err) {
+      console.warn('Failed to update stream audio volume:', err);
+    }
+
     // Update active quote only when it changes to prevent frame-rate App re-renders
     const z = position.z;
     const activeQ = introCompleted
@@ -320,7 +327,7 @@ export default function App() {
         clearTimeout(respawnMsgRef.current);
         respawnMsgRef.current = setTimeout(() => setRespawnMsg(false), 3000);
         fallTimerRef.current = null;
-      }, 1800);
+      }, 1000);
     } else if (position.y >= fallThreshold && fallTimerRef.current) {
       clearTimeout(fallTimerRef.current);
       fallTimerRef.current = null;

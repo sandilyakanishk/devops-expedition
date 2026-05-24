@@ -4,7 +4,7 @@
 // ================================================================
 import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { RigidBody, CuboidCollider } from '@react-three/rapier';
+import { RigidBody, CuboidCollider, CylinderCollider, BallCollider } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -42,11 +42,11 @@ const Cyl = ({ pos, args, color, rot = [0,0,0], rough = 0.82 }) => (
 
 
 // ── Boulder ───────────────────────────────────────────────────────
-function Boulder({ position, scale = 1, color = '#6b7280' }) {
+function Boulder({ position, scale = 1, color = '#6b7280', cast = true }) {
   const r = useMemo(() => [Math.random()*0.6, Math.random()*2, Math.random()*0.4], []);
   return (
-    <mesh position={position} rotation={r} castShadow receiveShadow>
-      <dodecahedronGeometry args={[0.5 * scale, 0]} />
+    <mesh position={position} rotation={r} scale={scale} castShadow={cast} receiveShadow>
+      <dodecahedronGeometry args={[0.5, 0]} />
       <meshStandardMaterial color={color} roughness={0.95} flatShading />
     </mesh>
   );
@@ -100,39 +100,42 @@ function Campfire({ position, isNight }) {
   });
 
   return (
-    <group ref={groupRef} position={[px, py, pz]}>
-      {[0,60,120,180,240,300].map((deg, i) => (
-        <mesh key={i} castShadow
-          position={[Math.cos(deg*Math.PI/180)*0.4, 0.06, Math.sin(deg*Math.PI/180)*0.4]}
-          rotation={[0, (deg+30)*Math.PI/180, Math.PI/2]}>
-          <cylinderGeometry args={[0.07, 0.09, 0.8, 6]} />
-          <meshStandardMaterial color="#5c3d1e" roughness={0.95} />
+    <RigidBody type="fixed" position={[px, py, pz]}>
+      <CuboidCollider args={[0.5, 0.3, 0.5]} position={[0, 0.15, 0]} />
+      <group ref={groupRef}>
+        {[0,60,120,180,240,300].map((deg, i) => (
+          <mesh key={i} castShadow
+            position={[Math.cos(deg*Math.PI/180)*0.4, 0.06, Math.sin(deg*Math.PI/180)*0.4]}
+            rotation={[0, (deg+30)*Math.PI/180, Math.PI/2]}>
+            <cylinderGeometry args={[0.07, 0.09, 0.8, 6]} />
+            <meshStandardMaterial color="#5c3d1e" roughness={0.95} />
+          </mesh>
+        ))}
+        {[0,45,90,135,180,225,270,315].map((deg, i) => (
+          <mesh key={i} position={[Math.cos(deg*Math.PI/180)*0.55, 0.05, Math.sin(deg*Math.PI/180)*0.55]}>
+            <dodecahedronGeometry args={[0.1, 0]} />
+            <meshStandardMaterial color="#4b5563" roughness={0.9} flatShading />
+          </mesh>
+        ))}
+        {[0,1,2,3].map(i => (
+          <mesh key={i} ref={el => embers.current[i] = el} position={[0, 0.4, 0]}>
+            <sphereGeometry args={[0.024, 4, 4]} />
+            <meshBasicMaterial color={i%2===0 ? '#ff6b00' : '#fbbf24'} />
+          </mesh>
+        ))}
+        <mesh ref={flameRef} position={[0, 0.36, 0]}>
+          <coneGeometry args={[0.22, 0.68, 8]} />
+          <meshStandardMaterial color="#ff6600" emissive="#ff3300" emissiveIntensity={2.5}
+            transparent opacity={0.82} depthWrite={false} />
         </mesh>
-      ))}
-      {[0,45,90,135,180,225,270,315].map((deg, i) => (
-        <mesh key={i} position={[Math.cos(deg*Math.PI/180)*0.55, 0.05, Math.sin(deg*Math.PI/180)*0.55]}>
-          <dodecahedronGeometry args={[0.1, 0]} />
-          <meshStandardMaterial color="#4b5563" roughness={0.9} flatShading />
+        <mesh position={[0, 0.58, 0]}>
+          <coneGeometry args={[0.12, 0.52, 6]} />
+          <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={3}
+            transparent opacity={0.7} depthWrite={false} />
         </mesh>
-      ))}
-      {[0,1,2,3].map(i => (
-        <mesh key={i} ref={el => embers.current[i] = el} position={[0, 0.4, 0]}>
-          <sphereGeometry args={[0.024, 4, 4]} />
-          <meshBasicMaterial color={i%2===0 ? '#ff6b00' : '#fbbf24'} />
-        </mesh>
-      ))}
-      <mesh ref={flameRef} position={[0, 0.36, 0]}>
-        <coneGeometry args={[0.22, 0.68, 8]} />
-        <meshStandardMaterial color="#ff6600" emissive="#ff3300" emissiveIntensity={2.5}
-          transparent opacity={0.82} depthWrite={false} />
-      </mesh>
-      <mesh position={[0, 0.58, 0]}>
-        <coneGeometry args={[0.12, 0.52, 6]} />
-        <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={3}
-          transparent opacity={0.7} depthWrite={false} />
-      </mesh>
-      {!isMobileDevice() && <pointLight ref={glowRef} color="#ff8c00" intensity={2.5} distance={10} />}
-    </group>
+        {!isMobileDevice() && <pointLight ref={glowRef} color="#ff8c00" intensity={2.5} distance={10} />}
+      </group>
+    </RigidBody>
   );
 }
 
@@ -140,16 +143,19 @@ function Campfire({ position, isNight }) {
 function Tent({ position, rotation = 0, color = '#92400e' }) {
   const [px, py, pz] = position;
   return (
-    <group position={[px, py, pz]} rotation={[0, rotation, 0]}>
-      <mesh castShadow>
-        <coneGeometry args={[1.1, 1.6, 4]} />
-        <meshStandardMaterial color={color} roughness={0.88} flatShading />
-      </mesh>
-      <mesh position={[0, 0.05, 0.95]}>
-        <planeGeometry args={[0.55, 0.9]} />
-        <meshStandardMaterial color="#292524" side={THREE.DoubleSide} />
-      </mesh>
-    </group>
+    <RigidBody type="fixed" position={[px, py, pz]} rotation={[0, rotation, 0]}>
+      <CuboidCollider args={[0.8, 0.8, 0.8]} position={[0, 0.8, 0]} />
+      <group>
+        <mesh castShadow>
+          <coneGeometry args={[1.1, 1.6, 4]} />
+          <meshStandardMaterial color={color} roughness={0.88} flatShading />
+        </mesh>
+        <mesh position={[0, 0.05, 0.95]}>
+          <planeGeometry args={[0.55, 0.9]} />
+          <meshStandardMaterial color="#292524" side={THREE.DoubleSide} />
+        </mesh>
+      </group>
+    </RigidBody>
   );
 }
 
@@ -157,30 +163,33 @@ function Tent({ position, rotation = 0, color = '#92400e' }) {
 function WoodenHut({ position }) {
   const [px, py, pz] = position;
   return (
-    <group position={[px, py, pz]}>
-      <mesh castShadow receiveShadow position={[0, 1.0, 0]}>
-        <boxGeometry args={[3.2, 2.0, 2.8]} />
-        <meshStandardMaterial color="#7c3d11" roughness={0.9} />
-      </mesh>
-      <mesh castShadow position={[0, 2.45, 0]}>
-        <coneGeometry args={[2.5, 1.5, 4]} />
-        <meshStandardMaterial color="#3b1f0a" roughness={0.88} flatShading />
-      </mesh>
-      <mesh position={[0, 0.6, 1.42]}>
-        <boxGeometry args={[0.8, 1.4, 0.08]} />
-        <meshStandardMaterial color="#451a03" roughness={0.95} />
-      </mesh>
-      {[-1, 1].map(s => (
-        <mesh key={s} position={[s * 1.0, 1.1, 1.42]}>
-          <boxGeometry args={[0.55, 0.55, 0.06]} />
-          <meshStandardMaterial color="#bfdbfe" roughness={0.1} transparent opacity={0.7} />
+    <RigidBody type="fixed" position={[px, py, pz]}>
+      <CuboidCollider args={[1.6, 1.2, 1.4]} position={[0, 1.2, 0]} />
+      <group>
+        <mesh castShadow receiveShadow position={[0, 1.0, 0]}>
+          <boxGeometry args={[3.2, 2.0, 2.8]} />
+          <meshStandardMaterial color="#7c3d11" roughness={0.9} />
         </mesh>
-      ))}
-      <mesh castShadow position={[0.9, 3.0, -0.4]}>
-        <boxGeometry args={[0.38, 0.9, 0.38]} />
-        <meshStandardMaterial color="#4b5563" roughness={0.9} />
-      </mesh>
-    </group>
+        <mesh castShadow position={[0, 2.45, 0]}>
+          <coneGeometry args={[2.5, 1.5, 4]} />
+          <meshStandardMaterial color="#3b1f0a" roughness={0.88} flatShading />
+        </mesh>
+        <mesh position={[0, 0.6, 1.42]}>
+          <boxGeometry args={[0.8, 1.4, 0.08]} />
+          <meshStandardMaterial color="#451a03" roughness={0.95} />
+        </mesh>
+        {[-1, 1].map(s => (
+          <mesh key={s} position={[s * 1.0, 1.1, 1.42]}>
+            <boxGeometry args={[0.55, 0.55, 0.06]} />
+            <meshStandardMaterial color="#bfdbfe" roughness={0.1} transparent opacity={0.7} />
+          </mesh>
+        ))}
+        <mesh castShadow position={[0.9, 3.0, -0.4]}>
+          <boxGeometry args={[0.38, 0.9, 0.38]} />
+          <meshStandardMaterial color="#4b5563" roughness={0.9} />
+        </mesh>
+      </group>
+    </RigidBody>
   );
 }
 
@@ -230,25 +239,28 @@ function LanternPost({ position, isNight }) {
 
   const [px, py, pz] = position;
   return (
-    <group ref={groupRef} position={[px, py, pz]}>
-      <Cyl pos={[0, 1.1, 0]} args={[0.04, 0.04, 2.4, 5]} color="#374151" />
-      <mesh position={[0, 2.3, 0]} castShadow>
-        <boxGeometry args={[0.28, 0.36, 0.28]} />
-        <meshStandardMaterial color="#374151" roughness={0.5} metalness={0.5} transparent opacity={0.85} />
-      </mesh>
-      <mesh position={[0, 2.3, 0]}>
-        <boxGeometry args={[0.2, 0.28, 0.2]} />
-        <meshStandardMaterial
-          ref={matRef}
-          color="#555555"
-          emissive="#fbbf24"
-          emissiveIntensity={0}
-          transparent
-          opacity={0.4}
-        />
-      </mesh>
-      {!isMobileDevice() && <pointLight ref={lRef} position={[0, 2.3, 0]} color="#ff9f00" intensity={0} distance={12} />}
-    </group>
+    <RigidBody type="fixed" position={[px, py, pz]}>
+      <CylinderCollider args={[1.2, 0.05]} position={[0, 1.2, 0]} />
+      <group ref={groupRef}>
+        <Cyl pos={[0, 1.1, 0]} args={[0.04, 0.04, 2.4, 5]} color="#374151" />
+        <mesh position={[0, 2.3, 0]} castShadow>
+          <boxGeometry args={[0.28, 0.36, 0.28]} />
+          <meshStandardMaterial color="#374151" roughness={0.5} metalness={0.5} transparent opacity={0.85} />
+        </mesh>
+        <mesh position={[0, 2.3, 0]}>
+          <boxGeometry args={[0.2, 0.28, 0.2]} />
+          <meshStandardMaterial
+            ref={matRef}
+            color="#555555"
+            emissive="#fbbf24"
+            emissiveIntensity={0}
+            transparent
+            opacity={0.4}
+          />
+        </mesh>
+        {!isMobileDevice() && <pointLight ref={lRef} position={[0, 2.3, 0]} color="#ff9f00" intensity={0} distance={12} />}
+      </group>
+    </RigidBody>
   );
 }
 
@@ -339,20 +351,23 @@ function FireTorch({ position, isNight }) {
 function WoodenSign({ position, text, rotation = 0 }) {
   const [px, py, pz] = position;
   return (
-    <group position={[px, py, pz]} rotation={[0, rotation, 0]}>
-      <Cyl pos={[0, 0.55, 0]} args={[0.04, 0.05, 1.1, 5]} color="#92400e" />
-      <mesh castShadow position={[0, 1.18, 0]}>
-        <boxGeometry args={[1.0, 0.46, 0.1]} />
-        <meshStandardMaterial color="#7c3d11" roughness={0.9} />
-      </mesh>
-      <Html position={[px, py+1.18, pz]} center distanceFactor={6} style={{pointerEvents:'none'}}>
-        <div style={{
-          color:'#fef3c7', fontFamily:"'Outfit',sans-serif",
-          fontSize:'9px', fontWeight:700, letterSpacing:'0.06em',
-          textShadow:'0 1px 2px rgba(0,0,0,0.8)', whiteSpace:'nowrap',
-        }}>{text}</div>
-      </Html>
-    </group>
+    <RigidBody type="fixed" position={[px, py, pz]} rotation={[0, rotation, 0]}>
+      <CuboidCollider args={[0.5, 0.7, 0.1]} position={[0, 0.7, 0]} />
+      <group>
+        <Cyl pos={[0, 0.55, 0]} args={[0.04, 0.05, 1.1, 5]} color="#92400e" />
+        <mesh castShadow position={[0, 1.18, 0]}>
+          <boxGeometry args={[1.0, 0.46, 0.1]} />
+          <meshStandardMaterial color="#7c3d11" roughness={0.9} />
+        </mesh>
+        <Html position={[0, 1.18, 0]} center distanceFactor={6} style={{pointerEvents:'none'}}>
+          <div style={{
+            color:'#fef3c7', fontFamily:"'Outfit',sans-serif",
+            fontSize:'9px', fontWeight:700, letterSpacing:'0.06em',
+            textShadow:'0 1px 2px rgba(0,0,0,0.8)', whiteSpace:'nowrap',
+          }}>{text}</div>
+        </Html>
+      </group>
+    </RigidBody>
   );
 }
 
@@ -610,6 +625,37 @@ function WalkableTrail({ isNight }) {
 
   const snowPatchesRef = useRef();
 
+  const fencesData = useMemo(() => {
+    const posts = [];
+    const rails = [];
+    const step = 5;
+    const count = Math.ceil(TRAIL_LENGTH / step) + 1;
+    for (let i = 0; i < count; i++) {
+      const z = -i * step;
+      if (z < -185) continue;
+      const xLeft = -SEG_WIDTH / 2;
+      const xRight = SEG_WIDTH / 2;
+      const y = 0.4;
+      
+      posts.push({ x: xLeft, y: y + 0.5, z });
+      posts.push({ x: xRight, y: y + 0.5, z });
+      
+      if (i < count - 1 && -(i + 1) * step >= -185) {
+        const nextZ = -(i + 1) * step;
+        const midZ = (z + nextZ) / 2;
+        rails.push({ x: xLeft, y: y + 0.75, z: midZ });
+        rails.push({ x: xLeft, y: y + 0.4, z: midZ });
+        rails.push({ x: xRight, y: y + 0.75, z: midZ });
+        rails.push({ x: xRight, y: y + 0.4, z: midZ });
+      }
+    }
+    return { posts, rails };
+  }, [SEG_WIDTH]);
+
+  const fencePostsRef = useRef();
+  const fenceRailsRef = useRef();
+  const fenceInitializedRef = useRef(false);
+
   const initializedRef = useRef(false);
 
   useFrame((s, delta) => {
@@ -670,14 +716,76 @@ function WalkableTrail({ isNight }) {
 
       initializedRef.current = true;
     }
+
+    if (!fenceInitializedRef.current && fencePostsRef.current && fenceRailsRef.current) {
+      const tempObj = new THREE.Object3D();
+      
+      fencesData.posts.forEach((p, idx) => {
+        tempObj.position.set(p.x, p.y, p.z);
+        tempObj.rotation.set(0, 0, 0);
+        tempObj.scale.set(1, 1, 1);
+        tempObj.updateMatrix();
+        fencePostsRef.current.setMatrixAt(idx, tempObj.matrix);
+      });
+      fencePostsRef.current.instanceMatrix.needsUpdate = true;
+      fencePostsRef.current.computeBoundingBox();
+      fencePostsRef.current.computeBoundingSphere();
+      
+      fencesData.rails.forEach((r, idx) => {
+        tempObj.position.set(r.x, r.y, r.z);
+        tempObj.rotation.set(0, 0, 0);
+        tempObj.scale.set(1, 1, 1);
+        tempObj.updateMatrix();
+        fenceRailsRef.current.setMatrixAt(idx, tempObj.matrix);
+      });
+      fenceRailsRef.current.instanceMatrix.needsUpdate = true;
+      fenceRailsRef.current.computeBoundingBox();
+      fenceRailsRef.current.computeBoundingSphere();
+      
+      fenceInitializedRef.current = true;
+    }
   });
 
   return (
     <group>
-      {/* A single, large, static RigidBody for physics (representing the entire flat path) */}
+      {/* A single, large, static RigidBody for physics (representing the entire flat path, side barricades, and summit wall) */}
       <RigidBody type="fixed" position={[0, 0, -92.5]}>
+        {/* Walkable path */}
         <CuboidCollider args={[SEG_WIDTH / 2, HALF_H, 92.5]} />
+        {/* Left side barricade collider */}
+        <CuboidCollider position={[-SEG_WIDTH / 2 - 0.05, 1.2, 0]} args={[0.05, 1.2, 92.5]} />
+        {/* Right side barricade collider */}
+        <CuboidCollider position={[SEG_WIDTH / 2 + 0.05, 1.2, 0]} args={[0.05, 1.2, 92.5]} />
+        {/* Summit end wall collider */}
+        <CuboidCollider position={[0, 1.2, -92.5]} args={[SEG_WIDTH / 2, 2.0, 0.2]} />
       </RigidBody>
+
+      {/* Instanced fences posts */}
+      <instancedMesh ref={fencePostsRef} args={[null, null, fencesData.posts.length]} castShadow receiveShadow frustumCulled={false}>
+        <cylinderGeometry args={[0.06, 0.07, 1.0, 5]} />
+        <meshStandardMaterial color="#5c3d1e" roughness={0.9} flatShading />
+      </instancedMesh>
+
+      {/* Instanced fences rails */}
+      <instancedMesh ref={fenceRailsRef} args={[null, null, fencesData.rails.length]} castShadow receiveShadow frustumCulled={false}>
+        <boxGeometry args={[0.04, 0.08, 5.0]} />
+        <meshStandardMaterial color="#7c3d11" roughness={0.92} flatShading />
+      </instancedMesh>
+
+      {/* Summit visual barricade */}
+      <group position={[0, 0.4, -185]}>
+        {/* Horizontal log barrier */}
+        <Box pos={[0, 0.8, 0]} size={[7.2, 0.15, 0.15]} color="#92400e" />
+        <Box pos={[0, 0.4, 0]} size={[7.2, 0.15, 0.15]} color="#92400e" />
+        {/* Support posts */}
+        {[-3.5, -1.75, 0, 1.75, 3.5].map((x, i) => (
+          <Cyl key={i} pos={[x, 0.5, 0]} args={[0.07, 0.08, 1.0, 5]} color="#7c3d11" />
+        ))}
+        {/* Large boulders piled at the base/sides */}
+        {[-3.0, 0, 3.0].map((x, i) => (
+          <Boulder key={i} position={[x, 0.4, 0.2]} scale={2.0} color="#9ca3af" />
+        ))}
+      </group>
 
       {/* Visual boxes for the three zones of the trail */}
       {/* 1. Grass zone */}
@@ -894,6 +1002,232 @@ function ForestDecorations() {
         <dodecahedronGeometry args={[0.5, 0]} />
         <meshStandardMaterial roughness={0.95} flatShading />
       </instancedMesh>
+    </group>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// FLOWING STREAM / RIVER
+// ════════════════════════════════════════════════════════════════
+function FlowingStream({ isNight }) {
+  // Generate procedural seamless water texture
+  const waterTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    
+    // Light blue base
+    ctx.fillStyle = '#3b82f6';
+    ctx.fillRect(0, 0, 256, 256);
+    
+    // Draw some white wavy flow lines
+    ctx.strokeStyle = '#93c5fd';
+    ctx.lineWidth = 6;
+    ctx.globalAlpha = 0.4;
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      const y = i * 42 + 20;
+      ctx.moveTo(0, y);
+      ctx.bezierCurveTo(64, y - 15, 192, y + 15, 256, y);
+      ctx.stroke();
+    }
+    
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(1, 4);
+    return tex;
+  }, []);
+
+  // Generate a separate still water texture
+  const stillTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.fillStyle = '#1d4ed8'; // deeper calm blue
+    ctx.fillRect(0, 0, 256, 256);
+    
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth = 4;
+    ctx.globalAlpha = 0.25;
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      const y = i * 64 + 32;
+      ctx.moveTo(0, y);
+      ctx.bezierCurveTo(64, y - 5, 192, y + 5, 256, y);
+      ctx.stroke();
+    }
+    
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2, 2);
+    return tex;
+  }, []);
+
+  // Scroll flowing texture
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    waterTexture.offset.y = t * 0.4; // fast flow (flows downward from summit)
+    stillTexture.offset.y = -t * 0.05; // very slow ripple
+    stillTexture.offset.x = Math.sin(t * 0.2) * 0.02;
+  });
+
+  // Stream trajectory points running downwards on the right side of the trail
+  const STREAM_POINTS = useMemo(() => [
+    { x: 14, y: 12.0, z: -170 }, // high up near summit (slope)
+    { x: 12.5, y: 9.8, z: -150 },
+    { x: 11, y: 7.6, z: -130 },
+    { x: 13, y: 5.8, z: -110 },
+    { x: 12, y: 4.4, z: -90 },
+    { x: 9.5, y: 3.2, z: -70 },
+    { x: 11.5, y: 2.1, z: -50 },
+    { x: 10, y: 1.1, z: -30 },
+    { x: 8.5, y: 0.2, z: -15 },
+    { x: 7.5, y: -0.1, z: -5 }, // flat stream inlet
+    { x: 7.5, y: -0.1, z: 5 },  // still pond
+  ], []);
+
+  // Stream rocks: character-height (scale ~2.2 -> diameter 2.2 units, matching character height of 1.5 units)
+  const STREAM_ROCKS = useMemo(() => [
+    { x: 12.0, y: 9.8,  z: -140, scale: 2.2 },
+    { x: 12.8, y: 5.8,  z: -100, scale: 2.3 },
+    { x: 10.2, y: 4.4,  z: -80,  scale: 2.1 },
+    { x: 10.5, y: 2.1,  z: -45,  scale: 2.2 },
+    { x: 8.0,  y: -0.1, z: -8,   scale: 2.4 }, // Rock in still pond area
+    { x: 7.0,  y: -0.1, z: 2,    scale: 2.2 },
+  ], []);
+
+  const segments = useMemo(() => {
+    const segs = [];
+    for (let i = 0; i < STREAM_POINTS.length - 1; i++) {
+      const A = STREAM_POINTS[i];
+      const B = STREAM_POINTS[i + 1];
+      const dx = B.x - A.x;
+      const dy = B.y - A.y;
+      const dz = B.z - A.z;
+      const len = Math.hypot(dx, dy, dz);
+      const mx = A.x + dx * 0.5;
+      const my = A.y + dy * 0.5;
+      const mz = A.z + dz * 0.5;
+      
+      const yaw = Math.atan2(dx, dz);
+      const pitch = -Math.atan2(dy, Math.hypot(dx, dz));
+      
+      const isStill = (i === STREAM_POINTS.length - 2); // last segment (starts at z = -5 and ends at z = 5)
+      
+      segs.push({
+        pos: [mx, my, mz],
+        rot: [pitch, yaw, 0],
+        len,
+        isStill,
+      });
+    }
+    return segs;
+  }, [STREAM_POINTS]);
+
+  return (
+    <group>
+      {/* ── River bed, banks, water, and physics for each segment ── */}
+      {segments.map((seg, i) => (
+        <RigidBody key={i} type="fixed" position={seg.pos} rotation={seg.rot}>
+          {/* Rapier U-channel colliders */}
+          {/* Bed floor */}
+          <CuboidCollider args={[1.5, 0.1, seg.len / 2]} position={[0, -0.1, 0]} />
+          {/* Left Bank */}
+          <CuboidCollider args={[0.2, 0.5, seg.len / 2]} position={[-1.5, 0.3, 0]} />
+          {/* Right Bank */}
+          <CuboidCollider args={[0.2, 0.5, seg.len / 2]} position={[1.5, 0.3, 0]} />
+
+          {/* Visual Channel Bed (flat box for base) */}
+          <mesh receiveShadow position={[0, -0.1, 0]}>
+            <boxGeometry args={[3.0, 0.2, seg.len + 0.05]} />
+            <meshStandardMaterial color="#374151" roughness={0.92} flatShading />
+          </mesh>
+
+          {/* Left Bank Rocks (hides boxy shape, makes it natural/rounded) */}
+          {Array.from({ length: 4 }).map((_, j) => {
+            const localZ = (j / 3 - 0.5) * seg.len;
+            const rScale = 0.5 + Math.abs(Math.sin(i * 5 + j)) * 0.4;
+            return (
+              <Boulder
+                key={`l-${j}`}
+                position={[-1.4, 0.05, localZ]}
+                scale={rScale}
+                color={j % 2 === 0 ? '#4b5563' : '#555555'}
+                cast={false}
+              />
+            );
+          })}
+
+          {/* Right Bank Rocks */}
+          {Array.from({ length: 4 }).map((_, j) => {
+            const localZ = (j / 3 - 0.5) * seg.len;
+            const rScale = 0.5 + Math.abs(Math.cos(i * 3 + j)) * 0.4;
+            return (
+              <Boulder
+                key={`r-${j}`}
+                position={[1.4, 0.05, localZ]}
+                scale={rScale}
+                color={j % 2 === 1 ? '#4b5563' : '#555555'}
+                cast={false}
+              />
+            );
+          })}
+
+          {/* Water surface plane */}
+          <mesh receiveShadow position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[2.7, seg.len + 0.02]} />
+            <meshStandardMaterial
+              map={seg.isStill ? stillTexture : waterTexture}
+              transparent
+              opacity={0.78}
+              roughness={0.08}
+              metalness={0.4}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        </RigidBody>
+      ))}
+
+      {/* ── Still Pond Ending Area (visual expansion at starting zone) ── */}
+      <RigidBody type="fixed" position={[7.5, -0.05, 1.5]}>
+        <CuboidCollider args={[4.2, 0.1, 4.2]} position={[0, -0.1, 0]} />
+        <group>
+          {/* Main circular pond shape */}
+          <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[4.2, 16]} />
+            <meshStandardMaterial
+              map={stillTexture}
+              transparent
+              opacity={0.85}
+              roughness={0.05}
+              metalness={0.45}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+          {/* Pond stone edge */}
+          {Array.from({ length: 12 }).map((_, idx) => {
+            const angle = (idx / 12) * Math.PI * 2;
+            const px = Math.cos(angle) * 4.3;
+            const pz = Math.sin(angle) * 4.3;
+            return (
+              <Boulder key={idx} position={[px, 0.1, pz]} scale={1.2} color="#4b5563" cast={false} />
+            );
+          })}
+        </group>
+      </RigidBody>
+
+      {/* ── Stream Boulders (character height, static physics obstacles) ── */}
+      {STREAM_ROCKS.map((rock, idx) => (
+        <RigidBody key={idx} type="fixed" position={[rock.x, rock.y, rock.z]}>
+          <BallCollider args={[rock.scale * 0.5]} position={[0, 0, 0]} />
+          <Boulder position={[0, 0, 0]} scale={rock.scale} color="#555555" />
+        </RigidBody>
+      ))}
     </group>
   );
 }
@@ -1708,42 +2042,45 @@ function SkillLog({ position, skill, rotation = 0 }) {
   }, [skill]);
 
   return (
-    <group position={[px, py, pz]} rotation={[0, rotation, 0]}>
-      {/* Log body */}
-      <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.28, 0.32, 1.6, 9]} />
-        <meshStandardMaterial color="#6b3e0e" roughness={0.96} />
-      </mesh>
-      {/* Bark ring at each end */}
-      {[-0.80, 0.80].map((ox, i) => (
-        <mesh key={i} position={[ox, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.285, 0.325, 0.06, 9]} />
-          <meshStandardMaterial color="#4a2b06" roughness={0.98} />
+    <RigidBody type="fixed" position={[px, py, pz]} rotation={[0, rotation, 0]}>
+      <CuboidCollider args={[0.8, 0.3, 0.3]} position={[0, 0, 0]} />
+      <group>
+        {/* Log body */}
+        <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.28, 0.32, 1.6, 9]} />
+          <meshStandardMaterial color="#6b3e0e" roughness={0.96} />
         </mesh>
-      ))}
-      {/* Tree-ring face (top end disc) */}
-      <mesh position={[0.82, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <circleGeometry args={[0.28, 9]} />
-        <meshStandardMaterial color="#8b5e2a" roughness={0.88} />
-      </mesh>
-      
-      {/* Engraved text plane */}
-      <mesh position={[0, 0.266, 0.135]} rotation={[-Math.PI / 3, 0, 0]}>
-        <planeGeometry args={[1.2, 0.3]} />
-        <meshStandardMaterial 
-          map={texture} 
-          transparent 
-          alphaTest={0.01}
-          roughness={0.7} 
-        />
-      </mesh>
+        {/* Bark ring at each end */}
+        {[-0.80, 0.80].map((ox, i) => (
+          <mesh key={i} position={[ox, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.285, 0.325, 0.06, 9]} />
+            <meshStandardMaterial color="#4a2b06" roughness={0.98} />
+          </mesh>
+        ))}
+        {/* Tree-ring face (top end disc) */}
+        <mesh position={[0.82, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <circleGeometry args={[0.28, 9]} />
+          <meshStandardMaterial color="#8b5e2a" roughness={0.88} />
+        </mesh>
+        
+        {/* Engraved text plane */}
+        <mesh position={[0, 0.266, 0.135]} rotation={[-Math.PI / 3, 0, 0]}>
+          <planeGeometry args={[1.2, 0.3]} />
+          <meshStandardMaterial 
+            map={texture} 
+            transparent 
+            alphaTest={0.01}
+            roughness={0.7} 
+          />
+        </mesh>
 
-      {/* Small plant/moss on log */}
-      <mesh position={[0.1, 0.3, 0.2]}>
-        <sphereGeometry args={[0.06, 5, 5]} />
-        <meshStandardMaterial color="#16a34a" roughness={0.9} />
-      </mesh>
-    </group>
+        {/* Small plant/moss on log */}
+        <mesh position={[0.1, 0.3, 0.2]}>
+          <sphereGeometry args={[0.06, 5, 5]} />
+          <meshStandardMaterial color="#16a34a" roughness={0.9} />
+        </mesh>
+      </group>
+    </RigidBody>
   );
 }
 
@@ -1817,18 +2154,23 @@ function Zone_Education({ z, isNight }) {
       <Box pos={[cx+4.5,ty+1.05,z]} size={[0.6,0.06,0.6]} color="#1f2937" />
       <Cyl pos={[cx+4.5,ty+0.73,z]} args={[0.16,0.16,0.58,8]} color="#1f2937" />
       <Box pos={[cx+4.8,ty+1.05,z]} size={[0.04,0.28,0.04]} color="#fbbf24" />
-      {/* Desk */}
-      <Box pos={[cx,ty+1.16,z+1.5]} size={[1.8,0.09,1.1]} color="#7c3d11" rough={0.9} />
-      {[[-0.8,-0.55],[-0.8,0.55],[0.8,-0.55],[0.8,0.55]].map(([lx,lz],i)=>(
-        <Box key={i} pos={[cx+lx,ty+0.76,z+1.5+lz]} size={[0.1,0.76,0.1]} color="#5c3d1e" />
-      ))}
-      {/* Laptop */}
-      <Box pos={[cx,ty+1.24,z+1.5]} size={[0.9,0.06,0.65]} color="#374151" />
-      <Box pos={[cx,ty+1.56,z+1.2]} size={[0.9,0.55,0.05]} color="#1f2937" rot={[-0.42,0,0]} />
-      <mesh position={[cx,ty+1.56,z+1.18]} rotation={[-0.42,0,0]}>
-        <planeGeometry args={[0.82,0.48]} />
-        <meshStandardMaterial color="#0f172a" emissive="#0ea5e9" emissiveIntensity={1.2} transparent opacity={0.95} />
-      </mesh>
+      {/* Desk with laptop */}
+      <RigidBody type="fixed" position={[cx, ty, z+1.5]}>
+        <CuboidCollider args={[0.9, 0.6, 0.55]} position={[0, 0.6, 0]} />
+        <group>
+          <Box pos={[0,1.16,0]} size={[1.8,0.09,1.1]} color="#7c3d11" rough={0.9} />
+          {[[-0.8,-0.55],[-0.8,0.55],[0.8,-0.55],[0.8,0.55]].map(([lx,lz],i)=>(
+            <Box key={i} pos={[lx,0.76,lz]} size={[0.1,0.76,0.1]} color="#5c3d1e" />
+          ))}
+          {/* Laptop */}
+          <Box pos={[0,1.24,0]} size={[0.9,0.06,0.65]} color="#374151" />
+          <Box pos={[0,1.56,-0.3]} size={[0.9,0.55,0.05]} color="#1f2937" rot={[-0.42,0,0]} />
+          <mesh position={[0,1.56,-0.32]} rotation={[-0.42,0,0]}>
+            <planeGeometry args={[0.82,0.48]} />
+            <meshStandardMaterial color="#0f172a" emissive="#0ea5e9" emissiveIntensity={1.2} transparent opacity={0.95} />
+          </mesh>
+        </group>
+      </RigidBody>
       <WoodenSign position={[cx-6,ty+0.46,z+1]} text="EDUCATION" />
       {/* Study campfire */}
       <Campfire position={[cx+5.5, ty+0.46, z+2]} isNight={isNight} />
@@ -1950,17 +2292,20 @@ function Zone_Projects({ z, isNight }) {
     <group ref={groupRef}>
       <CheckpointArch z={z + 4} label="PROJECTS" isNight={isNight} />
       {projects.map((p,i)=>(
-        <group key={i} ref={el=>screenRefs.current[i]=el} position={[cx-3.5+i*3.5,ty+2.06,z-0.5]}>
-          <mesh castShadow><boxGeometry args={[1.4,0.95,0.08]} />
-            <meshStandardMaterial color="#1f2937" roughness={0.6} /></mesh>
-          <mesh position={[0,0,0.05]}><planeGeometry args={[1.24,0.8]} />
-            <meshStandardMaterial color="#0f172a" emissive={p.color} emissiveIntensity={0.45} transparent opacity={0.95} /></mesh>
-          <mesh position={[0,0.35,0.06]}><planeGeometry args={[1.24,0.1]} />
-            <meshBasicMaterial color={p.color} transparent opacity={0.8} /></mesh>
-          <mesh position={[0,-0.65,0]}><boxGeometry args={[0.1,0.35,0.1]} />
-            <meshStandardMaterial color="#374151" roughness={0.8} /></mesh>
-          {!isMobileDevice() && <pointLight position={[0,0,-0.5]} color={p.color} intensity={0.8} distance={3} />}
-        </group>
+        <RigidBody key={i} type="fixed" position={[cx-3.5+i*3.5, ty+1.2, z-0.5]}>
+          <CuboidCollider args={[0.7, 1.2, 0.2]} />
+          <group ref={el=>screenRefs.current[i]=el} position={[0, 2.06 - 1.2, 0]}>
+            <mesh castShadow><boxGeometry args={[1.4,0.95,0.08]} />
+              <meshStandardMaterial color="#1f2937" roughness={0.6} /></mesh>
+            <mesh position={[0,0,0.05]}><planeGeometry args={[1.24,0.8]} />
+              <meshStandardMaterial color="#0f172a" emissive={p.color} emissiveIntensity={0.45} transparent opacity={0.95} /></mesh>
+            <mesh position={[0,0.35,0.06]}><planeGeometry args={[1.24,0.1]} />
+              <meshBasicMaterial color={p.color} transparent opacity={0.8} /></mesh>
+            <mesh position={[0,-0.65,0]}><boxGeometry args={[0.1,0.35,0.1]} />
+              <meshStandardMaterial color="#374151" roughness={0.8} /></mesh>
+            {!isMobileDevice() && <pointLight position={[0,0,-0.5]} color={p.color} intensity={0.8} distance={3} />}
+          </group>
+        </RigidBody>
       ))}
       {/* Hologram sphere */}
       <mesh position={[cx-5,ty+2.26,z-0.5]}>
@@ -2096,62 +2441,76 @@ function Zone_Contact({ z, isNight }) {
   return (
     <group ref={groupRef}>
       {/* Signal tower */}
-      <group position={[cx+5,ty+0.46,z-1]}>
-        {[[-0.4,-0.4],[0.4,-0.4],[-0.4,0.4],[0.4,0.4]].map(([lx,lz],i)=>(
-          <Box key={i} pos={[lx*0.5,2.5,lz*0.5]} size={[0.07,5.2,0.07]}
-            color="#6b7280" rot={[lx*0.08,0,lz*-0.08]} />
-        ))}
-        {[0.8,1.8,2.8,3.8].map((y,i)=>(
-          <Box key={i} pos={[0,y,0]} size={[0.65-i*0.08,0.06,0.65-i*0.08]} color="#9ca3af" />
-        ))}
-        <Cyl pos={[0,5.5,0]} args={[0.04,0.04,1.2,5]} color="#374151" />
-        <mesh ref={sigRef} position={[0,6.2,0]}>
-          <sphereGeometry args={[0.16,8,8]} />
-          <meshBasicMaterial color="#ef4444" />
-        </mesh>
-        {!isMobileDevice() && <pointLight ref={beaconRef} position={[0,6.2,0]} color="#ef4444" intensity={3} distance={14} />}
-      </group>
+      <RigidBody type="fixed" position={[cx+5, ty+0.46, z-1]}>
+        <CuboidCollider args={[0.3, 2.6, 0.3]} position={[0, 2.6, 0]} />
+        <group>
+          {[[-0.4,-0.4],[0.4,-0.4],[-0.4,0.4],[0.4,0.4]].map(([lx,lz],i)=>(
+            <Box key={i} pos={[lx*0.5,2.5,lz*0.5]} size={[0.07,5.2,0.07]}
+              color="#6b7280" rot={[lx*0.08,0,lz*-0.08]} />
+          ))}
+          {[0.8,1.8,2.8,3.8].map((y,i)=>(
+            <Box key={i} pos={[0,y,0]} size={[0.65-i*0.08,0.06,0.65-i*0.08]} color="#9ca3af" />
+          ))}
+          <Cyl pos={[0,5.5,0]} args={[0.04,0.04,1.2,5]} color="#374151" />
+          <mesh ref={sigRef} position={[0,6.2,0]}>
+            <sphereGeometry args={[0.16,8,8]} />
+            <meshBasicMaterial color="#ef4444" />
+          </mesh>
+          {!isMobileDevice() && <pointLight ref={beaconRef} position={[0,6.2,0]} color="#ef4444" intensity={3} distance={14} />}
+        </group>
+      </RigidBody>
       
       {/* Satellite dish */}
-      <group position={[cx-5,ty+0.96,z]}>
-        <Cyl pos={[0,0.5,0]} args={[0.06,0.06,1.1,5]} color="#6b7280" />
-        <mesh position={[0,1.2,0]} rotation={[-0.6,0,0]}>
-          <torusGeometry args={[0.65,0.08,8,12,Math.PI]} />
-          <meshStandardMaterial color="#9ca3af" roughness={0.5} metalness={0.6} />
-        </mesh>
-      </group>
+      <RigidBody type="fixed" position={[cx-5, ty+0.96, z]}>
+        <CuboidCollider args={[0.5, 0.8, 0.5]} position={[0, 0.8, 0]} />
+        <group>
+          <Cyl pos={[0,0.5,0]} args={[0.06,0.06,1.1,5]} color="#6b7280" />
+          <mesh position={[0,1.2,0]} rotation={[-0.6,0,0]}>
+            <torusGeometry args={[0.65,0.08,8,12,Math.PI]} />
+            <meshStandardMaterial color="#9ca3af" roughness={0.5} metalness={0.6} />
+          </mesh>
+        </group>
+      </RigidBody>
       
       {/* Glowing beacon */}
-      <mesh position={[cx,ty+2.66,z-2]}>
-        <cylinderGeometry args={[0.18,0.25,1.8,10]} />
-        <meshStandardMaterial color="#374151" roughness={0.6} metalness={0.4} />
-      </mesh>
-      <mesh position={[cx,ty+3.66,z-2]}>
-        <sphereGeometry args={[0.38,12,12]} />
-        <meshStandardMaterial color="#22d3ee" emissive="#0ea5e9" emissiveIntensity={2.5} transparent opacity={0.85} />
-      </mesh>
-      {!isMobileDevice() && <pointLight position={[cx,ty+3.66,z-2]} color="#22d3ee"
-        intensity={isNight?5:2.5} distance={16} />}
+      <RigidBody type="fixed" position={[cx, ty, z-2]}>
+        <CylinderCollider args={[1.3, 0.25]} position={[0, 1.3, 0]} />
+        <group>
+          <mesh position={[0, 2.66, 0]}>
+            <cylinderGeometry args={[0.18, 0.25, 1.8, 10]} />
+            <meshStandardMaterial color="#374151" roughness={0.6} metalness={0.4} />
+          </mesh>
+          <mesh position={[0, 3.66, 0]}>
+            <sphereGeometry args={[0.38, 12, 12]} />
+            <meshStandardMaterial color="#22d3ee" emissive="#0ea5e9" emissiveIntensity={2.5} transparent opacity={0.85} />
+          </mesh>
+          {!isMobileDevice() && <pointLight position={[0, 3.66, 0]} color="#22d3ee"
+            intensity={isNight?5:2.5} distance={16} />}
+        </group>
+      </RigidBody>
       
       {/* Attractive Summit Wooden Sign Board */}
-      <group position={[cx, ty + 0.46, z - 3.2]}>
-        {/* Left post */}
-        <Cyl pos={[-1.8, 0.8, 0]} args={[0.08, 0.08, 1.6, 6]} color="#7c3d11" rough={0.92} />
-        {/* Right post */}
-        <Cyl pos={[1.8, 0.8, 0]} args={[0.08, 0.08, 1.6, 6]} color="#7c3d11" rough={0.92} />
-        {/* Sign board panel */}
-        <Box pos={[0, 1.3, -0.05]} size={[4.2, 1.2, 0.1]} color="#92400e" />
-        {/* Engraved text plane (positioned in front of signboard panel) */}
-        <mesh position={[0, 1.3, 0.002]} rotation={[0, 0, 0]}>
-          <planeGeometry args={[4.0, 1.0]} />
-          <meshStandardMaterial 
-            map={summitTexture} 
-            transparent 
-            alphaTest={0.01} 
-            roughness={0.7} 
-          />
-        </mesh>
-      </group>
+      <RigidBody type="fixed" position={[cx, ty + 0.46, z - 3.2]}>
+        <CuboidCollider args={[2.1, 1.0, 0.1]} position={[0, 1.0, 0]} />
+        <group>
+          {/* Left post */}
+          <Cyl pos={[-1.8, 0.8, 0]} args={[0.08, 0.08, 1.6, 6]} color="#7c3d11" rough={0.92} />
+          {/* Right post */}
+          <Cyl pos={[1.8, 0.8, 0]} args={[0.08, 0.08, 1.6, 6]} color="#7c3d11" rough={0.92} />
+          {/* Sign board panel */}
+          <Box pos={[0, 1.3, -0.05]} size={[4.2, 1.2, 0.1]} color="#92400e" />
+          {/* Engraved text plane (positioned in front of signboard panel) */}
+          <mesh position={[0, 1.3, 0.002]} rotation={[0, 0, 0]}>
+            <planeGeometry args={[4.0, 1.0]} />
+            <meshStandardMaterial 
+              map={summitTexture} 
+              transparent 
+              alphaTest={0.01} 
+              roughness={0.7} 
+            />
+          </mesh>
+        </group>
+      </RigidBody>
     </group>
   );
 }
@@ -2413,6 +2772,7 @@ export default function Environment({ onCheckpointEnter, onCheckpointExit, isNig
       <SnowParticles />
       <Fireflies isNight={isNight} />
       <Waterfall />
+      <FlowingStream isNight={isNight} />
 
       {/* ── BASE CAMP ── */}
       <Zone_AboutMe z={-8} isNight={isNight} />
