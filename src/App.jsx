@@ -519,15 +519,6 @@ export default function App() {
                 >
                   <CameraIcon size={16} color={isCameraEnabled ? '#fbbf24' : '#ffffff'} />
                 </button>
-                {/* Recenter Camera & Character */}
-                <button
-                  className="hud-mute-btn"
-                  onClick={handleRecenter}
-                  title="Recenter character & camera (facing summit)"
-                  style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <RotateCcw size={16} color="#ffffff" />
-                </button>
                 {/* Day/Night toggle */}
                 <button
                   className="hud-mute-btn"
@@ -677,13 +668,10 @@ export default function App() {
               <div className="footer-feedback-icons">
                 <button 
                   className="feedback-icon-btn recenter-btn" 
-                  title="Recenter Camera" 
-                  onClick={() => {
-                    cameraYawRef.current = characterRotationRef.current - Math.PI;
-                    cameraPitchRef.current = 0.28;
-                  }}
+                  title="Recenter character & camera (facing summit)" 
+                  onClick={handleRecenter}
                 >
-                  <CameraIcon size={15} />
+                  <RotateCcw size={15} />
                 </button>
                 <button 
                   className="feedback-icon-btn" 
