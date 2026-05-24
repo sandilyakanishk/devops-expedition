@@ -2,7 +2,7 @@
 
 An immersive, gamified 3D mountain trekking interactive resume showcasing DevOps engineering workflows, AWS cloud architecture, and technical capabilities. Built with modern web graphics technologies and featuring procedural assets, responsive controls, and Indian classical ambient background music.
 
-👉 **[Live Portfolio Link](https://sandilyakanishk.github.io/portfolio-3Dtrek/)**
+👉 **[Live Portfolio Link](https://sandilyakanishk.github.io/devops-expedition/)**
 
 ---
 
@@ -59,8 +59,8 @@ An immersive, gamified 3D mountain trekking interactive resume showcasing DevOps
 ### Local Development Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/sandilyakanishk/portfolio-3Dtrek.git
-   cd portfolio-3Dtrek
+   git clone https://github.com/sandilyakanishk/devops-expedition.git
+   cd devops-expedition
    ```
 2. Install dependencies:
    ```bash
