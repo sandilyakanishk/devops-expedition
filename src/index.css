@@ -1394,7 +1394,7 @@ html:-webkit-full-screen #root {
 
 .mobile-joystick {
   position: absolute;
-  right: calc(98px + env(safe-area-inset-right));
+  left: calc(28px + env(safe-area-inset-left));
   bottom: calc(28px + env(safe-area-inset-bottom));
   width: 124px;
   height: 124px;
@@ -1514,8 +1514,8 @@ html:-webkit-full-screen #root {
   }
 
   .checkpoint-overlay {
-    width: 48vw !important;
-    padding: 20px !important;
+    width: 54vw !important;
+    padding: 20px 20px 20px calc(130px + env(safe-area-inset-left)) !important;
     background: rgba(11, 15, 25, 0.92) !important;
     justify-content: flex-start !important;
     overflow-y: auto !important;
@@ -1703,7 +1703,8 @@ html:-webkit-full-screen #root {
   }
 
   .mobile-joystick {
-    right: calc(88px + env(safe-area-inset-right));
+    left: calc(24px + env(safe-area-inset-left));
+    right: auto;
     bottom: calc(72px + env(safe-area-inset-bottom));
     width: 112px;
     height: 112px;
@@ -1734,7 +1735,8 @@ html:-webkit-full-screen #root {
   }
 
   .mobile-joystick {
-    right: calc(82px + env(safe-area-inset-right));
+    left: calc(20px + env(safe-area-inset-left));
+    right: auto;
     width: 104px;
     height: 104px;
   }
@@ -1785,7 +1787,8 @@ html:-webkit-full-screen #root {
 /* Scaling down mobile controls on small viewports (like landscape phones) */
 @media (max-height: 480px) {
   .mobile-joystick {
-    right: calc(78px + env(safe-area-inset-right));
+    left: calc(24px + env(safe-area-inset-left));
+    right: auto;
     bottom: calc(12px + env(safe-area-inset-bottom));
     width: 106px;
     height: 106px;
