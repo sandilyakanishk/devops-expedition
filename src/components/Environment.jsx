@@ -2,11 +2,30 @@
 // Environment.jsx — Low-Poly Mountain Trek (reference-matched)
 // Mountain CONE shapes, flat walkable trail segments, stars/birds
 // ================================================================
-import { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect, forwardRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody, CuboidCollider, CylinderCollider, BallCollider } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { getClayTexture } from '../utils/clayTexture.js';
+
+// Retrieve procedural clay bump map
+const clayBumpMap = getClayTexture();
+
+// Helper Clay Material to give everything a hand-molded clay texture
+const ClayMaterial = forwardRef(({ color, roughness = 0.92, metalness = 0.0, bumpScale = 0.015, ...props }, ref) => {
+  return (
+    <meshStandardMaterial
+      ref={ref}
+      color={color}
+      roughness={roughness}
+      metalness={metalness}
+      bumpMap={clayBumpMap}
+      bumpScale={bumpScale}
+      {...props}
+    />
+  );
+});
 
 function isMobileDevice() {
   if (typeof window === 'undefined') return false;
@@ -26,17 +45,17 @@ function getPathCenterX(_z) {
 }
 
 // ── Tiny geometry helpers ─────────────────────────────────────────
-const Box = ({ pos, size, color, rot = [0,0,0], emissive, emissiveInt = 0.9, rough = 0.85, cast = true }) => (
+const Box = ({ pos, size, color, rot = [0,0,0], emissive, emissiveInt = 0.9, rough = 0.92, cast = true }) => (
   <mesh position={pos} rotation={rot} castShadow={cast} receiveShadow>
     <boxGeometry args={size} />
-    <meshStandardMaterial color={color} roughness={rough}
+    <ClayMaterial color={color} roughness={rough}
       emissive={emissive || color} emissiveIntensity={emissive ? emissiveInt : 0} />
   </mesh>
 );
-const Cyl = ({ pos, args, color, rot = [0,0,0], rough = 0.82 }) => (
+const Cyl = ({ pos, args, color, rot = [0,0,0], rough = 0.92 }) => (
   <mesh position={pos} rotation={rot} castShadow>
     <cylinderGeometry args={args} />
-    <meshStandardMaterial color={color} roughness={rough} flatShading />
+    <ClayMaterial color={color} roughness={rough} />
   </mesh>
 );
 
@@ -47,7 +66,7 @@ function Boulder({ position, scale = 1, color = '#6b7280', cast = true }) {
   return (
     <mesh position={position} rotation={r} scale={scale} castShadow={cast} receiveShadow>
       <dodecahedronGeometry args={[0.5, 0]} />
-      <meshStandardMaterial color={color} roughness={0.95} flatShading />
+      <ClayMaterial color={color} roughness={0.95} />
     </mesh>
   );
 }
@@ -79,7 +98,8 @@ function Campfire({ position, isNight }) {
     }
     const tVal = transitionRef.current;
 
-    const t = s.clock.getElapsedTime();
+    const realT = s.clock.getElapsedTime();
+    const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
     if (flameRef.current) {
       flameRef.current.scale.y = 1 + Math.sin(t * 14) * 0.2;
       flameRef.current.rotation.y = t * 0.9;
@@ -108,13 +128,13 @@ function Campfire({ position, isNight }) {
             position={[Math.cos(deg*Math.PI/180)*0.4, 0.06, Math.sin(deg*Math.PI/180)*0.4]}
             rotation={[0, (deg+30)*Math.PI/180, Math.PI/2]}>
             <cylinderGeometry args={[0.07, 0.09, 0.8, 6]} />
-            <meshStandardMaterial color="#5c3d1e" roughness={0.95} />
+            <ClayMaterial color="#5c3d1e" roughness={0.95} />
           </mesh>
         ))}
         {[0,45,90,135,180,225,270,315].map((deg, i) => (
           <mesh key={i} position={[Math.cos(deg*Math.PI/180)*0.55, 0.05, Math.sin(deg*Math.PI/180)*0.55]}>
             <dodecahedronGeometry args={[0.1, 0]} />
-            <meshStandardMaterial color="#4b5563" roughness={0.9} flatShading />
+            <ClayMaterial color="#4b5563" roughness={0.9} />
           </mesh>
         ))}
         {[0,1,2,3].map(i => (
@@ -148,11 +168,11 @@ function Tent({ position, rotation = 0, color = '#92400e' }) {
       <group>
         <mesh castShadow>
           <coneGeometry args={[1.1, 1.6, 4]} />
-          <meshStandardMaterial color={color} roughness={0.88} flatShading />
+          <ClayMaterial color={color} roughness={0.88} />
         </mesh>
         <mesh position={[0, 0.05, 0.95]}>
           <planeGeometry args={[0.55, 0.9]} />
-          <meshStandardMaterial color="#292524" side={THREE.DoubleSide} />
+          <ClayMaterial color="#292524" side={THREE.DoubleSide} />
         </mesh>
       </group>
     </RigidBody>
@@ -168,25 +188,25 @@ function WoodenHut({ position }) {
       <group>
         <mesh castShadow receiveShadow position={[0, 1.0, 0]}>
           <boxGeometry args={[3.2, 2.0, 2.8]} />
-          <meshStandardMaterial color="#7c3d11" roughness={0.9} />
+          <ClayMaterial color="#7c3d11" roughness={0.9} />
         </mesh>
         <mesh castShadow position={[0, 2.45, 0]}>
           <coneGeometry args={[2.5, 1.5, 4]} />
-          <meshStandardMaterial color="#3b1f0a" roughness={0.88} flatShading />
+          <ClayMaterial color="#3b1f0a" roughness={0.88} />
         </mesh>
         <mesh position={[0, 0.6, 1.42]}>
           <boxGeometry args={[0.8, 1.4, 0.08]} />
-          <meshStandardMaterial color="#451a03" roughness={0.95} />
+          <ClayMaterial color="#451a03" roughness={0.95} />
         </mesh>
         {[-1, 1].map(s => (
           <mesh key={s} position={[s * 1.0, 1.1, 1.42]}>
             <boxGeometry args={[0.55, 0.55, 0.06]} />
-            <meshStandardMaterial color="#bfdbfe" roughness={0.1} transparent opacity={0.7} />
+            <ClayMaterial color="#bfdbfe" roughness={0.1} transparent opacity={0.7} />
           </mesh>
         ))}
         <mesh castShadow position={[0.9, 3.0, -0.4]}>
           <boxGeometry args={[0.38, 0.9, 0.38]} />
-          <meshStandardMaterial color="#4b5563" roughness={0.9} />
+          <ClayMaterial color="#4b5563" roughness={0.9} />
         </mesh>
       </group>
     </RigidBody>
@@ -226,7 +246,8 @@ function LanternPost({ position, isNight }) {
       const isNear = dist < 25;
       lRef.current.visible = isNear;
       if (isNear) {
-        lRef.current.intensity = t * (5 + Math.sin(s.clock.getElapsedTime() * 11) * 0.5);
+        const timeVal = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+        lRef.current.intensity = t * (5 + Math.sin(timeVal * 11) * 0.5);
       }
     }
     if (matRef.current) {
@@ -245,17 +266,18 @@ function LanternPost({ position, isNight }) {
         <Cyl pos={[0, 1.1, 0]} args={[0.04, 0.04, 2.4, 5]} color="#374151" />
         <mesh position={[0, 2.3, 0]} castShadow>
           <boxGeometry args={[0.28, 0.36, 0.28]} />
-          <meshStandardMaterial color="#374151" roughness={0.5} metalness={0.5} transparent opacity={0.85} />
+          <ClayMaterial color="#374151" roughness={0.5} metalness={0.5} transparent opacity={0.85} />
         </mesh>
         <mesh position={[0, 2.3, 0]}>
           <boxGeometry args={[0.2, 0.28, 0.2]} />
-          <meshStandardMaterial
+          <ClayMaterial
             ref={matRef}
             color="#555555"
             emissive="#fbbf24"
             emissiveIntensity={0}
             transparent
             opacity={0.4}
+            roughness={0.6}
           />
         </mesh>
         {!isMobileDevice() && <pointLight ref={lRef} position={[0, 2.3, 0]} color="#ff9f00" intensity={0} distance={12} />}
@@ -297,8 +319,9 @@ function FireTorch({ position, isNight }) {
     }
     const t = transitionRef.current;
 
+    const timeVal = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
     if (flameRef.current) {
-      const scaleY = 1 + Math.sin(s.clock.getElapsedTime() * 12 + position[2]) * 0.15 * t;
+      const scaleY = 1 + Math.sin(timeVal * 12 + position[2]) * 0.15 * t;
       flameRef.current.scale.set(1, scaleY, 1);
     }
     if (matRef.current) {
@@ -313,7 +336,7 @@ function FireTorch({ position, isNight }) {
       const isNear = dist < 10;
       lRef.current.visible = isNear;
       if (isNear) {
-        lRef.current.intensity = t * (2 + Math.sin(s.clock.getElapsedTime() * 14 + position[2]) * 0.4);
+        lRef.current.intensity = t * (2 + Math.sin(timeVal * 14 + position[2]) * 0.4);
       }
     }
   });
@@ -326,7 +349,7 @@ function FireTorch({ position, isNight }) {
       {/* Metal bracket / bowl holder */}
       <mesh position={[0, 0.8, 0]}>
         <cylinderGeometry args={[0.06, 0.03, 0.08, 6]} />
-        <meshStandardMaterial color="#374151" roughness={0.6} metalness={0.6} />
+        <ClayMaterial color="#374151" roughness={0.6} metalness={0.6} />
       </mesh>
       {/* Flame */}
       <mesh ref={flameRef} position={[0, 0.9, 0]}>
@@ -357,7 +380,7 @@ function WoodenSign({ position, text, rotation = 0 }) {
         <Cyl pos={[0, 0.55, 0]} args={[0.04, 0.05, 1.1, 5]} color="#92400e" />
         <mesh castShadow position={[0, 1.18, 0]}>
           <boxGeometry args={[1.0, 0.46, 0.1]} />
-          <meshStandardMaterial color="#7c3d11" roughness={0.9} />
+          <ClayMaterial color="#7c3d11" roughness={0.9} />
         </mesh>
         <Html position={[0, 1.18, 0]} center distanceFactor={6} style={{pointerEvents:'none'}}>
           <div style={{
@@ -403,26 +426,26 @@ function MountainBody({ isNight }) {
     <group>
       {/* ── Wide green base cone ── */}
       <mesh castShadow receiveShadow position={[0, -4, -92]}>
-        <coneGeometry args={[58, 22, 8]} />
-        <meshStandardMaterial ref={grassMatRef} color="#22c55e" roughness={0.92} flatShading />
+        <coneGeometry args={[58, 22, 32]} />
+        <ClayMaterial ref={grassMatRef} color="#22c55e" roughness={0.92} />
       </mesh>
 
       {/* ── Mid mountain rocky body ── */}
       <mesh castShadow position={[0, 12, -100]}>
-        <coneGeometry args={[40, 28, 7]} />
-        <meshStandardMaterial color={rockCol} roughness={0.94} flatShading />
+        <coneGeometry args={[40, 28, 32]} />
+        <ClayMaterial color={rockCol} roughness={0.94} />
       </mesh>
 
       {/* ── Upper rocky section ── */}
       <mesh castShadow position={[0, 24, -112]}>
-        <coneGeometry args={[26, 26, 6]} />
-        <meshStandardMaterial color={darkRock} roughness={0.95} flatShading />
+        <coneGeometry args={[26, 26, 32]} />
+        <ClayMaterial color={darkRock} roughness={0.95} />
       </mesh>
 
       {/* ── Near-summit grey rocky peak ── */}
       <mesh castShadow position={[0, 34, -125]}>
-        <coneGeometry args={[16, 22, 6]} />
-        <meshStandardMaterial color="#6b7280" roughness={0.9} flatShading />
+        <coneGeometry args={[16, 22, 32]} />
+        <ClayMaterial color="#6b7280" roughness={0.9} />
       </mesh>
 
       {/* ── Snow/ice sections (like the reference) ── */}
@@ -431,8 +454,8 @@ function MountainBody({ isNight }) {
         [-5, 44, -155], [4, 49, -158],
       ].map(([x, y, z], i) => (
         <mesh key={i} castShadow position={[x, y, z]}>
-          <coneGeometry args={[10-i*1.4, 14-i*1.2, 5+i]} />
-          <meshStandardMaterial color={snowCol} roughness={0.8} flatShading />
+          <coneGeometry args={[10-i*1.4, 14-i*1.2, 32]} />
+          <ClayMaterial color={snowCol} roughness={0.8} />
         </mesh>
       ))}
 
@@ -445,8 +468,8 @@ function MountainBody({ isNight }) {
       ].map(([x, y, z], i) => (
         <mesh key={i} castShadow position={[x, y, z]}
           rotation={[0, i * 0.7, 0]}>
-          <dodecahedronGeometry args={[5 + (i%3)*2, 0]} />
-          <meshStandardMaterial color={i > 4 ? darkRock : rockCol} roughness={0.96} flatShading />
+          <dodecahedronGeometry args={[5 + (i%3)*2, 2]} />
+          <ClayMaterial color={i > 4 ? darkRock : rockCol} roughness={0.96} />
         </mesh>
       ))}
     </group>
@@ -500,19 +523,19 @@ function SurroundingMountains({ isNight }) {
         <group key={i} position={m.pos}>
           {/* Green base */}
           <mesh receiveShadow>
-            <coneGeometry args={[m.r * 1.6, m.h * 0.38, 7]} />
-            <meshStandardMaterial ref={grassMatRef} color="#16a34a" roughness={0.92} flatShading />
+            <coneGeometry args={[m.r * 1.6, m.h * 0.38, 32]} />
+            <ClayMaterial ref={grassMatRef} color="#16a34a" roughness={0.92} />
           </mesh>
           {/* Rocky body */}
           <mesh position={[0, m.h * 0.25, 0]}>
-            <coneGeometry args={[m.r * 0.95, m.h * 0.68, 6]} />
-            <meshStandardMaterial color={m.rocky ? '#374151' : '#4b5563'} roughness={0.94} flatShading />
+            <coneGeometry args={[m.r * 0.95, m.h * 0.68, 32]} />
+            <ClayMaterial color={m.rocky ? '#374151' : '#4b5563'} roughness={0.94} />
           </mesh>
           {/* Snow cap on tall ones */}
           {m.h > 40 && (
             <mesh position={[0, m.h * 0.62, 0]}>
-              <coneGeometry args={[m.r * 0.35, m.h * 0.22, 5]} />
-              <meshStandardMaterial color="#e2e8f0" roughness={0.82} flatShading />
+              <coneGeometry args={[m.r * 0.35, m.h * 0.22, 32]} />
+              <ClayMaterial color="#e2e8f0" roughness={0.82} />
             </mesh>
           )}
         </group>
@@ -542,9 +565,9 @@ function WalkableTrail({ isNight }) {
 
   const materials = useMemo(() => {
     return {
-      snow: new THREE.MeshStandardMaterial({ color: snowC, roughness: 0.93, flatShading: true }),
-      rock: new THREE.MeshStandardMaterial({ color: rockC, roughness: 0.93, flatShading: true }),
-      grass: new THREE.MeshStandardMaterial({ color: '#22c55e', roughness: 0.93, flatShading: true }),
+      snow: new THREE.MeshStandardMaterial({ color: snowC, roughness: 0.92, metalness: 0.0, bumpMap: clayBumpMap, bumpScale: 0.015, flatShading: false }),
+      rock: new THREE.MeshStandardMaterial({ color: rockC, roughness: 0.92, metalness: 0.0, bumpMap: clayBumpMap, bumpScale: 0.015, flatShading: false }),
+      grass: new THREE.MeshStandardMaterial({ color: '#22c55e', roughness: 0.92, metalness: 0.0, bumpMap: clayBumpMap, bumpScale: 0.015, flatShading: false }),
     };
   }, []);
 
@@ -763,13 +786,13 @@ function WalkableTrail({ isNight }) {
       {/* Instanced fences posts */}
       <instancedMesh ref={fencePostsRef} args={[null, null, fencesData.posts.length]} castShadow receiveShadow frustumCulled={false}>
         <cylinderGeometry args={[0.06, 0.07, 1.0, 5]} />
-        <meshStandardMaterial color="#5c3d1e" roughness={0.9} flatShading />
+        <ClayMaterial color="#5c3d1e" roughness={0.9} />
       </instancedMesh>
 
       {/* Instanced fences rails */}
       <instancedMesh ref={fenceRailsRef} args={[null, null, fencesData.rails.length]} castShadow receiveShadow frustumCulled={false}>
         <boxGeometry args={[0.04, 0.08, 5.0]} />
-        <meshStandardMaterial color="#7c3d11" roughness={0.92} flatShading />
+        <ClayMaterial color="#7c3d11" roughness={0.92} />
       </instancedMesh>
 
       {/* Summit visual barricade */}
@@ -800,7 +823,7 @@ function WalkableTrail({ isNight }) {
         </mesh>
         <mesh position={[0, 0.42, -61.28]} receiveShadow>
           <boxGeometry args={[3.2, 0.06, 122.56]} />
-          <meshStandardMaterial color={dirtC} roughness={0.97} />
+          <ClayMaterial color={dirtC} roughness={0.97} />
         </mesh>
       </group>
 
@@ -831,19 +854,19 @@ function WalkableTrail({ isNight }) {
       {/* Instanced trail rocks */}
       <instancedMesh ref={trailRocksRef} args={[null, null, trailRocks.length]} receiveShadow frustumCulled={false}>
         <dodecahedronGeometry args={[0.5, 0]} />
-        <meshStandardMaterial roughness={0.96} flatShading />
+        <ClayMaterial roughness={0.96} />
       </instancedMesh>
 
       {/* Instanced path-edge pebbles */}
       <instancedMesh ref={pebblesRef} args={[null, null, pebbles.length]} castShadow frustumCulled={false}>
         <dodecahedronGeometry args={[1, 0]} />
-        <meshStandardMaterial color="#78716c" roughness={0.95} flatShading />
+        <ClayMaterial color="#78716c" roughness={0.95} />
       </instancedMesh>
 
       {/* Instanced snow patches */}
       <instancedMesh ref={snowPatchesRef} args={[null, null, snowPatches.length]} receiveShadow frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#f0f9ff" roughness={0.85} />
+        <ClayMaterial color="#f0f9ff" roughness={0.85} />
       </instancedMesh>
 
       {/* Torches spaced along the trail */}
@@ -975,32 +998,32 @@ function ForestDecorations() {
     <group>
       {/* Pine Trunks */}
       <instancedMesh ref={trunkRef} args={[null, null, trees.length]} castShadow frustumCulled={false}>
-        <cylinderGeometry args={[0.1, 0.14, 1.1, 6]} />
-        <meshStandardMaterial color="#5c3d1e" roughness={0.95} flatShading />
+        <cylinderGeometry args={[0.1, 0.14, 1.1, 32]} />
+        <ClayMaterial color="#5c3d1e" roughness={0.95} />
       </instancedMesh>
 
       {/* Pine Cone 1 */}
       <instancedMesh ref={cone1Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
-        <coneGeometry args={[0.72, 1.5, 7]} />
-        <meshStandardMaterial color="#2d6a4f" roughness={0.85} flatShading />
+        <coneGeometry args={[0.72, 1.5, 32]} />
+        <ClayMaterial color="#2d6a4f" roughness={0.85} />
       </instancedMesh>
 
       {/* Pine Cone 2 */}
       <instancedMesh ref={cone2Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
-        <coneGeometry args={[0.5, 1.1, 7]} />
-        <meshStandardMaterial color="#1b4332" roughness={0.88} flatShading />
+        <coneGeometry args={[0.5, 1.1, 32]} />
+        <ClayMaterial color="#1b4332" roughness={0.88} />
       </instancedMesh>
 
       {/* Pine Cone 3 */}
       <instancedMesh ref={cone3Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
-        <coneGeometry args={[0.3, 0.8, 6]} />
-        <meshStandardMaterial color="#166534" roughness={0.9} flatShading />
+        <coneGeometry args={[0.3, 0.8, 32]} />
+        <ClayMaterial color="#166534" roughness={0.9} />
       </instancedMesh>
 
       {/* Boulders */}
       <instancedMesh ref={boulderRef} args={[null, null, boulders.length]} castShadow receiveShadow frustumCulled={false}>
-        <dodecahedronGeometry args={[0.5, 0]} />
-        <meshStandardMaterial roughness={0.95} flatShading />
+        <dodecahedronGeometry args={[0.5, 2]} />
+        <ClayMaterial roughness={0.95} />
       </instancedMesh>
     </group>
   );
@@ -1070,7 +1093,8 @@ function FlowingStream({ isNight }) {
 
   // Scroll flowing texture
   useFrame((state) => {
-    const t = state.clock.getElapsedTime();
+    const realT = state.clock.getElapsedTime();
+    const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
     // Scrolling offset.y with positive rate scrolls the texture coordinates downstream (summit -> pond)
     waterTexture.offset.y = t * 0.35;
     stillTexture.offset.y = -t * 0.05; // very slow ripple
@@ -1282,7 +1306,7 @@ function FlowingStream({ isNight }) {
     <group>
       {/* ── Visual continuous riverbed ribbon ── */}
       <mesh receiveShadow geometry={bedGeometry}>
-        <meshStandardMaterial color="#374151" roughness={0.92} flatShading />
+        <ClayMaterial color="#374151" roughness={0.92} />
       </mesh>
 
       {/* ── Visual continuous water surface ribbon ── */}
@@ -1293,16 +1317,16 @@ function FlowingStream({ isNight }) {
           bumpScale={0.06}
           transparent
           opacity={0.78}
-          roughness={0.06}
-          metalness={0.3}
+          roughness={0.5}
+          metalness={0.1}
           side={THREE.DoubleSide}
         />
       </mesh>
 
       {/* ── Instanced Bank Rocks (renders in exactly 1 draw call!) ── */}
       <instancedMesh ref={bankRocksRef} args={[null, null, bankRocks.length]} receiveShadow frustumCulled={false}>
-        <dodecahedronGeometry args={[0.5, 0]} />
-        <meshStandardMaterial roughness={0.95} flatShading />
+        <dodecahedronGeometry args={[0.5, 2]} />
+        <ClayMaterial roughness={0.95} />
       </instancedMesh>
 
       {/* ── River bed and banks physics colliders for each segment ── */}
@@ -1324,15 +1348,15 @@ function FlowingStream({ isNight }) {
         <group>
           {/* Main circular pond shape */}
           <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[4.2, 16]} />
+            <circleGeometry args={[4.2, 32]} />
             <meshStandardMaterial
               map={stillTexture}
               bumpMap={stillTexture}
               bumpScale={0.02}
               transparent
               opacity={0.85}
-              roughness={0.05}
-              metalness={0.45}
+              roughness={0.5}
+              metalness={0.1}
               side={THREE.DoubleSide}
             />
           </mesh>
@@ -1371,7 +1395,8 @@ function Waterfall() {
   const Z = -88; const ty = getTerrainY(Z);
 
   useFrame((s) => {
-    const t = s.clock.getElapsedTime();
+    const realT = s.clock.getElapsedTime();
+    const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
     meshes.current.forEach((m, i) => {
       if (!m) return;
       const d = strips[i];
@@ -1385,20 +1410,20 @@ function Waterfall() {
     <group>
       <mesh castShadow position={[getPathCenterX(Z)-9, ty+7, Z]}>
         <boxGeometry args={[5, 16, 6]} />
-        <meshStandardMaterial color="#374151" roughness={0.95} flatShading />
+        <ClayMaterial color="#374151" roughness={0.95} />
       </mesh>
       {strips.map((d, i) => (
         <mesh key={i} ref={el => meshes.current[i] = el}
           position={[getPathCenterX(Z)-10+d.ox, ty+8, Z]}>
           <boxGeometry args={[d.w, d.len, 0.1]} />
-          <meshStandardMaterial color="#93c5fd" transparent opacity={0.68}
-            roughness={0.08} depthWrite={false} />
+          <ClayMaterial color="#93c5fd" transparent opacity={0.68}
+            roughness={0.6} depthWrite={false} />
         </mesh>
       ))}
       <mesh receiveShadow position={[getPathCenterX(Z)-10, ty-0.1, Z]}>
-        <cylinderGeometry args={[2.8, 2.8, 0.22, 14]} />
-        <meshStandardMaterial color="#bfdbfe" transparent opacity={0.7}
-          roughness={0.04} metalness={0.3} />
+        <cylinderGeometry args={[2.8, 2.8, 0.22, 32]} />
+        <ClayMaterial color="#bfdbfe" transparent opacity={0.7}
+          roughness={0.6} />
       </mesh>
     </group>
   );
@@ -1530,7 +1555,7 @@ function NightSky({ isNight }) {
     }
 
     if (isVisible) {
-      starSystem.mat.uniforms.uTime.value = s.clock.getElapsedTime();
+      starSystem.mat.uniforms.uTime.value = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
       starSystem.mat.uniforms.uOpacity.value = t;
     }
   });
@@ -1589,6 +1614,8 @@ function DayClouds({ isNight }) {
     transparent: true,
     opacity: 0.88,
     roughness: 0.92,
+    bumpMap: clayBumpMap,
+    bumpScale: 0.015,
     depthWrite: false,
   }), []);
 
@@ -1606,10 +1633,14 @@ function DayClouds({ isNight }) {
 
     if (isVisible) {
       sharedMaterial.opacity = (1 - t) * 0.88;
+      const stepTime = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
       refs.current.forEach((c, i) => {
         if (!c) return;
-        c.position.x += cloudData[i].speed;
-        if (c.position.x > 72) c.position.x = -72;
+        const speedPerSec = cloudData[i].speed * 60; // speed was added per frame, assuming 60 FPS
+        let x = cloudData[i].x + stepTime * speedPerSec;
+        const width = 144;
+        x = ((x + 72) % width + width) % width - 72;
+        c.position.x = x;
       });
     }
   });
@@ -1625,7 +1656,7 @@ function DayClouds({ isNight }) {
             [0.1,0.1,0.6],[-0.2,0.2,-0.6],[1.0,0.5,0.4],
           ].map(([cx,cy,cz], j) => (
             <mesh key={j} position={[cx, cy, cz]}>
-              <sphereGeometry args={[0.82+(j%3)*0.24, 6, 5]} />
+              <sphereGeometry args={[0.82+(j%3)*0.24, 16, 12]} />
               <primitive object={sharedMaterial} attach="material" />
             </mesh>
           ))}
@@ -1657,7 +1688,7 @@ function SittingOwl({ position, isNight }) {
       groupRef.current.visible = isVisible;
       if (isVisible) {
         // Slight breathing animation
-        const time = state.clock.getElapsedTime();
+        const time = Math.floor(state.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
         groupRef.current.scale.setScalar(1.0 + Math.sin(time * 2.5) * 0.015);
         
         // Owl looks around slowly
@@ -1672,74 +1703,74 @@ function SittingOwl({ position, isNight }) {
     <group ref={groupRef} position={position}>
       {/* Body (cylinder shape, brownish-grey) */}
       <mesh castShadow position={[0, 0.16, 0]}>
-        <cylinderGeometry args={[0.13, 0.13, 0.32, 6]} />
-        <meshStandardMaterial color="#5c4d3c" roughness={0.88} flatShading />
+        <cylinderGeometry args={[0.13, 0.13, 0.32, 16]} />
+        <ClayMaterial color="#5c4d3c" roughness={0.88} />
       </mesh>
       
       {/* Head Group */}
       <group ref={headRef} position={[0, 0.36, 0]}>
         <mesh castShadow>
-          <sphereGeometry args={[0.11, 6, 6]} />
-          <meshStandardMaterial color="#6e5c49" roughness={0.85} flatShading />
+          <sphereGeometry args={[0.11, 16, 12]} />
+          <ClayMaterial color="#6e5c49" roughness={0.85} />
         </mesh>
         
         {/* Left Eye */}
         <mesh position={[-0.045, 0.02, 0.08]}>
-          <sphereGeometry args={[0.035, 4, 4]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.5} />
+          <sphereGeometry args={[0.035, 8, 8]} />
+          <ClayMaterial color="#ffffff" roughness={0.5} />
         </mesh>
         <mesh position={[-0.045, 0.02, 0.096]}>
-          <sphereGeometry args={[0.02, 4, 4]} />
-          <meshStandardMaterial color="#eab308" emissive="#eab308" emissiveIntensity={3.5} />
+          <sphereGeometry args={[0.02, 8, 8]} />
+          <ClayMaterial color="#eab308" emissive="#eab308" emissiveIntensity={3.5} />
         </mesh>
         
         {/* Right Eye */}
         <mesh position={[0.045, 0.02, 0.08]}>
-          <sphereGeometry args={[0.035, 4, 4]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.5} />
+          <sphereGeometry args={[0.035, 8, 8]} />
+          <ClayMaterial color="#ffffff" roughness={0.5} />
         </mesh>
         <mesh position={[0.045, 0.02, 0.096]}>
-          <sphereGeometry args={[0.02, 4, 4]} />
-          <meshStandardMaterial color="#eab308" emissive="#eab308" emissiveIntensity={3.5} />
+          <sphereGeometry args={[0.02, 8, 8]} />
+          <ClayMaterial color="#eab308" emissive="#eab308" emissiveIntensity={3.5} />
         </mesh>
         
         {/* Beak */}
         <mesh position={[0, -0.02, 0.10]} rotation={[Math.PI / 2, 0, 0]}>
-          <coneGeometry args={[0.018, 0.05, 4]} />
-          <meshStandardMaterial color="#f97316" roughness={0.6} />
+          <coneGeometry args={[0.018, 0.05, 10]} />
+          <ClayMaterial color="#f97316" roughness={0.6} />
         </mesh>
         
         {/* Left Ear Horn */}
         <mesh position={[-0.06, 0.09, 0.02]} rotation={[0, 0, 0.2]}>
-          <coneGeometry args={[0.02, 0.06, 4]} />
-          <meshStandardMaterial color="#5c4d3c" />
+          <coneGeometry args={[0.02, 0.06, 8]} />
+          <ClayMaterial color="#5c4d3c" />
         </mesh>
         
         {/* Right Ear Horn */}
         <mesh position={[0.06, 0.09, 0.02]} rotation={[0, 0, -0.2]}>
-          <coneGeometry args={[0.02, 0.06, 4]} />
-          <meshStandardMaterial color="#5c4d3c" />
+          <coneGeometry args={[0.02, 0.06, 8]} />
+          <ClayMaterial color="#5c4d3c" />
         </mesh>
       </group>
 
       {/* Folded Wings */}
       <mesh position={[-0.12, 0.18, 0]} rotation={[0, 0, 0.08]}>
         <boxGeometry args={[0.03, 0.2, 0.09]} />
-        <meshStandardMaterial color="#423528" roughness={0.9} />
+        <ClayMaterial color="#423528" roughness={0.9} />
       </mesh>
       <mesh position={[0.12, 0.18, 0]} rotation={[0, 0, -0.08]}>
         <boxGeometry args={[0.03, 0.2, 0.09]} />
-        <meshStandardMaterial color="#423528" roughness={0.9} />
+        <ClayMaterial color="#423528" roughness={0.9} />
       </mesh>
 
       {/* Owl Feet */}
       <mesh position={[-0.04, 0, 0.04]} rotation={[0.1, 0, 0]}>
         <boxGeometry args={[0.025, 0.02, 0.06]} />
-        <meshStandardMaterial color="#d97706" />
+        <ClayMaterial color="#d97706" />
       </mesh>
       <mesh position={[0.04, 0, 0.04]} rotation={[0.1, 0, 0]}>
         <boxGeometry args={[0.025, 0.02, 0.06]} />
-        <meshStandardMaterial color="#d97706" />
+        <ClayMaterial color="#d97706" />
       </mesh>
     </group>
   );
@@ -1754,7 +1785,6 @@ function AnimatedBirds({ isNight }) {
     const startX = -22 + (i%7)*6;
     return {
       x: startX,
-      currentX: startX,
       y: 12 + (i%4)*2.8, 
       z: -10 - Math.floor(i/7)*32,
       speed: 0.55 + (i%7)*0.035, 
@@ -1798,15 +1828,14 @@ function AnimatedBirds({ isNight }) {
       wingMaterial.opacity = 1 - t;
       bodyMaterial.opacity = 1 - t;
       
-      const time = state.clock.getElapsedTime();
+      const time = Math.floor(state.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
       birdRefs.current.forEach((b, i) => {
         if (!b) return;
-        // Frame-rate independent horizontal movement
-        birds[i].currentX += birds[i].speed * delta * 45;
-        if (birds[i].currentX > 55) {
-          birds[i].currentX = -50;
-        }
-        b.position.x = birds[i].currentX;
+        // Deterministic position based on quantized time (speed * time * 45)
+        let x = birds[i].x + birds[i].speed * time * 45;
+        const width = 105;
+        x = ((x + 50) % width + width) % width - 50;
+        b.position.x = x;
         b.position.y = birds[i].y + Math.sin(time*0.38 + birds[i].phase)*1.3;
       });
       lRefs.current.forEach((w, i) => {
@@ -1833,7 +1862,7 @@ function AnimatedBirds({ isNight }) {
             <primitive object={wingMaterial} attach="material" />
           </mesh>
           <mesh>
-            <sphereGeometry args={[0.08,4,4]} />
+            <sphereGeometry args={[0.08,8,8]} />
             <primitive object={bodyMaterial} attach="material" />
           </mesh>
         </group>
@@ -1858,7 +1887,8 @@ function WindLeaves() {
 
   useFrame((s) => {
     if (disabled) return;
-    const t = s.clock.getElapsedTime();
+    const realT = s.clock.getElapsedTime();
+    const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
     meshes.current.forEach((m, i) => {
       if (!m) return;
       const d = leafData[i];
@@ -1879,7 +1909,7 @@ function WindLeaves() {
       {leafData.map((d,i) => (
         <mesh key={i} ref={el=>meshes.current[i]=el} position={[d.startX, d.startY, d.startZ]}>
           <planeGeometry args={[0.14, 0.09]} />
-          <meshStandardMaterial color={d.color} side={THREE.DoubleSide} roughness={0.8} />
+          <ClayMaterial color={d.color} side={THREE.DoubleSide} roughness={0.92} />
         </mesh>
       ))}
     </group>
@@ -1968,7 +1998,7 @@ function SnowParticles() {
   }, [COUNT]);
 
   useFrame((s) => {
-    snowSystem.mat.uniforms.uTime.value = s.clock.getElapsedTime();
+    snowSystem.mat.uniforms.uTime.value = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
   });
 
   return (
@@ -2072,7 +2102,7 @@ function Fireflies({ isNight }) {
     if (pointsRef.current) pointsRef.current.visible = isVisible;
     
     if (isVisible) {
-      firefliesSystem.mat.uniforms.uTime.value = state.clock.getElapsedTime();
+      firefliesSystem.mat.uniforms.uTime.value = Math.floor(state.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
       firefliesSystem.mat.uniforms.uOpacity.value = t;
     }
   });
@@ -2188,7 +2218,8 @@ function CheckpointArch({ z, label, isNight }) {
     }
     if (groupRef.current) groupRef.current.visible = true;
 
-    const t = s.clock.getElapsedTime();
+    const realT = s.clock.getElapsedTime();
+    const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
     if (flameRef.current) {
       const isNear = dist < 25;
       flameRef.current.visible = isNear;
@@ -2208,9 +2239,9 @@ function CheckpointArch({ z, label, isNight }) {
   return (
     <group ref={groupRef}>
       {/* Left post */}
-      <Cyl pos={[cx - 4.2, ty + 1.65, z]} args={[0.12, 0.14, 3.3, 7]} color="#7c3d11" rough={0.92} />
+      <Cyl pos={[cx - 4.2, ty + 1.65, z]} args={[0.12, 0.14, 3.3, 16]} color="#7c3d11" rough={0.92} />
       {/* Right post */}
-      <Cyl pos={[cx + 4.2, ty + 1.65, z]} args={[0.12, 0.14, 3.3, 7]} color="#7c3d11" rough={0.92} />
+      <Cyl pos={[cx + 4.2, ty + 1.65, z]} args={[0.12, 0.14, 3.3, 16]} color="#7c3d11" rough={0.92} />
       {/* Crossbar */}
       <Box pos={[cx, ty + 3.32, z]} size={[8.8, 0.18, 0.18]} color="#92400e" />
       {/* Sitting Owl perched on top-left of the crossbar (visible at night only) */}
@@ -2221,7 +2252,7 @@ function CheckpointArch({ z, label, isNight }) {
       {/* Engraved text plane on Banner (positioned in front of banner box) */}
       <mesh position={[cx, ty + 3.0, z - 0.018]} rotation={[0, 0, 0]}>
         <planeGeometry args={[3.7, 0.46]} />
-        <meshStandardMaterial 
+        <ClayMaterial 
           map={bannerTexture} 
           transparent 
           alphaTest={0.01} 
@@ -2250,7 +2281,7 @@ function CheckpointArch({ z, label, isNight }) {
       {[[-4.2, '#ef4444'], [4.2, '#3b82f6']].map(([ox, col], i) => (
         <mesh key={i} position={[cx + ox + (ox < 0 ? 0.3 : -0.3), ty + 3.28, z - 0.04]}>
           <coneGeometry args={[0.16, 0.38, 4]} rotation={[0, 0, ox < 0 ? Math.PI / 2 : -Math.PI / 2]} />
-          <meshStandardMaterial color={col} roughness={0.7} />
+          <ClayMaterial color={col} roughness={0.7} />
         </mesh>
       ))}
     </group>
@@ -2294,26 +2325,26 @@ function SkillLog({ position, skill, rotation = 0 }) {
       <group>
         {/* Log body */}
         <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.28, 0.32, 1.6, 9]} />
-          <meshStandardMaterial color="#6b3e0e" roughness={0.96} />
+          <cylinderGeometry args={[0.28, 0.32, 1.6, 16]} />
+          <ClayMaterial color="#6b3e0e" roughness={0.96} />
         </mesh>
         {/* Bark ring at each end */}
         {[-0.80, 0.80].map((ox, i) => (
           <mesh key={i} position={[ox, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.285, 0.325, 0.06, 9]} />
-            <meshStandardMaterial color="#4a2b06" roughness={0.98} />
+            <cylinderGeometry args={[0.285, 0.325, 0.06, 16]} />
+            <ClayMaterial color="#4a2b06" roughness={0.98} />
           </mesh>
         ))}
         {/* Tree-ring face (top end disc) */}
         <mesh position={[0.82, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <circleGeometry args={[0.28, 9]} />
-          <meshStandardMaterial color="#8b5e2a" roughness={0.88} />
+          <circleGeometry args={[0.28, 16]} />
+          <ClayMaterial color="#8b5e2a" roughness={0.88} />
         </mesh>
         
         {/* Engraved text plane */}
         <mesh position={[0, 0.266, 0.135]} rotation={[-Math.PI / 3, 0, 0]}>
           <planeGeometry args={[1.2, 0.3]} />
-          <meshStandardMaterial 
+          <ClayMaterial 
             map={texture} 
             transparent 
             alphaTest={0.01}
@@ -2323,8 +2354,8 @@ function SkillLog({ position, skill, rotation = 0 }) {
 
         {/* Small plant/moss on log */}
         <mesh position={[0.1, 0.3, 0.2]}>
-          <sphereGeometry args={[0.06, 5, 5]} />
-          <meshStandardMaterial color="#16a34a" roughness={0.9} />
+          <sphereGeometry args={[0.06, 10, 10]} />
+          <ClayMaterial color="#16a34a" roughness={0.9} />
         </mesh>
       </group>
     </RigidBody>
@@ -2414,7 +2445,7 @@ function Zone_Education({ z, isNight }) {
           <Box pos={[0,1.56,-0.3]} size={[0.9,0.55,0.05]} color="#1f2937" rot={[-0.42,0,0]} />
           <mesh position={[0,1.56,-0.32]} rotation={[-0.42,0,0]}>
             <planeGeometry args={[0.82,0.48]} />
-            <meshStandardMaterial color="#0f172a" emissive="#0ea5e9" emissiveIntensity={1.2} transparent opacity={0.95} />
+            <ClayMaterial color="#0f172a" emissive="#0ea5e9" emissiveIntensity={1.2} transparent opacity={0.95} roughness={0.4} />
           </mesh>
         </group>
       </RigidBody>
@@ -2439,7 +2470,8 @@ function Zone_Skills({ z, isNight }) {
     groupRef.current.visible = visible;
 
     if (visible && glowRef.current) {
-      glowRef.current.intensity = 1 + Math.sin(s.clock.getElapsedTime() * 4) * 0.4;
+      const time = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+      glowRef.current.intensity = 1 + Math.sin(time * 4) * 0.4;
     }
   });
 
@@ -2527,7 +2559,7 @@ function Zone_Projects({ z, isNight }) {
     groupRef.current.visible = visible;
 
     if (visible) {
-      const t = s.clock.getElapsedTime();
+      const t = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
       screenRefs.current.forEach((m, i) => {
         if (m) m.position.y = ty + 2.06 + Math.sin(t * 0.8 + i) * 0.09;
       });
@@ -2547,13 +2579,13 @@ function Zone_Projects({ z, isNight }) {
             <CuboidCollider args={[0.7, 1.2, 0.2]} />
             <group ref={el=>screenRefs.current[i]=el} position={[0, 2.06 - 1.2, 0]}>
               <mesh castShadow><boxGeometry args={[1.4,0.95,0.08]} />
-                <meshStandardMaterial color="#1f2937" roughness={0.6} /></mesh>
+                <ClayMaterial color="#1f2937" roughness={0.6} /></mesh>
               <mesh position={[0,0,0.05]}><planeGeometry args={[1.24,0.8]} />
-                <meshStandardMaterial color="#0f172a" emissive={p.color} emissiveIntensity={0.45} transparent opacity={0.95} /></mesh>
+                <ClayMaterial color="#0f172a" emissive={p.color} emissiveIntensity={0.45} transparent opacity={0.95} roughness={0.4} /></mesh>
               <mesh position={[0,0.35,0.06]}><planeGeometry args={[1.24,0.1]} />
                 <meshBasicMaterial color={p.color} transparent opacity={0.8} /></mesh>
               <mesh position={[0,-0.65,0]}><boxGeometry args={[0.1,0.35,0.1]} />
-                <meshStandardMaterial color="#374151" roughness={0.8} /></mesh>
+                <ClayMaterial color="#374151" roughness={0.8} /></mesh>
               {!isMobileDevice() && <pointLight position={[0,0,-0.5]} color={p.color} intensity={0.8} distance={3} />}
             </group>
           </RigidBody>
@@ -2589,7 +2621,7 @@ function Zone_Experience({ z, isNight }) {
     groupRef.current.visible = visible;
 
     if (visible) {
-      const t = s.clock.getElapsedTime();
+      const t = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
       flagRefs.current.forEach((m, i) => {
         if (m) {
           m.rotation.z = Math.sin(t * 2.5 + i) * 0.15;
@@ -2612,7 +2644,7 @@ function Zone_Experience({ z, isNight }) {
             <Cyl pos={[0,1.5,0]} args={[0.04,0.04,3.2,5]} color="#9ca3af" />
             <mesh ref={el=>flagRefs.current[i]=el} position={[0.55,2.8,0]}>
               <planeGeometry args={[1.1,0.65]} />
-              <meshStandardMaterial color={f.color} side={THREE.DoubleSide} roughness={0.7} />
+              <ClayMaterial color={f.color} side={THREE.DoubleSide} roughness={0.7} />
             </mesh>
           </group>
         );
@@ -2689,7 +2721,7 @@ function Zone_Contact({ z, isNight }) {
     groupRef.current.visible = visible;
 
     if (visible) {
-      const t = s.clock.getElapsedTime();
+      const t = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
       if (beaconRef.current) beaconRef.current.intensity = 2.5 + Math.sin(t * 2.8) * 1.2;
       if (sigRef.current) sigRef.current.scale.setScalar(1 + Math.sin(t * 1.8) * 0.12);
     }
@@ -2724,7 +2756,7 @@ function Zone_Contact({ z, isNight }) {
           <Cyl pos={[0,0.5,0]} args={[0.06,0.06,1.1,5]} color="#6b7280" />
           <mesh position={[0,1.2,0]} rotation={[-0.6,0,0]}>
             <torusGeometry args={[0.65,0.08,8,12,Math.PI]} />
-            <meshStandardMaterial color="#9ca3af" roughness={0.5} metalness={0.6} />
+            <ClayMaterial color="#9ca3af" roughness={0.92} metalness={0.0} />
           </mesh>
         </group>
       </RigidBody>
@@ -2735,7 +2767,7 @@ function Zone_Contact({ z, isNight }) {
         <group>
           <mesh position={[0, 2.66, 0]}>
             <cylinderGeometry args={[0.18, 0.25, 1.8, 10]} />
-            <meshStandardMaterial color="#374151" roughness={0.6} metalness={0.4} />
+            <ClayMaterial color="#374151" roughness={0.92} />
           </mesh>
           <mesh position={[0, 3.66, 0]}>
             <sphereGeometry args={[0.38, 12, 12]} />
@@ -2759,7 +2791,7 @@ function Zone_Contact({ z, isNight }) {
           {/* Engraved text plane (positioned in front of signboard panel) */}
           <mesh position={[0, 1.3, 0.002]} rotation={[0, 0, 0]}>
             <planeGeometry args={[4.0, 1.0]} />
-            <meshStandardMaterial 
+            <ClayMaterial 
               map={summitTexture} 
               transparent 
               alphaTest={0.01} 
