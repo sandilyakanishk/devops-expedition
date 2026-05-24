@@ -1,8 +1,16 @@
-# 🏔️ 3D Interactive DevOps & Cloud Portfolio
+# 🏔️ DevOps Expedition: 3D Interactive Gamified Portfolio
 
 An immersive, gamified 3D mountain trekking interactive resume showcasing DevOps engineering workflows, AWS cloud architecture, and technical capabilities. Built with modern web graphics technologies and featuring procedural assets, responsive controls, and Indian classical ambient background music.
 
 👉 **[Live Portfolio Link](https://sandilyakanishk.github.io/devops-expedition/)**
+
+---
+
+## 📸 Screen Previews
+
+| Day Mode (Normal Mode) | Night Mode (Dark Mode) |
+|:---:|:---:|
+| ![Day Mode](screenshots/day_mode.png) | ![Night Mode](screenshots/night_mode.png) |
 
 ---
 
@@ -25,18 +33,22 @@ An immersive, gamified 3D mountain trekking interactive resume showcasing DevOps
 ## ⚡ Key Highlights & Features
 
 ### 3D Trek Mechanics & Physics
-- **Procedural Low-Poly Trek**: A continuous mountain trail rising 30 units over a 185-unit span, populated with trees, cabins, structures, and campgrounds.
-- **Physical Boundary Collisions**: Powered by `@react-three/rapier` engine with capsule-colliders for character movement and cuboid terrain boundaries.
+- **Procedural Low-Poly Trek**: A continuous straight mountain trail, populated with trees, cabins, structures, and checkpoints.
+- **Physical Boundary Collisions**: Powered by `@react-three/rapier` physics engine with capsule-colliders for character movement and cuboid terrain boundaries.
 - **Fall & Respawn Protection**: Automatically detects if the character falls off the trail edge and respawns them at the nearest visited campsite/checkpoint.
+- **Quick Teleportation**: Integrated sidebar HUD "Adventure Map" allowing users to teleport instantly to different checkpoints.
 
-### High-Performance GPU Rendering
+### High-Performance GPU Rendering (Lag Fixes)
+- **Instanced Forest & Terrain**: Draws all 96 pine trees (trunk & cones), 65 boulders, trail rocks, path-edge pebbles, and snow patches using `instancedMesh` components, collapsing over 2,600 individual draw calls into under 10 draw calls.
+- **Frustum Culling Stability**: Explicitly manages custom bounding volumes (`computeBoundingSphere`/`computeBoundingBox`) and disables frustum culling on instanced meshes to prevent objects from popping out of view as the camera moves.
 - **Shader Starfield**: Twinkles 1,800 stars concurrently in a single WebGL draw call using a custom vertex/fragment shader.
 - **Shader Fireflies & Snow**: GPU-animated particle effects on trail checkpoints, eliminating CPU processing lag.
-- **Instanced Forest rendering**: Draws all 110 pine trees (trunk & cones) and 65 boulders in just **5 draw calls**, reducing total scene draw calls from ~2,600+ to under 500.
+- **Consolidated Colliders**: Collapsed separate colliders into single large static rigid bodies to minimize physics calculation overhead.
 
-### Dynamic Audio Experience
+### Dynamic Audio & Day/Night Cycles
 - **Interactive Soundtrack**: Procedurally plays Yaman-based Indian Classical melodies (Bansuri, Tabla, Sitar) layered with dynamic ambient noises.
-- **Responsive Day/Night Ambience**: The crickets and birds fade in/out depending on the chosen daytime setting.
+- **Responsive Day/Night Ambience**: Toggle between day and night mode. Ambient effects like crickets and birds fade in/out depending on the chosen daytime setting.
+- **Total Mute Control**: Instantly suspends the global AudioContext and pauses all audio elements, guaranteeing complete silence when muted.
 
 ---
 
@@ -72,7 +84,7 @@ An immersive, gamified 3D mountain trekking interactive resume showcasing DevOps
    ```
 4. Open the application in your browser:
    ```
-   http://localhost:5173/
+   http://localhost:5173/devops-expedition/
    ```
 
 ### Building for Production
