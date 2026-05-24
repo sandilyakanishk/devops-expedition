@@ -39,6 +39,7 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
   const bodyBobRef      = useRef();
   const headlampRef     = useRef();
   const lastFootRef     = useRef(0);
+  const flagGroupRef    = useRef();
 
   const [, getKeys] = useKeyboardControls();
 
@@ -156,6 +157,16 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
       if (rightArmRef.current) rightArmRef.current.rotation.x = lerp(rightArmRef.current.rotation.x, 0, limbDecay);
       if (bodyBobRef.current)  bodyBobRef.current.position.y  = lerp(bodyBobRef.current.position.y, Math.sin(t * 1.6) * 0.012, bobDecay);
     }
+
+    // Flag flapping animation (frame-rate independent)
+    if (flagGroupRef.current) {
+      const isMoving = forward || backward || left || right;
+      const windSpeed = isMoving ? 14 : 5.5;
+      const windIntensity = isMoving ? 0.20 : 0.07;
+      flagGroupRef.current.rotation.y = Math.sin(t * windSpeed) * windIntensity;
+      flagGroupRef.current.rotation.z = Math.cos(t * windSpeed * 1.2) * (windIntensity * 0.3);
+    }
+
     characterRotationRef.current = characterRef.current.rotation.y;
   });
 
@@ -399,28 +410,75 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
             </mesh>
 
             {/* 🇮🇳 Indian Flag */}
-            <group position={[0.06, 0.300, 0.090]}>
+            <group ref={flagGroupRef} position={[0.06, 0.300, 0.090]}>
+              {/* Flag Pole */}
               <mesh castShadow>
                 <cylinderGeometry args={[0.007, 0.009, 0.62, 5]} />
                 <meshStandardMaterial color="#b0b8c8" metalness={0.70} roughness={0.30} />
               </mesh>
-              <mesh position={[0.130, 0.265, 0]}>
-                <boxGeometry args={[0.26, 0.068, 0.007]} />
+              {/* Saffron Stripe */}
+              <mesh position={[0.160, 0.27, 0]}>
+                <boxGeometry args={[0.32, 0.07, 0.007]} />
                 <meshStandardMaterial color={IND_O} side={2} />
               </mesh>
-              <mesh position={[0.130, 0.197, 0]}>
-                <boxGeometry args={[0.26, 0.068, 0.007]} />
+              {/* White Stripe */}
+              <mesh position={[0.160, 0.20, 0]}>
+                <boxGeometry args={[0.32, 0.07, 0.007]} />
                 <meshStandardMaterial color="#f8fafc" side={2} />
               </mesh>
-              <mesh position={[0.130, 0.129, 0]}>
-                <boxGeometry args={[0.26, 0.068, 0.007]} />
+              {/* Green Stripe */}
+              <mesh position={[0.160, 0.13, 0]}>
+                <boxGeometry args={[0.32, 0.07, 0.007]} />
                 <meshStandardMaterial color={IND_G} side={2} />
               </mesh>
-              {/* Ashoka Chakra */}
-              <mesh position={[0.130, 0.197, 0.005]}>
-                <torusGeometry args={[0.021, 0.005, 6, 16]} />
-                <meshStandardMaterial color={IND_B} />
-              </mesh>
+              
+              {/* Ashoka Chakra (Front) */}
+              <group position={[0.160, 0.20, 0.004]}>
+                {/* Outer ring */}
+                <mesh>
+                  <torusGeometry args={[0.022, 0.002, 4, 16]} />
+                  <meshStandardMaterial color={IND_B} roughness={0.5} />
+                </mesh>
+                {/* Hub */}
+                <mesh>
+                  <sphereGeometry args={[0.005, 4, 4]} />
+                  <meshStandardMaterial color={IND_B} />
+                </mesh>
+                {/* Spokes */}
+                {Array.from({ length: 8 }).map((_, idx) => {
+                  const angle = (idx / 8) * Math.PI;
+                  return (
+                    <mesh key={idx} rotation={[0, 0, angle]}>
+                      <boxGeometry args={[0.044, 0.002, 0.001]} />
+                      <meshStandardMaterial color={IND_B} />
+                    </mesh>
+                  );
+                })}
+              </group>
+
+              {/* Ashoka Chakra (Back) */}
+              <group position={[0.160, 0.20, -0.004]}>
+                {/* Outer ring */}
+                <mesh>
+                  <torusGeometry args={[0.022, 0.002, 4, 16]} />
+                  <meshStandardMaterial color={IND_B} roughness={0.5} />
+                </mesh>
+                {/* Hub */}
+                <mesh>
+                  <sphereGeometry args={[0.005, 4, 4]} />
+                  <meshStandardMaterial color={IND_B} />
+                </mesh>
+                {/* Spokes */}
+                {Array.from({ length: 8 }).map((_, idx) => {
+                  const angle = (idx / 8) * Math.PI;
+                  return (
+                    <mesh key={idx} rotation={[0, 0, angle]}>
+                      <boxGeometry args={[0.044, 0.002, 0.001]} />
+                      <meshStandardMaterial color={IND_B} />
+                    </mesh>
+                  );
+                })}
+              </group>
             </group>
           </group>
           {/* end BACKPACK */}

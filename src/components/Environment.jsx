@@ -1071,7 +1071,8 @@ function FlowingStream({ isNight }) {
   // Scroll flowing texture
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
-    waterTexture.offset.y = t * 0.4; // fast flow (flows downward from summit)
+    // Scrolling offset.y with positive rate scrolls the texture coordinates downstream (summit -> pond)
+    waterTexture.offset.y = t * 0.35;
     stillTexture.offset.y = -t * 0.05; // very slow ripple
     stillTexture.offset.x = Math.sin(t * 0.2) * 0.02;
   });
@@ -1101,6 +1102,130 @@ function FlowingStream({ isNight }) {
     { x: 7.0,  y: -0.1, z: 2,    scale: 2.2 },
   ], []);
 
+  // Generate smooth, continuous, curvy river water & bed geometries from points
+  const { waterGeometry, bedGeometry, bankRocks } = useMemo(() => {
+    // 1. Filter out the last point for spline visual calculation, so it ends at the inlet (z = -5)
+    // and seamlessly meets the circular pond at z = 1.5
+    const curvePoints = STREAM_POINTS.slice(0, 10).map(p => new THREE.Vector3(p.x, p.y, p.z));
+    const curve = new THREE.CatmullRomCurve3(curvePoints);
+
+    const N = 100;
+    const vertices = [];
+    const uvs = [];
+    const indices = [];
+
+    const bedVertices = [];
+    const bedUvs = [];
+    const bedIndices = [];
+
+    const rocks = [];
+
+    let cumulativeDistance = 0;
+    const tempPt = new THREE.Vector3();
+    const prevPt = new THREE.Vector3();
+
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      curve.getPointAt(t, tempPt);
+
+      if (i > 0) {
+        cumulativeDistance += tempPt.distanceTo(prevPt);
+      }
+      prevPt.copy(tempPt);
+
+      const tangent = curve.getTangentAt(t).normalize();
+      const up = new THREE.Vector3(0, 1, 0);
+      const normal = new THREE.Vector3().crossVectors(tangent, up).normalize();
+
+      // Organic variation in width (looks wavy and natural)
+      const widthVar = Math.sin(t * Math.PI * 6) * 0.25;
+      const waterWidth = 2.4 + widthVar;
+      const bedWidth = waterWidth + 0.6;
+
+      // Add high-frequency curvy offset for more wavy flow pathway
+      const lateralWavy = Math.sin(t * Math.PI * 12) * 0.2;
+      const wavyOffset = normal.clone().multiplyScalar(lateralWavy);
+
+      // Left & Right edges for water
+      const wL = new THREE.Vector3().addVectors(tempPt, normal.clone().multiplyScalar(-waterWidth / 2)).add(wavyOffset);
+      const wR = new THREE.Vector3().addVectors(tempPt, normal.clone().multiplyScalar(waterWidth / 2)).add(wavyOffset);
+
+      // Left & Right edges for riverbed channel
+      const bL = new THREE.Vector3().addVectors(tempPt, normal.clone().multiplyScalar(-bedWidth / 2)).add(wavyOffset);
+      const bR = new THREE.Vector3().addVectors(tempPt, normal.clone().multiplyScalar(bedWidth / 2)).add(wavyOffset);
+
+      bL.y -= 0.12;
+      bR.y -= 0.12;
+
+      wL.y += 0.04;
+      wR.y += 0.04;
+
+      // Populate water attributes
+      vertices.push(wL.x, wL.y, wL.z);
+      vertices.push(wR.x, wR.y, wR.z);
+      uvs.push(0, cumulativeDistance * 0.08);
+      uvs.push(1, cumulativeDistance * 0.08);
+
+      // Populate bed attributes
+      bedVertices.push(bL.x, bL.y, bL.z);
+      bedVertices.push(bR.x, bR.y, bR.z);
+      bedUvs.push(0, cumulativeDistance * 0.05);
+      bedUvs.push(1, cumulativeDistance * 0.05);
+
+      if (i < N) {
+        const v0 = 2 * i;
+        const v1 = 2 * i + 1;
+        const v2 = 2 * (i + 1);
+        const v3 = 2 * (i + 1) + 1;
+
+        indices.push(v0, v1, v2);
+        indices.push(v1, v3, v2);
+
+        bedIndices.push(v0, v1, v2);
+        bedIndices.push(v1, v3, v2);
+      }
+
+      // Generate bank rock coordinates at regular intervals (every 3rd segment)
+      if (i % 3 === 0 && i < N) {
+        const rScaleL = 0.5 + Math.abs(Math.sin(i * 1.5)) * 0.45;
+        const rScaleR = 0.5 + Math.abs(Math.cos(i * 1.1)) * 0.45;
+
+        const posL = new THREE.Vector3().addVectors(tempPt, normal.clone().multiplyScalar(-waterWidth / 2 - 0.15)).add(wavyOffset);
+        posL.y += 0.02;
+
+        const posR = new THREE.Vector3().addVectors(tempPt, normal.clone().multiplyScalar(waterWidth / 2 + 0.15)).add(wavyOffset);
+        posR.y += 0.02;
+
+        rocks.push({
+          pos: [posL.x, posL.y, posL.z],
+          scale: posL.z > 0 ? rScaleL * 0.75 : rScaleL,
+          color: i % 2 === 0 ? '#4b5563' : '#555555'
+        });
+
+        rocks.push({
+          pos: [posR.x, posR.y, posR.z],
+          scale: posR.z > 0 ? rScaleR * 0.75 : rScaleR,
+          color: i % 2 === 1 ? '#4b5563' : '#555555'
+        });
+      }
+    }
+
+    const wGeom = new THREE.BufferGeometry();
+    wGeom.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    wGeom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    wGeom.setIndex(indices);
+    wGeom.computeVertexNormals();
+
+    const bGeom = new THREE.BufferGeometry();
+    bGeom.setAttribute('position', new THREE.Float32BufferAttribute(bedVertices, 3));
+    bGeom.setAttribute('uv', new THREE.Float32BufferAttribute(bedUvs, 2));
+    bGeom.setIndex(bedIndices);
+    bGeom.computeVertexNormals();
+
+    return { waterGeometry: wGeom, bedGeometry: bGeom, bankRocks: rocks };
+  }, [STREAM_POINTS]);
+
+  // Generate physics segments array
   const segments = useMemo(() => {
     const segs = [];
     for (let i = 0; i < STREAM_POINTS.length - 1; i++) {
@@ -1117,21 +1242,70 @@ function FlowingStream({ isNight }) {
       const yaw = Math.atan2(dx, dz);
       const pitch = -Math.atan2(dy, Math.hypot(dx, dz));
       
-      const isStill = (i === STREAM_POINTS.length - 2); // last segment (starts at z = -5 and ends at z = 5)
-      
       segs.push({
         pos: [mx, my, mz],
         rot: [pitch, yaw, 0],
         len,
-        isStill,
       });
     }
     return segs;
   }, [STREAM_POINTS]);
 
+  const bankRocksRef = useRef();
+
+  // Initialize instanced matrices for bank rocks
+  useEffect(() => {
+    if (!bankRocksRef.current) return;
+    const tempObj = new THREE.Object3D();
+    const tempColor = new THREE.Color();
+
+    bankRocks.forEach((rock, idx) => {
+      tempObj.position.set(...rock.pos);
+      tempObj.rotation.set(Math.random() * 0.5, Math.random() * Math.PI, Math.random() * 0.5);
+      tempObj.scale.setScalar(rock.scale);
+      tempObj.updateMatrix();
+      bankRocksRef.current.setMatrixAt(idx, tempObj.matrix);
+
+      tempColor.set(rock.color);
+      bankRocksRef.current.setColorAt(idx, tempColor);
+    });
+
+    bankRocksRef.current.instanceMatrix.needsUpdate = true;
+    if (bankRocksRef.current.instanceColor) {
+      bankRocksRef.current.instanceColor.needsUpdate = true;
+    }
+    bankRocksRef.current.computeBoundingBox();
+    bankRocksRef.current.computeBoundingSphere();
+  }, [bankRocks]);
+
   return (
     <group>
-      {/* ── River bed, banks, water, and physics for each segment ── */}
+      {/* ── Visual continuous riverbed ribbon ── */}
+      <mesh receiveShadow geometry={bedGeometry}>
+        <meshStandardMaterial color="#374151" roughness={0.92} flatShading />
+      </mesh>
+
+      {/* ── Visual continuous water surface ribbon ── */}
+      <mesh receiveShadow geometry={waterGeometry}>
+        <meshStandardMaterial
+          map={waterTexture}
+          bumpMap={waterTexture}
+          bumpScale={0.06}
+          transparent
+          opacity={0.78}
+          roughness={0.06}
+          metalness={0.3}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      {/* ── Instanced Bank Rocks (renders in exactly 1 draw call!) ── */}
+      <instancedMesh ref={bankRocksRef} args={[null, null, bankRocks.length]} receiveShadow frustumCulled={false}>
+        <dodecahedronGeometry args={[0.5, 0]} />
+        <meshStandardMaterial roughness={0.95} flatShading />
+      </instancedMesh>
+
+      {/* ── River bed and banks physics colliders for each segment ── */}
       {segments.map((seg, i) => (
         <RigidBody key={i} type="fixed" position={seg.pos} rotation={seg.rot}>
           {/* Rapier U-channel colliders */}
@@ -1141,55 +1315,6 @@ function FlowingStream({ isNight }) {
           <CuboidCollider args={[0.2, 0.5, seg.len / 2]} position={[-1.5, 0.3, 0]} />
           {/* Right Bank */}
           <CuboidCollider args={[0.2, 0.5, seg.len / 2]} position={[1.5, 0.3, 0]} />
-
-          {/* Visual Channel Bed (flat box for base) */}
-          <mesh receiveShadow position={[0, -0.1, 0]}>
-            <boxGeometry args={[3.0, 0.2, seg.len + 0.05]} />
-            <meshStandardMaterial color="#374151" roughness={0.92} flatShading />
-          </mesh>
-
-          {/* Left Bank Rocks (hides boxy shape, makes it natural/rounded) */}
-          {Array.from({ length: 4 }).map((_, j) => {
-            const localZ = (j / 3 - 0.5) * seg.len;
-            const rScale = 0.5 + Math.abs(Math.sin(i * 5 + j)) * 0.4;
-            return (
-              <Boulder
-                key={`l-${j}`}
-                position={[-1.4, 0.05, localZ]}
-                scale={rScale}
-                color={j % 2 === 0 ? '#4b5563' : '#555555'}
-                cast={false}
-              />
-            );
-          })}
-
-          {/* Right Bank Rocks */}
-          {Array.from({ length: 4 }).map((_, j) => {
-            const localZ = (j / 3 - 0.5) * seg.len;
-            const rScale = 0.5 + Math.abs(Math.cos(i * 3 + j)) * 0.4;
-            return (
-              <Boulder
-                key={`r-${j}`}
-                position={[1.4, 0.05, localZ]}
-                scale={rScale}
-                color={j % 2 === 1 ? '#4b5563' : '#555555'}
-                cast={false}
-              />
-            );
-          })}
-
-          {/* Water surface plane */}
-          <mesh receiveShadow position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[2.7, seg.len + 0.02]} />
-            <meshStandardMaterial
-              map={seg.isStill ? stillTexture : waterTexture}
-              transparent
-              opacity={0.78}
-              roughness={0.08}
-              metalness={0.4}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
         </RigidBody>
       ))}
 
@@ -1202,6 +1327,8 @@ function FlowingStream({ isNight }) {
             <circleGeometry args={[4.2, 16]} />
             <meshStandardMaterial
               map={stillTexture}
+              bumpMap={stillTexture}
+              bumpScale={0.02}
               transparent
               opacity={0.85}
               roughness={0.05}
@@ -1509,18 +1636,132 @@ function DayClouds({ isNight }) {
 }
 
 // ════════════════════════════════════════════════════════════════
+// SITTING OWL (Night only, sits on crossbar of checkpoint arches)
+// ════════════════════════════════════════════════════════════════
+function SittingOwl({ position, isNight }) {
+  const headRef = useRef();
+  const groupRef = useRef();
+  const transitionRef = useRef(isNight ? 1 : 0);
+
+  useFrame((state, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+    const isVisible = t > 0.001;
+
+    if (groupRef.current) {
+      groupRef.current.visible = isVisible;
+      if (isVisible) {
+        // Slight breathing animation
+        const time = state.clock.getElapsedTime();
+        groupRef.current.scale.setScalar(1.0 + Math.sin(time * 2.5) * 0.015);
+        
+        // Owl looks around slowly
+        if (headRef.current) {
+          headRef.current.rotation.y = Math.sin(time * 0.4) * 0.35;
+        }
+      }
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      {/* Body (cylinder shape, brownish-grey) */}
+      <mesh castShadow position={[0, 0.16, 0]}>
+        <cylinderGeometry args={[0.13, 0.13, 0.32, 6]} />
+        <meshStandardMaterial color="#5c4d3c" roughness={0.88} flatShading />
+      </mesh>
+      
+      {/* Head Group */}
+      <group ref={headRef} position={[0, 0.36, 0]}>
+        <mesh castShadow>
+          <sphereGeometry args={[0.11, 6, 6]} />
+          <meshStandardMaterial color="#6e5c49" roughness={0.85} flatShading />
+        </mesh>
+        
+        {/* Left Eye */}
+        <mesh position={[-0.045, 0.02, 0.08]}>
+          <sphereGeometry args={[0.035, 4, 4]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.5} />
+        </mesh>
+        <mesh position={[-0.045, 0.02, 0.096]}>
+          <sphereGeometry args={[0.02, 4, 4]} />
+          <meshStandardMaterial color="#eab308" emissive="#eab308" emissiveIntensity={3.5} />
+        </mesh>
+        
+        {/* Right Eye */}
+        <mesh position={[0.045, 0.02, 0.08]}>
+          <sphereGeometry args={[0.035, 4, 4]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.5} />
+        </mesh>
+        <mesh position={[0.045, 0.02, 0.096]}>
+          <sphereGeometry args={[0.02, 4, 4]} />
+          <meshStandardMaterial color="#eab308" emissive="#eab308" emissiveIntensity={3.5} />
+        </mesh>
+        
+        {/* Beak */}
+        <mesh position={[0, -0.02, 0.10]} rotation={[Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.018, 0.05, 4]} />
+          <meshStandardMaterial color="#f97316" roughness={0.6} />
+        </mesh>
+        
+        {/* Left Ear Horn */}
+        <mesh position={[-0.06, 0.09, 0.02]} rotation={[0, 0, 0.2]}>
+          <coneGeometry args={[0.02, 0.06, 4]} />
+          <meshStandardMaterial color="#5c4d3c" />
+        </mesh>
+        
+        {/* Right Ear Horn */}
+        <mesh position={[0.06, 0.09, 0.02]} rotation={[0, 0, -0.2]}>
+          <coneGeometry args={[0.02, 0.06, 4]} />
+          <meshStandardMaterial color="#5c4d3c" />
+        </mesh>
+      </group>
+
+      {/* Folded Wings */}
+      <mesh position={[-0.12, 0.18, 0]} rotation={[0, 0, 0.08]}>
+        <boxGeometry args={[0.03, 0.2, 0.09]} />
+        <meshStandardMaterial color="#423528" roughness={0.9} />
+      </mesh>
+      <mesh position={[0.12, 0.18, 0]} rotation={[0, 0, -0.08]}>
+        <boxGeometry args={[0.03, 0.2, 0.09]} />
+        <meshStandardMaterial color="#423528" roughness={0.9} />
+      </mesh>
+
+      {/* Owl Feet */}
+      <mesh position={[-0.04, 0, 0.04]} rotation={[0.1, 0, 0]}>
+        <boxGeometry args={[0.025, 0.02, 0.06]} />
+        <meshStandardMaterial color="#d97706" />
+      </mesh>
+      <mesh position={[0.04, 0, 0.04]} rotation={[0.1, 0, 0]}>
+        <boxGeometry args={[0.025, 0.02, 0.06]} />
+        <meshStandardMaterial color="#d97706" />
+      </mesh>
+    </group>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
 // ANIMATED BIRDS — flocking V-formation (day only)
 // ════════════════════════════════════════════════════════════════
 function AnimatedBirds({ isNight }) {
   const FLOCK = 35;
-  const birds = useMemo(() => Array.from({length: FLOCK}).map((_, i) => ({
-    x: -22 + (i%7)*6, 
-    y: 12 + (i%4)*2.8, 
-    z: -10 - Math.floor(i/7)*32,
-    speed: 0.55 + (i%7)*0.035, 
-    flap: 4+Math.random()*3, 
-    phase: i*0.48,
-  })), []);
+  const birds = useMemo(() => Array.from({length: FLOCK}).map((_, i) => {
+    const startX = -22 + (i%7)*6;
+    return {
+      x: startX,
+      currentX: startX,
+      y: 12 + (i%4)*2.8, 
+      z: -10 - Math.floor(i/7)*32,
+      speed: 0.55 + (i%7)*0.035, 
+      flap: 4+Math.random()*3, 
+      phase: i*0.48,
+    };
+  }), []);
 
   const birdRefs = useRef([]);
   const lRefs    = useRef([]);
@@ -1541,7 +1782,7 @@ function AnimatedBirds({ isNight }) {
     opacity: 1
   }), []);
 
-  useFrame((s, delta) => {
+  useFrame((state, delta) => {
     const transitionSpeed = 0.25;
     if (isNight) {
       transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
@@ -1557,12 +1798,16 @@ function AnimatedBirds({ isNight }) {
       wingMaterial.opacity = 1 - t;
       bodyMaterial.opacity = 1 - t;
       
-      const time = s.clock.getElapsedTime();
+      const time = state.clock.getElapsedTime();
       birdRefs.current.forEach((b, i) => {
         if (!b) return;
-        b.position.x += birds[i].speed * 0.016;
+        // Frame-rate independent horizontal movement
+        birds[i].currentX += birds[i].speed * delta * 45;
+        if (birds[i].currentX > 55) {
+          birds[i].currentX = -50;
+        }
+        b.position.x = birds[i].currentX;
         b.position.y = birds[i].y + Math.sin(time*0.38 + birds[i].phase)*1.3;
-        if (b.position.x > 55) b.position.x = -50;
       });
       lRefs.current.forEach((w, i) => {
         if (!w) return;
@@ -1968,6 +2213,8 @@ function CheckpointArch({ z, label, isNight }) {
       <Cyl pos={[cx + 4.2, ty + 1.65, z]} args={[0.12, 0.14, 3.3, 7]} color="#7c3d11" rough={0.92} />
       {/* Crossbar */}
       <Box pos={[cx, ty + 3.32, z]} size={[8.8, 0.18, 0.18]} color="#92400e" />
+      {/* Sitting Owl perched on top-left of the crossbar (visible at night only) */}
+      <SittingOwl position={[cx - 2.8, ty + 3.41, z]} isNight={isNight} />
       {/* Banner */}
       <Box pos={[cx, ty + 3.0, z - 0.05]} size={[3.8, 0.48, 0.06]} color="#b45309" />
       
