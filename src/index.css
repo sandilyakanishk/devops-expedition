@@ -1476,6 +1476,16 @@ html:-webkit-full-screen #root {
   box-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
 }
 
+.night-action-btn {
+  background: rgba(13, 20, 38, 0.78);
+}
+
+.night-action-btn.night-active {
+  background: linear-gradient(135deg, #111827, #2563eb);
+  border-color: rgba(147, 197, 253, 0.9);
+  box-shadow: 0 0 14px rgba(96, 165, 250, 0.45);
+}
+
 /* Hide desktop guides and scale overlays on mobile */
 @media (max-width: 1024px) {
   .game-instructions-box, .scroll-helper-hud, .adventure-nav, .app-navbar .navbar-links {

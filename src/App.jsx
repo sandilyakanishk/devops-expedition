@@ -187,6 +187,19 @@ export default function App() {
     });
   };
 
+  const handleToggleNightMode = () => {
+    setIsNight(prev => {
+      const next = !prev;
+      try {
+        audioSystem.resume();
+        audioSystem.setCrickets(next);
+      } catch {
+        // Audio may still be waiting for the first mobile gesture.
+      }
+      return next;
+    });
+  };
+
   // Cinematic floating quotes — shown by Z position
   const TREK_QUOTES = [
     { z: -5,   text: 'Welcome, traveler. Every mountain tells a story.' },
@@ -566,11 +579,7 @@ export default function App() {
                 {/* Day/Night toggle */}
                 <button
                   className="hud-mute-btn"
-                  onClick={() => {
-                    const next = !isNight;
-                    setIsNight(next);
-                    try { audioSystem.setCrickets(next); } catch { /* audio not init */ }
-                  }}
+                  onClick={handleToggleNightMode}
                   title={isNight ? 'Switch to Day' : 'Switch to Night'}
                   style={{ fontSize: '1rem' }}
                 >
@@ -820,6 +829,19 @@ export default function App() {
 
             {/* Jump & Sprint on bottom-right */}
             <div className="mobile-actions">
+              <button
+                className={`action-btn night-action-btn ${isNight ? 'night-active' : ''}`}
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  handleToggleNightMode();
+                }}
+                onClick={(e) => {
+                  if (e.detail === 0) handleToggleNightMode();
+                }}
+                aria-label={isNight ? 'Switch to day mode' : 'Switch to night mode'}
+              >
+                {isNight ? 'DAY' : 'NIGHT'}
+              </button>
               <button
                 className={`action-btn ${mobileSprint ? 'sprint-active' : ''}`}
                 onTouchStart={(e) => {
