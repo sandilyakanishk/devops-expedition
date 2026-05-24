@@ -519,20 +519,6 @@ function WalkableTrail({ isNight }) {
   const color2 = useMemo(() => new THREE.Color('#166534'), []);
   const tempCol = useMemo(() => new THREE.Color(), []);
 
-  useFrame((s, delta) => {
-    const transitionSpeed = 0.25;
-    if (isNight) {
-      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
-    } else {
-      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
-    }
-    const t = transitionRef.current;
-    if (grassMatRef.current) {
-      tempCol.lerpColors(color1, color2, t);
-      grassMatRef.current.color.copy(tempCol);
-    }
-  });
-
   const rockC  = '#6b7280';
   const snowC  = '#f0f9ff';
   const dirtC  = '#92400e';
@@ -584,28 +570,6 @@ function WalkableTrail({ isNight }) {
 
   const trailRocksRef = useRef();
 
-  useEffect(() => {
-    if (!trailRocksRef.current) return;
-    const tempObj = new THREE.Object3D();
-    const tempColor = new THREE.Color();
-
-    trailRocks.forEach((rock, idx) => {
-      tempObj.position.set(rock.x, rock.y, rock.z);
-      tempObj.rotation.set(0.04, rock.rot, 0.04);
-      tempObj.scale.set(rock.scale * 1.6, 0.08, rock.scale);
-      tempObj.updateMatrix();
-      trailRocksRef.current.setMatrixAt(idx, tempObj.matrix);
-
-      tempColor.set(rock.color);
-      trailRocksRef.current.setColorAt(idx, tempColor);
-    });
-
-    trailRocksRef.current.instanceMatrix.needsUpdate = true;
-    if (trailRocksRef.current.instanceColor) {
-      trailRocksRef.current.instanceColor.needsUpdate = true;
-    }
-  }, [trailRocks]);
-
   // Pebbles instancing
   const pebbles = useMemo(() => {
     const arr = [];
@@ -627,19 +591,6 @@ function WalkableTrail({ isNight }) {
 
   const pebblesRef = useRef();
 
-  useEffect(() => {
-    if (!pebblesRef.current) return;
-    const tempObj = new THREE.Object3D();
-    pebbles.forEach((p, idx) => {
-      tempObj.position.set(p.x, p.y, p.z);
-      tempObj.rotation.set(0, idx * 0.8, 0);
-      tempObj.scale.setScalar(p.scale);
-      tempObj.updateMatrix();
-      pebblesRef.current.setMatrixAt(idx, tempObj.matrix);
-    });
-    pebblesRef.current.instanceMatrix.needsUpdate = true;
-  }, [pebbles]);
-
   // Snow patches instancing
   const snowPatches = useMemo(() => {
     const arr = [];
@@ -658,17 +609,69 @@ function WalkableTrail({ isNight }) {
 
   const snowPatchesRef = useRef();
 
-  useEffect(() => {
-    if (!snowPatchesRef.current) return;
-    const tempObj = new THREE.Object3D();
-    snowPatches.forEach((p, idx) => {
-      tempObj.position.set(p.x, p.y, p.z);
-      tempObj.scale.set(2.2, 0.08, 1.5);
-      tempObj.updateMatrix();
-      snowPatchesRef.current.setMatrixAt(idx, tempObj.matrix);
-    });
-    snowPatchesRef.current.instanceMatrix.needsUpdate = true;
-  }, [snowPatches]);
+  const initializedRef = useRef(false);
+
+  useFrame((s, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+    }
+    const t = transitionRef.current;
+    if (grassMatRef.current) {
+      tempCol.lerpColors(color1, color2, t);
+      grassMatRef.current.color.copy(tempCol);
+    }
+
+    if (!initializedRef.current && trailRocksRef.current && pebblesRef.current && snowPatchesRef.current) {
+      const tempObj = new THREE.Object3D();
+      const tempColor = new THREE.Color();
+
+      // Populate trail rocks
+      trailRocks.forEach((rock, idx) => {
+        tempObj.position.set(rock.x, rock.y, rock.z);
+        tempObj.rotation.set(0.04, rock.rot, 0.04);
+        tempObj.scale.set(rock.scale * 1.6, 0.08, rock.scale);
+        tempObj.updateMatrix();
+        trailRocksRef.current.setMatrixAt(idx, tempObj.matrix);
+
+        tempColor.set(rock.color);
+        trailRocksRef.current.setColorAt(idx, tempColor);
+      });
+      trailRocksRef.current.instanceMatrix.needsUpdate = true;
+      if (trailRocksRef.current.instanceColor) {
+        trailRocksRef.current.instanceColor.needsUpdate = true;
+      }
+      trailRocksRef.current.computeBoundingBox();
+      trailRocksRef.current.computeBoundingSphere();
+
+      // Populate pebbles
+      pebbles.forEach((p, idx) => {
+        tempObj.position.set(p.x, p.y, p.z);
+        tempObj.rotation.set(0, idx * 0.8, 0);
+        tempObj.scale.setScalar(p.scale);
+        tempObj.updateMatrix();
+        pebblesRef.current.setMatrixAt(idx, tempObj.matrix);
+      });
+      pebblesRef.current.instanceMatrix.needsUpdate = true;
+      pebblesRef.current.computeBoundingBox();
+      pebblesRef.current.computeBoundingSphere();
+
+      // Populate snow patches
+      snowPatches.forEach((p, idx) => {
+        tempObj.position.set(p.x, p.y, p.z);
+        tempObj.scale.set(2.2, 0.08, 1.5);
+        tempObj.updateMatrix();
+        snowPatchesRef.current.setMatrixAt(idx, tempObj.matrix);
+      });
+      snowPatchesRef.current.instanceMatrix.needsUpdate = true;
+      snowPatchesRef.current.computeBoundingBox();
+      snowPatchesRef.current.computeBoundingSphere();
+
+      initializedRef.current = true;
+    }
+  });
 
   return (
     <group>
@@ -719,19 +722,19 @@ function WalkableTrail({ isNight }) {
       </group>
 
       {/* Instanced trail rocks */}
-      <instancedMesh ref={trailRocksRef} args={[null, null, trailRocks.length]} receiveShadow>
+      <instancedMesh ref={trailRocksRef} args={[null, null, trailRocks.length]} receiveShadow frustumCulled={false}>
         <dodecahedronGeometry args={[0.5, 0]} />
         <meshStandardMaterial roughness={0.96} flatShading />
       </instancedMesh>
 
       {/* Instanced path-edge pebbles */}
-      <instancedMesh ref={pebblesRef} args={[null, null, pebbles.length]} castShadow>
+      <instancedMesh ref={pebblesRef} args={[null, null, pebbles.length]} castShadow frustumCulled={false}>
         <dodecahedronGeometry args={[1, 0]} />
         <meshStandardMaterial color="#78716c" roughness={0.95} flatShading />
       </instancedMesh>
 
       {/* Instanced snow patches */}
-      <instancedMesh ref={snowPatchesRef} args={[null, null, snowPatches.length]} receiveShadow>
+      <instancedMesh ref={snowPatchesRef} args={[null, null, snowPatches.length]} receiveShadow frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial color="#f0f9ff" roughness={0.85} />
       </instancedMesh>
@@ -795,7 +798,10 @@ function ForestDecorations() {
   const cone3Ref = useRef();
   const boulderRef = useRef();
 
-  useEffect(() => {
+  const initializedRef = useRef(false);
+
+  useFrame(() => {
+    if (initializedRef.current) return;
     if (!trunkRef.current || !cone1Ref.current || !cone2Ref.current || !cone3Ref.current || !boulderRef.current) return;
 
     const tempObj = new THREE.Object3D();
@@ -830,6 +836,15 @@ function ForestDecorations() {
     cone2Ref.current.instanceMatrix.needsUpdate = true;
     cone3Ref.current.instanceMatrix.needsUpdate = true;
 
+    trunkRef.current.computeBoundingBox();
+    trunkRef.current.computeBoundingSphere();
+    cone1Ref.current.computeBoundingBox();
+    cone1Ref.current.computeBoundingSphere();
+    cone2Ref.current.computeBoundingBox();
+    cone2Ref.current.computeBoundingSphere();
+    cone3Ref.current.computeBoundingBox();
+    cone3Ref.current.computeBoundingSphere();
+
     // Populate boulders
     const tempColor = new THREE.Color();
     boulders.forEach((b, i) => {
@@ -844,36 +859,39 @@ function ForestDecorations() {
     });
 
     boulderRef.current.instanceMatrix.needsUpdate = true;
-  }, [trees, boulders]);
+    boulderRef.current.computeBoundingBox();
+    boulderRef.current.computeBoundingSphere();
+    initializedRef.current = true;
+  });
 
   return (
     <group>
       {/* Pine Trunks */}
-      <instancedMesh ref={trunkRef} args={[null, null, trees.length]} castShadow>
+      <instancedMesh ref={trunkRef} args={[null, null, trees.length]} castShadow frustumCulled={false}>
         <cylinderGeometry args={[0.1, 0.14, 1.1, 6]} />
         <meshStandardMaterial color="#5c3d1e" roughness={0.95} flatShading />
       </instancedMesh>
 
       {/* Pine Cone 1 */}
-      <instancedMesh ref={cone1Ref} args={[null, null, trees.length]} castShadow>
+      <instancedMesh ref={cone1Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
         <coneGeometry args={[0.72, 1.5, 7]} />
         <meshStandardMaterial color="#2d6a4f" roughness={0.85} flatShading />
       </instancedMesh>
 
       {/* Pine Cone 2 */}
-      <instancedMesh ref={cone2Ref} args={[null, null, trees.length]} castShadow>
+      <instancedMesh ref={cone2Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
         <coneGeometry args={[0.5, 1.1, 7]} />
         <meshStandardMaterial color="#1b4332" roughness={0.88} flatShading />
       </instancedMesh>
 
       {/* Pine Cone 3 */}
-      <instancedMesh ref={cone3Ref} args={[null, null, trees.length]} castShadow>
+      <instancedMesh ref={cone3Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
         <coneGeometry args={[0.3, 0.8, 6]} />
         <meshStandardMaterial color="#166534" roughness={0.9} flatShading />
       </instancedMesh>
 
       {/* Boulders */}
-      <instancedMesh ref={boulderRef} args={[null, null, boulders.length]} castShadow receiveShadow>
+      <instancedMesh ref={boulderRef} args={[null, null, boulders.length]} castShadow receiveShadow frustumCulled={false}>
         <dodecahedronGeometry args={[0.5, 0]} />
         <meshStandardMaterial roughness={0.95} flatShading />
       </instancedMesh>
