@@ -510,10 +510,7 @@ function SurroundingMountains({ isNight }) {
 function WalkableTrail({ isNight }) {
   const SEG_COUNT = 80;
   const SEG_STEP  = TRAIL_LENGTH / SEG_COUNT;   // 2.3125 z-units per seg
-  const SEG_DEPTH = SEG_STEP + 1.8;             // slight overlap
   const SEG_WIDTH = 7;                           // walkable width
-  const HALF_W    = SEG_WIDTH / 2;
-  const HALF_D    = SEG_DEPTH / 2;
   const HALF_H    = 0.4;
 
   const grassMatRef = useRef();
@@ -551,115 +548,206 @@ function WalkableTrail({ isNight }) {
   materials.grass.name = "grassMaterial";
   grassMatRef.current = materials.grass;
 
-  const slopeAngle = -Math.atan(TRAIL_RISE / TRAIL_LENGTH);
+  // Instanced trail rocks memo
+  const trailRocks = useMemo(() => {
+    const arr = [];
+    const SEG_DEPTH = SEG_STEP + 1.8;
+    for (let i = 0; i < SEG_COUNT; i++) {
+      const t = (i + 0.5) / SEG_COUNT;
+      if (t > 0.88) continue;
+      const z = -(i + 0.5) * SEG_STEP;
+      const y = 0.43;
+
+      const r1 = Math.abs(Math.sin(i * 18.23));
+      const r2 = Math.abs(Math.cos(i * 27.54));
+      const r3 = Math.abs(Math.sin(i * 38.82));
+      const r4 = Math.abs(Math.cos(i * 49.19));
+
+      const rock1_x = (r1 - 0.5) * 2.2;
+      const rock1_z = z + (r2 - 0.5) * SEG_DEPTH;
+      const rock1_scale = 0.42 + r1 * 0.38;
+      const rock1_rot = r2 * Math.PI;
+
+      const rock2_x = (r3 - 0.5) * 2.2;
+      const rock2_z = z + (r4 - 0.5) * SEG_DEPTH;
+      const rock2_scale = 0.38 + r3 * 0.38;
+      const rock2_rot = r4 * Math.PI;
+
+      const color1 = r1 > 0.66 ? '#57534e' : r1 > 0.33 ? '#78716c' : '#44403c';
+      const color2 = r3 > 0.66 ? '#78716c' : r3 > 0.33 ? '#44403c' : '#57534e';
+
+      arr.push({ x: rock1_x, y, z: rock1_z, scale: rock1_scale, rot: rock1_rot, color: color1 });
+      arr.push({ x: rock2_x, y, z: rock2_z, scale: rock2_scale, rot: rock2_rot, color: color2 });
+    }
+    return arr;
+  }, [SEG_STEP]);
+
+  const trailRocksRef = useRef();
+
+  useEffect(() => {
+    if (!trailRocksRef.current) return;
+    const tempObj = new THREE.Object3D();
+    const tempColor = new THREE.Color();
+
+    trailRocks.forEach((rock, idx) => {
+      tempObj.position.set(rock.x, rock.y, rock.z);
+      tempObj.rotation.set(0.04, rock.rot, 0.04);
+      tempObj.scale.set(rock.scale * 1.6, 0.08, rock.scale);
+      tempObj.updateMatrix();
+      trailRocksRef.current.setMatrixAt(idx, tempObj.matrix);
+
+      tempColor.set(rock.color);
+      trailRocksRef.current.setColorAt(idx, tempColor);
+    });
+
+    trailRocksRef.current.instanceMatrix.needsUpdate = true;
+    if (trailRocksRef.current.instanceColor) {
+      trailRocksRef.current.instanceColor.needsUpdate = true;
+    }
+  }, [trailRocks]);
+
+  // Pebbles instancing
+  const pebbles = useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < 60; i++) {
+      const z   = -3 - i * 3.1;
+      const cx  = 0;
+      const ty  = 0.12;
+      const side = i % 2 === 0 ? 1 : -1;
+      const scale = 0.1 + (i % 4) * 0.04;
+      arr.push({
+        x: cx + side * (1.9 + (i % 4) * 0.35),
+        y: ty,
+        z,
+        scale,
+      });
+    }
+    return arr;
+  }, []);
+
+  const pebblesRef = useRef();
+
+  useEffect(() => {
+    if (!pebblesRef.current) return;
+    const tempObj = new THREE.Object3D();
+    pebbles.forEach((p, idx) => {
+      tempObj.position.set(p.x, p.y, p.z);
+      tempObj.rotation.set(0, idx * 0.8, 0);
+      tempObj.scale.setScalar(p.scale);
+      tempObj.updateMatrix();
+      pebblesRef.current.setMatrixAt(idx, tempObj.matrix);
+    });
+    pebblesRef.current.instanceMatrix.needsUpdate = true;
+  }, [pebbles]);
+
+  // Snow patches instancing
+  const snowPatches = useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < 12; i++) {
+      const z  = -108 - i * 6.5;
+      const cx = 0;
+      const ty = 0.44;
+      arr.push({
+        x: cx + (i % 2 === 0 ? 2.8 : -2.8),
+        y: ty,
+        z,
+      });
+    }
+    return arr;
+  }, []);
+
+  const snowPatchesRef = useRef();
+
+  useEffect(() => {
+    if (!snowPatchesRef.current) return;
+    const tempObj = new THREE.Object3D();
+    snowPatches.forEach((p, idx) => {
+      tempObj.position.set(p.x, p.y, p.z);
+      tempObj.scale.set(2.2, 0.08, 1.5);
+      tempObj.updateMatrix();
+      snowPatchesRef.current.setMatrixAt(idx, tempObj.matrix);
+    });
+    snowPatchesRef.current.instanceMatrix.needsUpdate = true;
+  }, [snowPatches]);
 
   return (
     <group>
-      {Array.from({ length: SEG_COUNT }).map((_, i) => {
-        const z  = -(i + 0.5) * SEG_STEP;
-        const y  = getTerrainY(z);
-        const cx = getPathCenterX(z);
-        const t  = (i + 0.5) / SEG_COUNT;
+      {/* A single, large, static RigidBody for physics (representing the entire flat path) */}
+      <RigidBody type="fixed" position={[0, 0, -92.5]}>
+        <CuboidCollider args={[SEG_WIDTH / 2, HALF_H, 92.5]} />
+      </RigidBody>
 
-        // Surface colour shifts from grass → rock → snow near summit
-        const materialToUse = t > 0.88
-          ? materials.snow
-          : t > 0.66
-            ? materials.rock
-            : materials.grass;
+      {/* Visual boxes for the three zones of the trail */}
+      {/* 1. Grass zone */}
+      <group>
+        <mesh receiveShadow position={[0, 0, -61.28]}>
+          <boxGeometry args={[7, HALF_H * 2, 122.56]} />
+          <primitive object={materials.grass} attach="material" />
+        </mesh>
+        <mesh receiveShadow position={[0, -1.2, -61.28]}>
+          <boxGeometry args={[26, 2.4, 122.56]} />
+          <primitive object={materials.grass} attach="material" />
+        </mesh>
+        <mesh position={[0, 0.42, -61.28]} receiveShadow>
+          <boxGeometry args={[3.2, 0.06, 122.56]} />
+          <meshStandardMaterial color={dirtC} roughness={0.97} />
+        </mesh>
+      </group>
 
-        const side = i % 2 === 0 ? 1 : -1;
+      {/* 2. Rock zone */}
+      <group>
+        <mesh receiveShadow position={[0, 0, -142.22]}>
+          <boxGeometry args={[7, HALF_H * 2, 39.31]} />
+          <primitive object={materials.rock} attach="material" />
+        </mesh>
+        <mesh receiveShadow position={[0, -1.2, -142.22]}>
+          <boxGeometry args={[26, 2.4, 39.31]} />
+          <primitive object={materials.rock} attach="material" />
+        </mesh>
+      </group>
 
-        // Deterministic pseudo-randomness for rocks
-        const r1 = Math.abs(Math.sin(i * 18.23));
-        const r2 = Math.abs(Math.cos(i * 27.54));
-        const r3 = Math.abs(Math.sin(i * 38.82));
-        const r4 = Math.abs(Math.cos(i * 49.19));
+      {/* 3. Snow zone */}
+      <group>
+        <mesh receiveShadow position={[0, 0, -173.44]}>
+          <boxGeometry args={[7, HALF_H * 2, 23.13]} />
+          <primitive object={materials.snow} attach="material" />
+        </mesh>
+        <mesh receiveShadow position={[0, -1.2, -173.44]}>
+          <boxGeometry args={[26, 2.4, 23.13]} />
+          <primitive object={materials.snow} attach="material" />
+        </mesh>
+      </group>
 
-        const rock1_x = (r1 - 0.5) * 2.2;
-        const rock1_z = (r2 - 0.5) * SEG_DEPTH;
-        const rock1_scale = 0.42 + r1 * 0.38;
-        const rock1_rot = r2 * Math.PI;
+      {/* Instanced trail rocks */}
+      <instancedMesh ref={trailRocksRef} args={[null, null, trailRocks.length]} receiveShadow>
+        <dodecahedronGeometry args={[0.5, 0]} />
+        <meshStandardMaterial roughness={0.96} flatShading />
+      </instancedMesh>
 
-        const rock2_x = (r3 - 0.5) * 2.2;
-        const rock2_z = (r4 - 0.5) * SEG_DEPTH;
-        const rock2_scale = 0.38 + r3 * 0.38;
-        const rock2_rot = r4 * Math.PI;
+      {/* Instanced path-edge pebbles */}
+      <instancedMesh ref={pebblesRef} args={[null, null, pebbles.length]} castShadow>
+        <dodecahedronGeometry args={[1, 0]} />
+        <meshStandardMaterial color="#78716c" roughness={0.95} flatShading />
+      </instancedMesh>
 
-        const color1 = r1 > 0.66 ? '#57534e' : r1 > 0.33 ? '#78716c' : '#44403c';
-        const color2 = r3 > 0.66 ? '#78716c' : r3 > 0.33 ? '#44403c' : '#57534e';
+      {/* Instanced snow patches */}
+      <instancedMesh ref={snowPatchesRef} args={[null, null, snowPatches.length]} receiveShadow>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#f0f9ff" roughness={0.85} />
+      </instancedMesh>
+
+      {/* Torches spaced along the trail */}
+      {Array.from({ length: 16 }).map((_, i) => {
+        const segIdx = i * 5;
+        const z = -(segIdx + 0.5) * SEG_STEP;
+        const y = 0.4;
+        const cx = 0;
+        const side = segIdx % 2 === 0 ? 1 : -1;
+        // Expose fewer lights/meshes on mobile
+        if (isMobileDevice && segIdx % 15 !== 0) return null;
 
         return (
-          <group key={i}>
-            <RigidBody type="fixed" position={[cx, y, z]} rotation={[slopeAngle, 0, 0]}>
-              <CuboidCollider args={[HALF_W, HALF_H, HALF_D]} />
-              
-              {/* Trail surface */}
-              <mesh receiveShadow>
-                <boxGeometry args={[SEG_WIDTH, HALF_H * 2, SEG_DEPTH]} />
-                <primitive object={materialToUse} attach="material" />
-              </mesh>
-              
-              {/* Wide mountain base slope directly underneath the trail */}
-              <mesh receiveShadow position={[0, -1.2, 0]}>
-                <boxGeometry args={[26, 2.4, SEG_DEPTH + 0.1]} />
-                <primitive object={materialToUse} attach="material" />
-              </mesh>
-
-              {/* Dirt path strip (visual only) */}
-              {t <= 0.66 && (
-                <mesh position={[0, 0.42, 0]} receiveShadow>
-                  <boxGeometry args={[3.2, 0.06, SEG_DEPTH + 0.4]} />
-                  <meshStandardMaterial color={dirtC} roughness={0.97} />
-                </mesh>
-              )}
-
-              {/* Rocky trail slabs (visual only) */}
-              {t <= 0.88 && (
-                <group position={[0, 0.43, 0]}>
-                  <mesh position={[rock1_x, 0, rock1_z]} rotation={[0.04, rock1_rot, 0.04]} receiveShadow scale={[rock1_scale * 1.6, 0.08, rock1_scale]}>
-                    <dodecahedronGeometry args={[0.5, 0]} />
-                    <meshStandardMaterial color={color1} roughness={0.96} flatShading />
-                  </mesh>
-                  <mesh position={[rock2_x, 0, rock2_z]} rotation={[-0.04, rock2_rot, -0.04]} receiveShadow scale={[rock2_scale * 1.6, 0.08, rock2_scale]}>
-                    <dodecahedronGeometry args={[0.5, 0]} />
-                    <meshStandardMaterial color={color2} roughness={0.96} flatShading />
-                  </mesh>
-                </group>
-              )}
-            </RigidBody>
-            {(!isMobileDevice || i % 3 === 0) && (
-              <FireTorch position={[cx + side * 3.8, y + HALF_H, z]} isNight={isNight} />
-            )}
-          </group>
-        );
-      })}
-
-      {/* ── Path-edge pebbles ── */}
-      {Array.from({ length: 60 }).map((_, i) => {
-        const z   = -3 - i * 3.1;
-        const cx  = getPathCenterX(z);
-        const ty  = getTerrainY(z) + 0.12;
-        const side = i % 2 === 0 ? 1 : -1;
-        return (
-          <mesh key={i} position={[cx + side * (1.9 + (i%4)*0.35), ty, z]}
-            rotation={[slopeAngle, i * 0.8, 0]}>
-            <dodecahedronGeometry args={[0.1 + (i%4)*0.04, 0]} />
-            <meshStandardMaterial color="#78716c" roughness={0.95} flatShading />
-          </mesh>
-        );
-      })}
-
-      {/* ── Snow patches on upper trail ── */}
-      {Array.from({ length: 12 }).map((_, i) => {
-        const z  = -108 - i * 6.5;
-        const cx = getPathCenterX(z);
-        const ty = getTerrainY(z) + 0.5;
-        return (
-          <mesh key={i} position={[cx + (i%2===0?2.8:-2.8), ty, z]} receiveShadow rotation={[slopeAngle, 0, 0]}>
-            <boxGeometry args={[2.2, 0.08, 1.5]} />
-            <meshStandardMaterial color="#f0f9ff" roughness={0.85} />
-          </mesh>
+          <FireTorch key={i} position={[cx + side * 3.8, y, z]} isNight={isNight} />
         );
       })}
     </group>
