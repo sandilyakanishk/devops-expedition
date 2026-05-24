@@ -856,50 +856,6 @@ export default function App() {
               />
             </div>
 
-            {/* D-Pad on bottom-left */}
-            <div className="mobile-dpad">
-              <div />
-              <button
-                className="dpad-btn"
-                onTouchStart={(e) => { e.preventDefault(); window.mobileControls.forward = true; }}
-                onTouchEnd={(e) => { e.preventDefault(); window.mobileControls.forward = false; }}
-                onTouchCancel={(e) => { e.preventDefault(); window.mobileControls.forward = false; }}
-              >
-                ▲
-              </button>
-              <div />
-
-              <button
-                className="dpad-btn"
-                onTouchStart={(e) => { e.preventDefault(); window.mobileControls.left = true; }}
-                onTouchEnd={(e) => { e.preventDefault(); window.mobileControls.left = false; }}
-                onTouchCancel={(e) => { e.preventDefault(); window.mobileControls.left = false; }}
-              >
-                ◀
-              </button>
-              <div />
-              <button
-                className="dpad-btn"
-                onTouchStart={(e) => { e.preventDefault(); window.mobileControls.right = true; }}
-                onTouchEnd={(e) => { e.preventDefault(); window.mobileControls.right = false; }}
-                onTouchCancel={(e) => { e.preventDefault(); window.mobileControls.right = false; }}
-              >
-                ▶
-              </button>
-
-              <div />
-              <button
-                className="dpad-btn"
-                onTouchStart={(e) => { e.preventDefault(); window.mobileControls.backward = true; }}
-                onTouchEnd={(e) => { e.preventDefault(); window.mobileControls.backward = false; }}
-                onTouchCancel={(e) => { e.preventDefault(); window.mobileControls.backward = false; }}
-              >
-                ▼
-              </button>
-              <div />
-            </div>
-
-            {/* Jump & Sprint on bottom-right */}
             <div className="mobile-actions">
               <button
                 className={`action-btn night-action-btn ${isNight ? 'night-active' : ''}`}
