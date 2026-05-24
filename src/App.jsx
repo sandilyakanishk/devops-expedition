@@ -37,6 +37,7 @@ export default function App() {
   const [introCompleted, setIntroCompleted] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isNight, setIsNight] = useState(false);
+  const [isCameraEnabled, setIsCameraEnabled] = useState(true);
   const [activeCheckpoint, setActiveCheckpoint] = useState(null);
   const [visitedCheckpoints, setVisitedCheckpoints] = useState([]);
   const [teleportTarget, setTeleportTarget] = useState(null);
@@ -466,6 +467,7 @@ export default function App() {
                   <Camera 
                     playerPosRef={playerPosRef} 
                     onIntroComplete={() => setIntroCompleted(true)}
+                    isCameraEnabled={isCameraEnabled}
                   />
                 )}
               </Physics>
@@ -504,6 +506,15 @@ export default function App() {
             <>
               {/* Volume + Mute — top right */}
               <div className="top-right-hud">
+                {/* Camera Orbit/Lock toggle */}
+                <button
+                  className="hud-mute-btn"
+                  onClick={() => setIsCameraEnabled(prev => !prev)}
+                  title={isCameraEnabled ? 'Lock Camera (Auto-follow)' : 'Enable Free Camera (Orbit & Scroll Zoom)'}
+                  style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <CameraIcon size={16} color={isCameraEnabled ? '#fbbf24' : '#ffffff'} />
+                </button>
                 {/* Day/Night toggle */}
                 <button
                   className="hud-mute-btn"

@@ -12,12 +12,13 @@ const CAMERA_HEIGHT = 3.8;
 const MIN_PITCH     = -0.08;
 const MAX_PITCH     =  0.90;
 
-export default function Camera({ playerPosRef, onIntroComplete }) {
+export default function Camera({ playerPosRef, onIntroComplete, isCameraEnabled }) {
   const introTimeRef  = useRef(0);
   const isIntroRef    = useRef(false); // Skip fly-through intro to start behind the character
   const pitchRef      = cameraPitchRef;
   const camPos        = useRef(new THREE.Vector3());
   const lookPos       = useRef(new THREE.Vector3());
+  const cameraDistRef = useRef(7.5);
 
   const { gl }        = useThree();
 
@@ -27,16 +28,20 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
     }
   }, [onIntroComplete]);
   
-  // Touch tracking state (no click-drag required for mouse)
+  // Touch tracking state
   const lastTouchRef = useRef({ x: 0, y: 0 });
   const hasInitializedTouchRef = useRef(false);
   const smoothYawRef  = useRef(0);
   const smoothPitchRef = useRef(0.28);
   const lookTouchIdRef = useRef(null);
 
-  // ── Touch and Wheel listeners ──
+  // Mouse tracking state
+  const lastMouseRef = useRef({ x: 0, y: 0 });
+
+  // ── Touch, Mouse and Wheel listeners ──
   useEffect(() => {
     const onTouchStart = (e) => {
+      if (!isCameraEnabled) return;
       if (lookTouchIdRef.current === null && e.targetTouches.length > 0) {
         const touch = e.targetTouches[0];
         lookTouchIdRef.current = touch.identifier;
@@ -46,6 +51,7 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
     };
 
     const onTouchMove = (e) => {
+      if (!isCameraEnabled) return;
       if (isIntroRef.current) return;
       if (lookTouchIdRef.current !== null && hasInitializedTouchRef.current) {
         const touch = Array.from(e.touches).find(t => t.identifier === lookTouchIdRef.current);
@@ -76,10 +82,56 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
       }
     };
 
+    // Desktop Mouse Drag to Orbit
+    let isMouseDown = false;
+    const onMouseDown = (e) => {
+      if (!isCameraEnabled) return;
+      isMouseDown = true;
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const onMouseMove = (e) => {
+      if (!isCameraEnabled) return;
+      if (isIntroRef.current) return;
+      if (isMouseDown) {
+        const dx = e.clientX - lastMouseRef.current.x;
+        const dy = e.clientY - lastMouseRef.current.y;
+        lastMouseRef.current = { x: e.clientX, y: e.clientY };
+
+        const MOUSE_SENS = 0.005;
+        cameraYawRef.current += dx * MOUSE_SENS;
+        pitchRef.current = THREE.MathUtils.clamp(
+          pitchRef.current - dy * MOUSE_SENS,
+          MIN_PITCH,
+          MAX_PITCH
+        );
+      }
+    };
+
+    const onMouseUp = () => {
+      isMouseDown = false;
+    };
+
+    // Desktop Mouse Wheel to Zoom
+    const onWheel = (e) => {
+      if (!isCameraEnabled) return;
+      const zoomSpeed = 0.008;
+      cameraDistRef.current = THREE.MathUtils.clamp(
+        cameraDistRef.current + e.deltaY * zoomSpeed,
+        3.5,
+        18.0
+      );
+    };
+
     gl.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
     gl.domElement.addEventListener('touchmove',  onTouchMove,  { passive: true });
     gl.domElement.addEventListener('touchend',   onTouchEnd,   { passive: true });
     gl.domElement.addEventListener('touchcancel',onTouchEnd,   { passive: true });
+
+    gl.domElement.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    gl.domElement.addEventListener('wheel', onWheel, { passive: true });
 
     return () => {
       if (gl?.domElement) {
@@ -87,9 +139,14 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
         gl.domElement.removeEventListener('touchmove',  onTouchMove);
         gl.domElement.removeEventListener('touchend',   onTouchEnd);
         gl.domElement.removeEventListener('touchcancel',onTouchEnd);
+
+        gl.domElement.removeEventListener('mousedown', onMouseDown);
+        gl.domElement.removeEventListener('wheel', onWheel);
       }
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [gl, pitchRef]);
+  }, [gl, pitchRef, isCameraEnabled]);
 
   useFrame((state, delta) => {
     if (!playerPosRef.current) return;
@@ -135,6 +192,20 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
       camera.lookAt(lookT);
 
     } else {
+      if (!isCameraEnabled) {
+        // Smoothly lerp camera yaw, pitch, and zoom back to follow defaults
+        cameraDistRef.current = THREE.MathUtils.lerp(cameraDistRef.current, 7.5, 1.0 - Math.exp(-4.0 * delta));
+        pitchRef.current = THREE.MathUtils.lerp(pitchRef.current, 0.28, 1.0 - Math.exp(-4.0 * delta));
+
+        // Lock camera behind the character (smooth follow)
+        if (characterRotationRef.current !== undefined) {
+          let diff = characterRotationRef.current - cameraYawRef.current;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          while (diff >  Math.PI) diff -= Math.PI * 2;
+          cameraYawRef.current += diff * (1.0 - Math.exp(-4.0 * delta));
+        }
+      }
+
       // Smoothly lerp camera angle targets for buttery mouse-look (frame-rate independent)
       const angleDecay = 1.0 - Math.exp(-5.2 * delta);
       smoothYawRef.current = THREE.MathUtils.lerp(smoothYawRef.current, cameraYawRef.current, angleDecay);
@@ -142,10 +213,11 @@ export default function Camera({ playerPosRef, onIntroComplete }) {
 
       const yaw   = smoothYawRef.current;
       const pitch = smoothPitchRef.current;
+      const dist  = cameraDistRef.current;
 
-      const tx = pp.x + Math.sin(yaw) * CAMERA_DIST;
-      const ty = pp.y + CAMERA_HEIGHT + Math.sin(pitch) * CAMERA_DIST * 0.55;
-      const tz = pp.z + Math.cos(yaw) * CAMERA_DIST;
+      const tx = pp.x + Math.sin(yaw) * dist;
+      const ty = pp.y + CAMERA_HEIGHT + Math.sin(pitch) * dist * 0.55;
+      const tz = pp.z + Math.cos(yaw) * dist;
 
       camPos.current.set(tx, ty, tz);
       camera.position.lerp(camPos.current, 1.0 - Math.exp(-6.56 * delta));

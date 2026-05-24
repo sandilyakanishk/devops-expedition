@@ -8,9 +8,9 @@ An immersive, gamified 3D mountain trekking interactive resume showcasing DevOps
 
 ## 📸 Screen Previews
 
-| Day Mode (Normal Mode) | Night Mode (Dark Mode) |
-|:---:|:---:|
-| ![Day Mode](screenshots/day_mode.png) | ![Night Mode](screenshots/night_mode.png) |
+| Day Mode (Normal Mode) | Sunset Mode (Dawn/Dusk) | Night Mode (Dark Mode) |
+|:---:|:---:|:---:|
+| ![Day Mode](screenshots/day_mode.png) | ![Sunset Mode](screenshots/sunset_mode.png) | ![Night Mode](screenshots/night_mode.png) |
 
 ---
 
