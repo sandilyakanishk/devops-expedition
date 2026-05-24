@@ -639,7 +639,7 @@ body, html, #root {
 /* Mute button — top right, clean */
 .top-right-hud {
   position: absolute;
-  top: 82px;
+  top: 70px;
   right: 24px;
   z-index: 50;
   pointer-events: auto;
@@ -1185,7 +1185,7 @@ body, html, #root {
     top: 75px;
   }
   .top-right-hud {
-    top: 75px;
+    top: 65px;
   }
 }
 
