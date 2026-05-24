@@ -2317,7 +2317,15 @@ function Lighting({ isNight }) {
     if (dirRef.current) {
       dirRef.current.color.copy(currentDirCol);
       dirRef.current.intensity = currentDirInt;
-      dirRef.current.position.copy(currentDirPos);
+      
+      const playerZ = window.playerZ || 0;
+      dirRef.current.position.set(
+        currentDirPos.x,
+        currentDirPos.y,
+        currentDirPos.z + playerZ
+      );
+      dirRef.current.target.position.set(0, 0, playerZ);
+      dirRef.current.target.updateMatrixWorld(true);
     }
     if (hemiRef.current) {
       hemiRef.current.color.copy(currentHemiSkyCol);
@@ -2350,11 +2358,13 @@ function Lighting({ isNight }) {
         ref={dirRef}
         castShadow
         shadow-mapSize={[1024, 1024]}
-        shadow-camera-far={250}
-        shadow-camera-left={-65}
-        shadow-camera-right={65}
-        shadow-camera-top={65}
-        shadow-camera-bottom={-65}
+        shadow-camera-far={70}
+        shadow-camera-near={0.1}
+        shadow-camera-left={-20}
+        shadow-camera-right={20}
+        shadow-camera-top={20}
+        shadow-camera-bottom={-20}
+        shadow-bias={-0.0005}
       />
       <hemisphereLight ref={hemiRef} />
       {!isMobileDevice() && (

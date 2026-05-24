@@ -551,7 +551,7 @@ export default function App() {
             shadows={!isMobile}
             camera={{ position: [8, 16, 22], fov: 50 }}
             gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
-            dpr={[1, isMobile ? 1 : 1.6]}
+            dpr={[1, isMobile ? 1.4 : 1.6]}
             performance={{ min: isMobile ? 0.35 : 0.65, debounce: isMobile ? 250 : 200 }}
           >
             {/* Sky color & fog — updated smoothly in Environment.jsx / Lighting */}
