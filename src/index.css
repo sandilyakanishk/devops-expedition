@@ -38,6 +38,8 @@ body, html, #root {
   font-family: var(--font-sans);
   color: var(--text-light);
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
 
 /* Canvas Container */
@@ -48,6 +50,7 @@ body, html, #root {
   top: 0;
   left: 0;
   z-index: 1;
+  touch-action: none;
 }
 
 .ui-layer {
@@ -1169,14 +1172,16 @@ body, html, #root {
 /* Responsive adjustments */
 @media (max-width: 600px) {
   .app-navbar {
-    padding: 0 20px;
+    height: 58px;
+    padding: 0 14px;
   }
 
   .navbar-links {
     gap: 16px;
   }
   .app-footer {
-    padding: 0 20px;
+    height: 58px;
+    padding: 0 12px;
   }
   .footer-center {
     display: none;
@@ -1468,10 +1473,11 @@ body, html, #root {
 @media (max-width: 1024px) and (orientation: portrait) {
   .checkpoint-overlay {
     width: 100vw !important;
-    padding: 24px 16px !important;
+    padding: 78px 16px 150px !important;
     background: rgba(11, 15, 25, 0.95) !important;
     justify-content: flex-start !important;
     overflow-y: auto !important;
+    height: 100dvh !important;
   }
 }
 
@@ -1492,7 +1498,7 @@ body, html, #root {
 
 @media (max-width: 1024px) and (orientation: portrait) {
   .landscape-prompt {
-    display: flex;
+    display: none;
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -1549,6 +1555,161 @@ body, html, #root {
     max-width: 280px;
     color: rgba(255, 255, 255, 0.7);
     margin: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  body, html, #root {
+    height: 100dvh;
+  }
+
+  .min-loading-marquee {
+    font-size: clamp(3rem, 17vw, 5.5rem);
+  }
+
+  .min-loading-pill {
+    min-width: 174px;
+    padding: 9px 18px 9px 9px;
+  }
+
+  .landing-screen {
+    align-items: flex-start;
+    padding: 18vh 18px 120px;
+  }
+
+  .landing-content {
+    max-width: 100%;
+    gap: 12px;
+  }
+
+  .landing-name {
+    font-size: clamp(4rem, 21vw, 6.2rem);
+    line-height: 0.9;
+    letter-spacing: 2px;
+  }
+
+  .landing-role {
+    font-size: 0.86rem;
+  }
+
+  .landing-btn {
+    min-height: 46px;
+    padding: 12px 20px;
+  }
+
+  .top-right-hud {
+    top: 64px;
+    right: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .hud-mute-btn {
+    width: 38px;
+    height: 38px;
+    background: rgba(13, 20, 38, 0.72);
+  }
+
+  .app-footer {
+    gap: 10px;
+  }
+
+  .footer-feedback-icons,
+  .footer-center {
+    display: none;
+  }
+
+  .footer-right {
+    gap: 0;
+  }
+
+  .resume-btn {
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 18px;
+    font-size: 0.68rem;
+    gap: 6px;
+  }
+
+  .checkpoint-overlay {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .section-card {
+    width: 100%;
+  }
+
+  .cp-label {
+    font-size: 0.72rem;
+    letter-spacing: 4px;
+  }
+
+  .cp-mega-title {
+    font-size: clamp(3.1rem, 18vw, 5rem);
+    letter-spacing: 3px;
+  }
+
+  .cp-subtitle {
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+  }
+
+  .cp-divider {
+    margin-bottom: 14px;
+  }
+
+  .cp-body {
+    max-height: calc(100dvh - 330px);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    padding-right: 8px;
+  }
+
+  .cp-project-item {
+    padding: 9px 0;
+  }
+
+  .mobile-dpad {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    left: 14px;
+    width: 112px;
+    height: 112px;
+    gap: 5px;
+  }
+
+  .mobile-actions {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    right: 14px;
+    gap: 8px;
+  }
+
+  .action-btn {
+    width: 52px;
+    height: 52px;
+    font-size: 0.66rem;
+  }
+
+  .dpad-btn {
+    border-radius: 10px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .landing-name {
+    font-size: clamp(3.4rem, 19vw, 4.8rem);
+  }
+
+  .mobile-dpad {
+    width: 104px;
+    height: 104px;
+  }
+
+  .action-btn {
+    width: 48px;
+    height: 48px;
   }
 }
 

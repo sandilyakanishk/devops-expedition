@@ -8,17 +8,20 @@ import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 
-const isMobileDevice = typeof window !== 'undefined' && !!window.isMobileDevice;
+function isMobileDevice() {
+  if (typeof window === 'undefined') return false;
+  return !!window.isMobileDevice || window.innerWidth <= 1024 || window.matchMedia?.('(pointer: coarse)').matches;
+}
 
 // ── Terrain math ──────────────────────────────────────────────────
 const TRAIL_LENGTH = 185;
-const TRAIL_RISE   = 0;
+const _TRAIL_RISE  = 0;
 
-function getTerrainY(z) {
+function getTerrainY(_z) {
   return 0;
 }
 // Path center is perfectly straight
-function getPathCenterX(z) {
+function getPathCenterX(_z) {
   return 0;
 }
 
@@ -61,7 +64,7 @@ function Campfire({ position, isNight }) {
   useFrame((s, delta) => {
     const pzVal = window.playerZ || 0;
     const dist = Math.abs(pz - pzVal);
-    const cullDist = isMobileDevice ? 35 : 70;
+    const cullDist = isMobileDevice() ? 35 : 70;
     if (dist > cullDist) {
       if (groupRef.current) groupRef.current.visible = false;
       return;
@@ -128,7 +131,7 @@ function Campfire({ position, isNight }) {
         <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={3}
           transparent opacity={0.7} depthWrite={false} />
       </mesh>
-      {!isMobileDevice && <pointLight ref={glowRef} color="#ff8c00" intensity={2.5} distance={10} />}
+      {!isMobileDevice() && <pointLight ref={glowRef} color="#ff8c00" intensity={2.5} distance={10} />}
     </group>
   );
 }
@@ -195,7 +198,7 @@ function LanternPost({ position, isNight }) {
   useFrame((s, delta) => {
     const pzVal = window.playerZ || 0;
     const dist = Math.abs(pz - pzVal);
-    const cullDist = isMobileDevice ? 30 : 60;
+    const cullDist = isMobileDevice() ? 30 : 60;
     if (dist > cullDist) {
       if (groupRef.current) groupRef.current.visible = false;
       return;
@@ -244,7 +247,7 @@ function LanternPost({ position, isNight }) {
           opacity={0.4}
         />
       </mesh>
-      {!isMobileDevice && <pointLight ref={lRef} position={[0, 2.3, 0]} color="#ff9f00" intensity={0} distance={12} />}
+      {!isMobileDevice() && <pointLight ref={lRef} position={[0, 2.3, 0]} color="#ff9f00" intensity={0} distance={12} />}
     </group>
   );
 }
@@ -267,7 +270,7 @@ function FireTorch({ position, isNight }) {
   useFrame((s, delta) => {
     const pzVal = window.playerZ || 0;
     const dist = Math.abs(pz - pzVal);
-    const cullDist = isMobileDevice ? 25 : 55;
+    const cullDist = isMobileDevice() ? 25 : 55;
     if (dist > cullDist) {
       if (groupRef.current) groupRef.current.visible = false;
       return;
@@ -325,7 +328,7 @@ function FireTorch({ position, isNight }) {
           opacity={1.0}
         />
       </mesh>
-      {!isMobileDevice && (
+      {!isMobileDevice() && (
         <pointLight ref={lRef} position={[0, 0.9, 0]} color="#ff7f00" intensity={0} distance={8} />
       )}
     </group>
@@ -513,7 +516,6 @@ function WalkableTrail({ isNight }) {
   const SEG_WIDTH = 7;                           // walkable width
   const HALF_H    = 0.4;
 
-  const grassMatRef = useRef();
   const transitionRef = useRef(isNight ? 1 : 0);
   const color1 = useMemo(() => new THREE.Color('#22c55e'), []);
   const color2 = useMemo(() => new THREE.Color('#166534'), []);
@@ -532,7 +534,6 @@ function WalkableTrail({ isNight }) {
   }, []);
 
   materials.grass.name = "grassMaterial";
-  grassMatRef.current = materials.grass;
 
   // Instanced trail rocks memo
   const trailRocks = useMemo(() => {
@@ -619,10 +620,8 @@ function WalkableTrail({ isNight }) {
       transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
     }
     const t = transitionRef.current;
-    if (grassMatRef.current) {
-      tempCol.lerpColors(color1, color2, t);
-      grassMatRef.current.color.copy(tempCol);
-    }
+    tempCol.lerpColors(color1, color2, t);
+    materials.grass.color.copy(tempCol);
 
     if (!initializedRef.current && trailRocksRef.current && pebblesRef.current && snowPatchesRef.current) {
       const tempObj = new THREE.Object3D();
@@ -747,7 +746,7 @@ function WalkableTrail({ isNight }) {
         const cx = 0;
         const side = segIdx % 2 === 0 ? 1 : -1;
         // Expose fewer lights/meshes on mobile
-        if (isMobileDevice && segIdx % 15 !== 0) return null;
+        if (isMobileDevice() && segIdx % 15 !== 0) return null;
 
         return (
           <FireTorch key={i} position={[cx + side * 3.8, y, z]} isNight={isNight} />
@@ -948,7 +947,7 @@ function Waterfall() {
 // NIGHT SKY — 600 twinkling stars + Milky Way + Moon
 // ════════════════════════════════════════════════════════════════
 function NightSky({ isNight }) {
-  const COUNT = isMobileDevice ? 400 : 1800;
+  const COUNT = isMobileDevice() ? 400 : 1800;
 
   const starSystem = useMemo(() => {
     const geom = new THREE.BufferGeometry();
@@ -1022,7 +1021,7 @@ function NightSky({ isNight }) {
     });
 
     return { geom, mat };
-  }, []);
+  }, [COUNT]);
 
   const milkyWayPositions = useMemo(() => {
     const arr = new Float32Array(110 * 3);
@@ -1268,7 +1267,7 @@ function AnimatedBirds({ isNight }) {
 // WIND LEAVES
 // ════════════════════════════════════════════════════════════════
 function WindLeaves() {
-  if (isMobileDevice) return null;
+  const disabled = isMobileDevice();
   const COUNT = 30;
   const leafData = useMemo(() => Array.from({length:COUNT}).map((_,i)=>({
     startX: -6+Math.random()*12, startY: 1+Math.random()*4,
@@ -1279,6 +1278,7 @@ function WindLeaves() {
   const meshes = useRef([]);
 
   useFrame((s) => {
+    if (disabled) return;
     const t = s.clock.getElapsedTime();
     meshes.current.forEach((m, i) => {
       if (!m) return;
@@ -1292,6 +1292,8 @@ function WindLeaves() {
       if (cycle > 6.6) { m.position.x = d.startX; m.position.y = d.startY; }
     });
   });
+
+  if (disabled) return null;
 
   return (
     <group>
@@ -1309,7 +1311,7 @@ function WindLeaves() {
 // SNOW PARTICLES (upper trail)
 // ════════════════════════════════════════════════════════════════
 function SnowParticles() {
-  const COUNT = isMobileDevice ? 25 : 80;
+  const COUNT = isMobileDevice() ? 25 : 80;
 
   const snowSystem = useMemo(() => {
     const geom = new THREE.BufferGeometry();
@@ -1384,7 +1386,7 @@ function SnowParticles() {
     });
 
     return { geom, mat };
-  }, []);
+  }, [COUNT]);
 
   useFrame((s) => {
     snowSystem.mat.uniforms.uTime.value = s.clock.getElapsedTime();
@@ -1507,10 +1509,9 @@ function Fireflies({ isNight }) {
 // FOG CLOUD BANDS (ground mist)
 // ════════════════════════════════════════════════════════════════
 function MistBands({ isNight }) {
-  if (isMobileDevice) return null;
+  const disabled = isMobileDevice();
   const zPositions = [-22,-55,-88,-125,-162];
 
-  const mistMatRef = useRef();
   const transitionRef = useRef(isNight ? 1 : 0);
   
   const color1 = useMemo(() => new THREE.Color('#e2e8f0'), []);
@@ -1524,9 +1525,8 @@ function MistBands({ isNight }) {
     depthWrite: false,
   }), []);
 
-  mistMatRef.current = sharedMaterial;
-
   useFrame((s, delta) => {
+    if (disabled) return;
     const transitionSpeed = 0.25;
     if (isNight) {
       transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
@@ -1535,12 +1535,12 @@ function MistBands({ isNight }) {
     }
     const t = transitionRef.current;
     
-    if (mistMatRef.current) {
-      tempCol.lerpColors(color1, color2, t);
-      mistMatRef.current.color.copy(tempCol);
-      mistMatRef.current.opacity = 0.11 + t * 0.05;
-    }
+    tempCol.lerpColors(color1, color2, t);
+    sharedMaterial.color.copy(tempCol);
+    sharedMaterial.opacity = 0.11 + t * 0.05;
   });
+
+  if (disabled) return null;
 
   return (
     <group>
@@ -1601,7 +1601,7 @@ function CheckpointArch({ z, label, isNight }) {
   useFrame((s) => {
     const pzVal = window.playerZ || 0;
     const dist = Math.abs(z - pzVal);
-    const cullDist = isMobileDevice ? 25 : 55;
+    const cullDist = isMobileDevice() ? 25 : 55;
     
     if (dist > cullDist) {
       if (groupRef.current) groupRef.current.visible = false;
@@ -1657,14 +1657,14 @@ function CheckpointArch({ z, label, isNight }) {
         <sphereGeometry args={[0.09, 6, 6]} />
         <meshStandardMaterial color="#ff7700" emissive="#ff4400" emissiveIntensity={3} />
       </mesh>
-      {!isMobileDevice && <pointLight ref={flameRef} position={[cx - 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />}
+      {!isMobileDevice() && <pointLight ref={flameRef} position={[cx - 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />}
       {/* Right torch */}
       <Cyl pos={[cx + 4.2, ty + 3.6, z]} args={[0.05, 0.07, 0.28, 6]} color="#7c3d11" />
       <mesh position={[cx + 4.2, ty + 3.78, z]}>
         <sphereGeometry args={[0.09, 6, 6]} />
         <meshStandardMaterial color="#ff7700" emissive="#ff4400" emissiveIntensity={3} />
       </mesh>
-      {!isMobileDevice && <pointLight ref={flameRef2} position={[cx + 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />}
+      {!isMobileDevice() && <pointLight ref={flameRef2} position={[cx + 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />}
       {/* Flag pennants on posts */}
       {[[-4.2, '#ef4444'], [4.2, '#3b82f6']].map(([ox, col], i) => (
         <mesh key={i} position={[cx + ox + (ox < 0 ? 0.3 : -0.3), ty + 3.28, z - 0.04]}>
@@ -1901,7 +1901,7 @@ function Zone_Skills({ z, isNight }) {
         <planeGeometry args={[0.98,0.55]} />
         <meshStandardMaterial color="#0f172a" emissive="#38bdf8" emissiveIntensity={0.7} transparent opacity={0.95} />
       </mesh>
-      {!isMobileDevice && <pointLight ref={glowRef} position={[cx+6.5, ty+1.66, z-0.5]} color="#38bdf8" intensity={1.2} distance={4} />}
+      {!isMobileDevice() && <pointLight ref={glowRef} position={[cx+6.5, ty+1.66,z-0.5]} color="#38bdf8" intensity={1.2} distance={4} />}
 
       {/* ── Server rack left ── */}
       <Box pos={[cx-6.5, ty+1.46, z]} size={[0.6,2.0,0.8]} color="#1f2937" />
@@ -1959,7 +1959,7 @@ function Zone_Projects({ z, isNight }) {
             <meshBasicMaterial color={p.color} transparent opacity={0.8} /></mesh>
           <mesh position={[0,-0.65,0]}><boxGeometry args={[0.1,0.35,0.1]} />
             <meshStandardMaterial color="#374151" roughness={0.8} /></mesh>
-          {!isMobileDevice && <pointLight position={[0,0,-0.5]} color={p.color} intensity={0.8} distance={3} />}
+          {!isMobileDevice() && <pointLight position={[0,0,-0.5]} color={p.color} intensity={0.8} distance={3} />}
         </group>
       ))}
       {/* Hologram sphere */}
@@ -1967,7 +1967,7 @@ function Zone_Projects({ z, isNight }) {
         <sphereGeometry args={[0.5,12,12]} />
         <meshStandardMaterial color="#38bdf8" transparent opacity={0.22} emissive="#0ea5e9" emissiveIntensity={0.6} depthWrite={false} wireframe />
       </mesh>
-      {!isMobileDevice && <pointLight position={[cx-5,ty+2.26,z-0.5]} color="#38bdf8" intensity={0.9} distance={4} />}
+      {!isMobileDevice() && <pointLight position={[cx-5,ty+2.26,z-0.5]} color="#38bdf8" intensity={0.9} distance={4} />}
       <WoodenSign position={[cx,ty+0.46,z+3]} text="PROJECTS" />
       <Campfire position={[cx+6, ty+0.46, z+2]} isNight={isNight} />
       <LanternPost position={[cx-5, ty+0.46, z+1]} isNight={isNight} />
@@ -2109,7 +2109,7 @@ function Zone_Contact({ z, isNight }) {
           <sphereGeometry args={[0.16,8,8]} />
           <meshBasicMaterial color="#ef4444" />
         </mesh>
-        {!isMobileDevice && <pointLight ref={beaconRef} position={[0,6.2,0]} color="#ef4444" intensity={3} distance={14} />}
+        {!isMobileDevice() && <pointLight ref={beaconRef} position={[0,6.2,0]} color="#ef4444" intensity={3} distance={14} />}
       </group>
       
       {/* Satellite dish */}
@@ -2130,7 +2130,7 @@ function Zone_Contact({ z, isNight }) {
         <sphereGeometry args={[0.38,12,12]} />
         <meshStandardMaterial color="#22d3ee" emissive="#0ea5e9" emissiveIntensity={2.5} transparent opacity={0.85} />
       </mesh>
-      {!isMobileDevice && <pointLight position={[cx,ty+3.66,z-2]} color="#22d3ee"
+      {!isMobileDevice() && <pointLight position={[cx,ty+3.66,z-2]} color="#22d3ee"
         intensity={isNight?5:2.5} distance={16} />}
       
       {/* Attractive Summit Wooden Sign Board */}
@@ -2259,22 +2259,22 @@ function Lighting({ isNight }) {
       transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
     }
     const t = transitionRef.current;
-    let u = 0;
+    let u;
 
     const currentAmbCol = tempColor1;
-    let currentAmbInt = 0;
+    let currentAmbInt;
 
     const currentDirCol = tempColor2;
-    let currentDirInt = 0;
+    let currentDirInt;
     const currentDirPos = tempVector1;
 
     const currentHemiSkyCol = tempColor3;
     const currentHemiGndCol = tempColor4;
-    let currentHemiInt = 0;
+    let currentHemiInt;
 
     const currentSkyCol = tempColor5;
-    let currentFogNear = 0;
-    let currentFogFar = 0;
+    let currentFogNear;
+    let currentFogFar;
 
     if (t < 0.5) {
       u = t * 2;
@@ -2357,7 +2357,7 @@ function Lighting({ isNight }) {
         shadow-camera-bottom={-65}
       />
       <hemisphereLight ref={hemiRef} />
-      {!isMobileDevice && (
+      {!isMobileDevice() && (
         <pointLight
           ref={pointRef}
           position={[15, 45, -80]}
@@ -2371,7 +2371,13 @@ function Lighting({ isNight }) {
 
 
 // ── Main Environment ──────────────────────────────────────────────
-export default function Environment({ onCheckpointEnter, onCheckpointExit, isNight }) {
+export default function Environment({ onCheckpointEnter, onCheckpointExit, isNight, isMobile }) {
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.isMobileDevice = !!isMobile;
+    }
+  }, [isMobile]);
+
   return (
     <group>
       <Lighting isNight={isNight} />

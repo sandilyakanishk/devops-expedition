@@ -5,7 +5,7 @@
 import { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { cameraYawRef, cameraPitchRef } from '../utils/cameraState';
+import { cameraYawRef, cameraPitchRef, characterRotationRef } from '../utils/cameraState';
 
 const CAMERA_DIST   = 7.5;
 const CAMERA_HEIGHT = 3.8;

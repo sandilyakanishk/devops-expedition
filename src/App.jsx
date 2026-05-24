@@ -2,9 +2,8 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { KeyboardControls, useProgress } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
-import { Volume2, VolumeX, Github, FileText, ThumbsUp, ThumbsDown, MessageSquare, Share2, Camera as CameraIcon, Maximize, Minimize, RotateCcw } from 'lucide-react';
+import { Volume2, VolumeX, Github, FileText, ThumbsUp, ThumbsDown, MessageSquare, Share2, Camera as CameraIcon, Maximize, Minimize, RotateCcw, Sun, Moon } from 'lucide-react';
 import * as THREE from 'three';
-import { cameraYawRef, cameraPitchRef, characterRotationRef } from './utils/cameraState';
 
 // 3D Components
 import Character from './components/Character';
@@ -52,6 +51,10 @@ export default function App() {
     window.isMobileDevice = mobile;
     return mobile;
   });
+  const [isPhone, setIsPhone] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= 640;
+  });
   const [mobileSprint, setMobileSprint] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [supportsFullscreen] = useState(() => {
@@ -80,6 +83,7 @@ export default function App() {
     const checkMobile = () => {
       const mobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 1024);
       setIsMobile(mobile);
+      setIsPhone(window.innerWidth <= 640);
       window.isMobileDevice = mobile;
     };
     checkMobile();
@@ -163,7 +167,7 @@ export default function App() {
   const respawnMsgRef = useRef(null);
 
   // Mirror of getTerrainY — trail is completely flat
-  const getTerrainY = (z) => {
+  const getTerrainY = () => {
     return 0;
   };
 
@@ -383,7 +387,7 @@ export default function App() {
                         : '0 0 8px rgba(251,191,36,0.15)',
                     }}
                   >
-                    🎮 Controls
+                    Controls
                   </button>
                 </li>
 
@@ -441,7 +445,8 @@ export default function App() {
             shadows={!isMobile}
             camera={{ position: [8, 16, 22], fov: 50 }}
             gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
-            dpr={[1, 1.5]}
+            dpr={[1, isMobile ? 1.15 : 1.6]}
+            performance={{ min: isMobile ? 0.45 : 0.65 }}
           >
             {/* Sky color & fog — updated smoothly in Environment.jsx / Lighting */}
             <color attach="background" args={['#bae6fd']} />
@@ -464,6 +469,7 @@ export default function App() {
                   onCheckpointEnter={handleCheckpointEnter}
                   onCheckpointExit={handleCheckpointExit}
                   isNight={isNight}
+                  isMobile={isMobile}
                 />
 
                 {/* Follow Camera (intro panning -> 3rd person follow) */}
@@ -530,7 +536,7 @@ export default function App() {
                   title={isNight ? 'Switch to Day' : 'Switch to Night'}
                   style={{ fontSize: '1rem' }}
                 >
-                  {isNight ? '☀️' : '🌙'}
+                  {isNight ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
                 <button className="hud-mute-btn" onClick={handleToggleMute} title="Toggle Mute">
                   {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
@@ -580,8 +586,8 @@ export default function App() {
                   {[
                     ['W A S D',      'Move forward / back / strafe'],
                     ['Mouse Scroll', 'Orbit camera in 360° circle'],
-                    ['Arrow ◀ ▶',   'Rotate camera left / right'],
-                    ['Arrow ▲ ▼',   'Tilt camera up / down'],
+                    ['Arrow L/R',   'Rotate camera left / right'],
+                    ['Arrow U/D',   'Tilt camera up / down'],
                     ['Shift',        'Sprint'],
                     ['Space',        'Jump'],
                   ].map(([key, desc]) => (
@@ -606,7 +612,8 @@ export default function App() {
                 opacity: currentQuote ? 1 : 0,
                 transition: 'opacity 1.2s ease',
                 pointerEvents: 'none', zIndex: 50,
-                whiteSpace: 'nowrap',
+                whiteSpace: isPhone ? 'normal' : 'nowrap',
+                width: isPhone ? '82vw' : 'auto',
               }}>
                 {currentQuote}
               </div>
@@ -633,9 +640,9 @@ export default function App() {
             <>
               <Intro active={activeCheckpoint === 1} />
               <Education active={activeCheckpoint === 2} />
-              <Projects active={activeCheckpoint === 3} />
-              <Experience active={activeCheckpoint === 4} />
-              <Skills active={activeCheckpoint === 5} />
+              <Skills active={activeCheckpoint === 3} />
+              <Projects active={activeCheckpoint === 4} />
+              <Experience active={activeCheckpoint === 5} />
               <Contact active={activeCheckpoint === 6} />
             </>
           )}
@@ -660,7 +667,7 @@ export default function App() {
             </div>
             
             <div className="footer-center">
-              Kanishk Sandilya — DevOps & Cloud Er.
+              Kanishk Sandilya - DevOps & Cloud Er.
             </div>
             
             {/* Right side with polished feedback/social utility icons + Resume */}
@@ -801,9 +808,9 @@ export default function App() {
         {/* Landscape Orientation Rotate Prompt */}
         <div className="landscape-prompt">
           <div className="phone-icon" />
-          <h2 className="landscape-prompt-title">Rotate Your Device</h2>
+          <h2 className="landscape-prompt-title">iPhone Mode</h2>
           <p className="landscape-prompt-desc" style={{ marginBottom: 15 }}>
-            Please turn your device to landscape mode for the best mountain trekking experience.
+            Portrait controls are enabled. Use the pads below after starting the journey.
           </p>
           {supportsFullscreen ? (
             <button className="fullscreen-prompt-btn" onClick={handleToggleFullscreen}>
@@ -821,7 +828,7 @@ export default function App() {
               borderRadius: '8px',
               color: 'rgba(255, 255, 255, 0.65)'
             }}>
-              💡 <strong>iOS Safari Tip:</strong> iPhone does not support fullscreen buttons. Tap the <strong>Share</strong> button and choose <strong>"Add to Home Screen"</strong> to run it in full screen!
+              <strong>iOS Safari Tip:</strong> Add to Home Screen for the cleanest full-screen experience.
             </div>
           )}
         </div>
