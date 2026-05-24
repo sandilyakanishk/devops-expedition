@@ -2348,17 +2348,17 @@ function Zone_AboutMe({ z, isNight }) {
   return (
     <group ref={groupRef}>
       <CheckpointArch z={z + 4} label="ABOUT ME" isNight={isNight} />
-      <Campfire position={[cx+2.5, ty+0.46, z]} isNight={isNight} />
+      <Campfire position={[cx+3.0, ty+0.46, z]} isNight={isNight} />
       <WoodenHut position={[cx-5, ty+0.46, z-1]} />
       <Tent position={[cx+4.5, ty+0.5, z+1]} />
-      <Tent position={[cx-3.5, ty+0.5, z+2.5]} color="#1e3a5f" rotation={1.2} />
-      <LanternPost position={[cx+1.2, ty+0.46, z-1.5]} isNight={isNight} />
-      <LanternPost position={[cx-1.2, ty+0.46, z-1.5]} isNight={isNight} />
+      <Tent position={[cx-4.5, ty+0.5, z+2.5]} color="#1e3a5f" rotation={1.2} />
+      <LanternPost position={[cx+3.2, ty+0.46, z-1.5]} isNight={isNight} />
+      <LanternPost position={[cx-3.2, ty+0.46, z-1.5]} isNight={isNight} />
       {/* Compass rock */}
       <Boulder position={[cx+4,ty+0.7,z+2]} color="#4b5563" scale={0.8} />
       <Cyl pos={[cx+4,ty+1.05,z+2]} args={[0.26,0.26,0.06,12]} color="#b45309" rough={0.4} />
       {/* Backpack */}
-      <Box pos={[cx-2,ty+0.7,z+1.5]} size={[0.55,0.7,0.4]} color="#1e3a5f" rough={0.85} />
+      <Box pos={[cx-3.2,ty+0.7,z+1.5]} size={[0.55,0.7,0.4]} color="#1e3a5f" rough={0.85} />
       {/* Trekking sticks */}
       {[-0.2,0.2].map((ox,i)=>(
         <Box key={i} pos={[cx-4+ox,ty+0.9,z]} size={[0.04,1.6,0.04]} color="#92400e"
@@ -2367,15 +2367,15 @@ function Zone_AboutMe({ z, isNight }) {
       <WoodenSign position={[cx+6, ty+0.46, z+2]} text="BASE CAMP" rotation={-0.5} />
       <WoodenSign position={[cx-6, ty+0.46, z-1]} text="SUMMIT →" rotation={0.4} />
       {/* Sleeping bag */}
-      <Cyl pos={[cx-1.5,ty+0.6,z+2.5]} args={[0.22,0.25,1.4,8]} color="#16a34a" rot={[0,0.5,0]} />
+      <Cyl pos={[cx-3.2,ty+0.6,z+2.5]} args={[0.22,0.25,1.4,8]} color="#16a34a" rot={[0,0.5,0]} />
       {/* Crates */}
       {[0,1,2].map(i=>(
-        <Box key={i} pos={[cx+3+i*0.65,ty+0.65+(i===1?0.44:0),z+2.5]}
+        <Box key={i} pos={[cx+3.2+i*0.65,ty+0.65+(i===1?0.44:0),z+2.5]}
           size={[0.55,0.44,0.44]} color={['#b45309','#92400e','#7c3d11'][i]} />
       ))}
-      {/* Direction stones */}
-      {[-2, -1, 0, 1, 2].map((i) => (
-        <Boulder key={i} position={[cx + i * 1.1, ty + 0.28, z + 4.5]} scale={0.4} color="#6b7280" />
+      {/* Direction stones on sides */}
+      {[-2.8, -3.2, -3.6, 2.8, 3.2, 3.6].map((xOffset, i) => (
+        <Boulder key={i} position={[cx + xOffset, ty + 0.28, z + 4.5 + (i%3)*0.4]} scale={0.4} color="#6b7280" />
       ))}
     </group>
   );
@@ -2401,8 +2401,8 @@ function Zone_Education({ z, isNight }) {
       <Box pos={[cx+4.5,ty+1.05,z]} size={[0.6,0.06,0.6]} color="#1f2937" />
       <Cyl pos={[cx+4.5,ty+0.73,z]} args={[0.16,0.16,0.58,8]} color="#1f2937" />
       <Box pos={[cx+4.8,ty+1.05,z]} size={[0.04,0.28,0.04]} color="#fbbf24" />
-      {/* Desk with laptop */}
-      <RigidBody type="fixed" position={[cx, ty, z+1.5]}>
+      {/* Desk with laptop (Moved to the left side of the trail) */}
+      <RigidBody type="fixed" position={[cx - 2.8, ty, z+1.5]}>
         <CuboidCollider args={[0.9, 0.6, 0.55]} position={[0, 0.6, 0]} />
         <group>
           <Box pos={[0,1.16,0]} size={[1.8,0.09,1.1]} color="#7c3d11" rough={0.9} />
@@ -2421,7 +2421,7 @@ function Zone_Education({ z, isNight }) {
       <WoodenSign position={[cx-6,ty+0.46,z+1]} text="EDUCATION" />
       {/* Study campfire */}
       <Campfire position={[cx+5.5, ty+0.46, z+2]} isNight={isNight} />
-      <LanternPost position={[cx+3, ty+0.46, z-1]} isNight={isNight} />
+      <LanternPost position={[cx+3.2, ty+0.46, z-1]} isNight={isNight} />
     </group>
   );
 }
@@ -2467,20 +2467,20 @@ function Zone_Skills({ z, isNight }) {
     <group ref={groupRef}>
       <CheckpointArch z={z + 5} label="SKILLS" isNight={isNight} />
 
-      {/* ── Row 1 logs (closer to player) ── */}
+      {/* ── Left Side Skill Logs (stacked vertically at trail edges) ── */}
       {row1.map((s, i) => {
-        const lx = cx - 5.5 + i * 2.2;
-        const lz = z + 1.5;
+        const lx = cx - 3.2;
+        const lz = z + 3 - i * 1.5;
         const ly = ty + 0.30;
-        return <SkillLog key={`r1-${i}`} position={[lx, ly, lz]} skill={s.name} rotation={s.rot} />;
+        return <SkillLog key={`l-${i}`} position={[lx, ly, lz]} skill={s.name} rotation={s.rot} />;
       })}
 
-      {/* ── Row 2 logs (further back) ── */}
+      {/* ── Right Side Skill Logs ── */}
       {row2.map((s, i) => {
-        const lx = cx - 5.0 + i * 2.1;
-        const lz = z - 1.8;
+        const lx = cx + 3.2;
+        const lz = z + 3 - i * 1.5;
         const ly = ty + 0.30;
-        return <SkillLog key={`r2-${i}`} position={[lx, ly, lz]} skill={s.name} rotation={s.rot} />;
+        return <SkillLog key={`r-${i}`} position={[lx, ly, lz]} skill={s.name} rotation={s.rot} />;
       })}
 
       {/* ── Monitor on the right side ── */}
@@ -2501,10 +2501,10 @@ function Zone_Skills({ z, isNight }) {
         </mesh>
       ))}
 
-      {/* ── Campfire and lanterns ── */}
-      <Campfire position={[cx, ty+0.46, z-4]} isNight={isNight} />
-      <LanternPost position={[cx-3, ty+0.46, z-3]} isNight={isNight} />
-      <LanternPost position={[cx+3, ty+0.46, z-3]} isNight={isNight} />
+      {/* ── Campfire and lanterns (Moved campfire to the side) ── */}
+      <Campfire position={[cx - 4.5, ty+0.46, z-5]} isNight={isNight} />
+      <LanternPost position={[cx-3.2, ty+0.46, z-3]} isNight={isNight} />
+      <LanternPost position={[cx+3.2, ty+0.46, z-3]} isNight={isNight} />
 
       {/* ── Pebble trail leading in ── */}
       {[0,1,2,3,4].map(i => (
@@ -2538,29 +2538,34 @@ function Zone_Projects({ z, isNight }) {
   return (
     <group ref={groupRef}>
       <CheckpointArch z={z + 4} label="PROJECTS" isNight={isNight} />
-      {projects.map((p,i)=>(
-        <RigidBody key={i} type="fixed" position={[cx-3.5+i*3.5, ty+1.2, z-0.5]}>
-          <CuboidCollider args={[0.7, 1.2, 0.2]} />
-          <group ref={el=>screenRefs.current[i]=el} position={[0, 2.06 - 1.2, 0]}>
-            <mesh castShadow><boxGeometry args={[1.4,0.95,0.08]} />
-              <meshStandardMaterial color="#1f2937" roughness={0.6} /></mesh>
-            <mesh position={[0,0,0.05]}><planeGeometry args={[1.24,0.8]} />
-              <meshStandardMaterial color="#0f172a" emissive={p.color} emissiveIntensity={0.45} transparent opacity={0.95} /></mesh>
-            <mesh position={[0,0.35,0.06]}><planeGeometry args={[1.24,0.1]} />
-              <meshBasicMaterial color={p.color} transparent opacity={0.8} /></mesh>
-            <mesh position={[0,-0.65,0]}><boxGeometry args={[0.1,0.35,0.1]} />
-              <meshStandardMaterial color="#374151" roughness={0.8} /></mesh>
-            {!isMobileDevice() && <pointLight position={[0,0,-0.5]} color={p.color} intensity={0.8} distance={3} />}
-          </group>
-        </RigidBody>
-      ))}
+      {projects.map((p,i)=>{
+        // Place Screen 0 and 1 on left side, Screen 2 on right side
+        const lx = i < 2 ? cx - 3.2 : cx + 3.2;
+        const lz = i === 0 ? z + 1.2 : i === 1 ? z - 1.2 : z;
+        return (
+          <RigidBody key={i} type="fixed" position={[lx, ty+1.2, lz]}>
+            <CuboidCollider args={[0.7, 1.2, 0.2]} />
+            <group ref={el=>screenRefs.current[i]=el} position={[0, 2.06 - 1.2, 0]}>
+              <mesh castShadow><boxGeometry args={[1.4,0.95,0.08]} />
+                <meshStandardMaterial color="#1f2937" roughness={0.6} /></mesh>
+              <mesh position={[0,0,0.05]}><planeGeometry args={[1.24,0.8]} />
+                <meshStandardMaterial color="#0f172a" emissive={p.color} emissiveIntensity={0.45} transparent opacity={0.95} /></mesh>
+              <mesh position={[0,0.35,0.06]}><planeGeometry args={[1.24,0.1]} />
+                <meshBasicMaterial color={p.color} transparent opacity={0.8} /></mesh>
+              <mesh position={[0,-0.65,0]}><boxGeometry args={[0.1,0.35,0.1]} />
+                <meshStandardMaterial color="#374151" roughness={0.8} /></mesh>
+              {!isMobileDevice() && <pointLight position={[0,0,-0.5]} color={p.color} intensity={0.8} distance={3} />}
+            </group>
+          </RigidBody>
+        );
+      })}
       {/* Hologram sphere */}
       <mesh position={[cx-5,ty+2.26,z-0.5]}>
         <sphereGeometry args={[0.5,12,12]} />
         <meshStandardMaterial color="#38bdf8" transparent opacity={0.22} emissive="#0ea5e9" emissiveIntensity={0.6} depthWrite={false} wireframe />
       </mesh>
       {!isMobileDevice() && <pointLight position={[cx-5,ty+2.26,z-0.5]} color="#38bdf8" intensity={0.9} distance={4} />}
-      <WoodenSign position={[cx,ty+0.46,z+3]} text="PROJECTS" />
+      <WoodenSign position={[cx-5.5,ty+0.46,z+3]} text="PROJECTS" />
       <Campfire position={[cx+6, ty+0.46, z+2]} isNight={isNight} />
       <LanternPost position={[cx-5, ty+0.46, z+1]} isNight={isNight} />
       {/* Milestone boulders leading in */}
@@ -2598,15 +2603,20 @@ function Zone_Experience({ z, isNight }) {
   return (
     <group ref={groupRef}>
       <CheckpointArch z={z + 4} label="EXPERIENCE" isNight={isNight} />
-      {flags.map((f,i)=>(
-        <group key={i} position={[cx-4.5+i*4.5,ty+0.46,z]}>
-          <Cyl pos={[0,1.5,0]} args={[0.04,0.04,3.2,5]} color="#9ca3af" />
-          <mesh ref={el=>flagRefs.current[i]=el} position={[0.55,2.8,0]}>
-            <planeGeometry args={[1.1,0.65]} />
-            <meshStandardMaterial color={f.color} side={THREE.DoubleSide} roughness={0.7} />
-          </mesh>
-        </group>
-      ))}
+      {flags.map((f,i)=>{
+        // Place flag 0 and 1 on left side, flag 2 on right side
+        const lx = i < 2 ? cx - 3.3 : cx + 3.3;
+        const lz = i === 0 ? z + 1.2 : i === 1 ? z - 1.2 : z;
+        return (
+          <group key={i} position={[lx,ty+0.46,lz]}>
+            <Cyl pos={[0,1.5,0]} args={[0.04,0.04,3.2,5]} color="#9ca3af" />
+            <mesh ref={el=>flagRefs.current[i]=el} position={[0.55,2.8,0]}>
+              <planeGeometry args={[1.1,0.65]} />
+              <meshStandardMaterial color={f.color} side={THREE.DoubleSide} roughness={0.7} />
+            </mesh>
+          </group>
+        );
+      })}
       {/* Achievement board */}
       <Box pos={[cx+5.5,ty+1.96,z-0.5]} size={[2.2,1.4,0.1]} color="#7c3d11" />
       {[0.3,-0.1,-0.4].map((oy,i)=>(
