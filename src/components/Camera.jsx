@@ -35,6 +35,20 @@ export default function Camera({ playerPosRef, onIntroComplete, isCameraEnabled 
   const smoothPitchRef = useRef(0.28);
   const lookTouchIdRef = useRef(null);
 
+  useEffect(() => {
+    const handleRecenter = () => {
+      cameraYawRef.current = 0;
+      pitchRef.current = 0.28;
+      cameraDistRef.current = 7.5;
+      smoothYawRef.current = 0;
+      smoothPitchRef.current = 0.28;
+    };
+    window.addEventListener('recenter-camera-character', handleRecenter);
+    return () => {
+      window.removeEventListener('recenter-camera-character', handleRecenter);
+    };
+  }, [pitchRef]);
+
   // Mouse tracking state
   const lastMouseRef = useRef({ x: 0, y: 0 });
 

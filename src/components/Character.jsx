@@ -54,6 +54,19 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
     }
   }, [teleportTarget, clearTeleport]);
 
+  useEffect(() => {
+    const handleRecenter = () => {
+      if (characterRef.current) {
+        characterRef.current.rotation.y = Math.PI;
+      }
+      characterRotationRef.current = Math.PI;
+    };
+    window.addEventListener('recenter-camera-character', handleRecenter);
+    return () => {
+      window.removeEventListener('recenter-camera-character', handleRecenter);
+    };
+  }, []);
+
   useFrame((state, delta) => {
     if (!rigidBodyRef.current || !characterRef.current) return;
     const t = state.clock.getElapsedTime();

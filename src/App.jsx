@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { KeyboardControls, useProgress } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
-import { Volume2, VolumeX, Github, FileText, ThumbsUp, ThumbsDown, MessageSquare, Share2, Camera as CameraIcon, Maximize, Minimize } from 'lucide-react';
+import { Volume2, VolumeX, Github, FileText, ThumbsUp, ThumbsDown, MessageSquare, Share2, Camera as CameraIcon, Maximize, Minimize, RotateCcw } from 'lucide-react';
 import * as THREE from 'three';
 import { cameraYawRef, cameraPitchRef, characterRotationRef } from './utils/cameraState';
 
@@ -248,6 +248,10 @@ export default function App() {
   const handleToggleMute = () => {
     const muted = audioSystem.toggleMute();
     setIsMuted(muted);
+  };
+
+  const handleRecenter = () => {
+    window.dispatchEvent(new CustomEvent('recenter-camera-character'));
   };
 
   // Checkpoint nav positions — matched to new 30-unit rise terrain
@@ -514,6 +518,15 @@ export default function App() {
                   style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   <CameraIcon size={16} color={isCameraEnabled ? '#fbbf24' : '#ffffff'} />
+                </button>
+                {/* Recenter Camera & Character */}
+                <button
+                  className="hud-mute-btn"
+                  onClick={handleRecenter}
+                  title="Recenter character & camera (facing summit)"
+                  style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <RotateCcw size={16} color="#ffffff" />
                 </button>
                 {/* Day/Night toggle */}
                 <button
