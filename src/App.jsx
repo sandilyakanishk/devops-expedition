@@ -73,6 +73,9 @@ export default function App() {
     );
   });
   const controlsTimerRef = useRef(null);
+  const joystickRef = useRef(null);
+  const activeJoystickPointerRef = useRef(null);
+  const [joystickOffset, setJoystickOffset] = useState({ x: 0, y: 0 });
 
   // Initialize mobileControls global and responsive check
   useEffect(() => {
@@ -198,6 +201,59 @@ export default function App() {
       }
       return next;
     });
+  };
+
+  const resetJoystick = () => {
+    if (window.mobileControls) {
+      window.mobileControls.forward = false;
+      window.mobileControls.backward = false;
+      window.mobileControls.left = false;
+      window.mobileControls.right = false;
+    }
+    activeJoystickPointerRef.current = null;
+    setJoystickOffset({ x: 0, y: 0 });
+  };
+
+  const updateJoystickFromPointer = (clientX, clientY) => {
+    if (!joystickRef.current || !window.mobileControls) return;
+
+    const rect = joystickRef.current.getBoundingClientRect();
+    const maxRadius = rect.width * 0.34;
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const rawX = clientX - centerX;
+    const rawY = clientY - centerY;
+    const distance = Math.hypot(rawX, rawY);
+    const scale = distance > maxRadius ? maxRadius / distance : 1;
+    const x = rawX * scale;
+    const y = rawY * scale;
+    const threshold = maxRadius * 0.28;
+
+    setJoystickOffset({ x, y });
+    window.mobileControls.forward = y < -threshold;
+    window.mobileControls.backward = y > threshold;
+    window.mobileControls.left = x < -threshold;
+    window.mobileControls.right = x > threshold;
+  };
+
+  const handleJoystickPointerDown = (e) => {
+    e.preventDefault();
+    activeJoystickPointerRef.current = e.pointerId;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    updateJoystickFromPointer(e.clientX, e.clientY);
+  };
+
+  const handleJoystickPointerMove = (e) => {
+    if (activeJoystickPointerRef.current !== e.pointerId) return;
+    e.preventDefault();
+    updateJoystickFromPointer(e.clientX, e.clientY);
+  };
+
+  const handleJoystickPointerEnd = (e) => {
+    if (activeJoystickPointerRef.current !== e.pointerId) return;
+    e.preventDefault();
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    resetJoystick();
   };
 
   // Cinematic floating quotes — shown by Z position
@@ -784,6 +840,22 @@ export default function App() {
         {/* Mobile Virtual Controls */}
         {gameStarted && introCompleted && isMobile && (
           <div className="mobile-controls-overlay">
+            <div
+              ref={joystickRef}
+              className="mobile-joystick"
+              onPointerDown={handleJoystickPointerDown}
+              onPointerMove={handleJoystickPointerMove}
+              onPointerUp={handleJoystickPointerEnd}
+              onPointerCancel={handleJoystickPointerEnd}
+              aria-label="Movement joystick"
+            >
+              <div className="joystick-ring" />
+              <div
+                className="joystick-thumb"
+                style={{ transform: `translate(calc(-50% + ${joystickOffset.x}px), calc(-50% + ${joystickOffset.y}px))` }}
+              />
+            </div>
+
             {/* D-Pad on bottom-left */}
             <div className="mobile-dpad">
               <div />

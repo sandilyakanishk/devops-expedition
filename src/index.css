@@ -1393,16 +1393,54 @@ html:-webkit-full-screen #root {
 }
 
 .mobile-dpad {
+  display: none;
   position: absolute;
   bottom: 24px;
   left: 24px;
   width: 130px;
   height: 130px;
-  display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
   gap: 6px;
   pointer-events: auto;
+}
+
+.mobile-joystick {
+  position: absolute;
+  right: calc(98px + env(safe-area-inset-right));
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  background: rgba(13, 20, 38, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.joystick-ring {
+  position: absolute;
+  inset: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.08), rgba(15, 23, 42, 0.16));
+}
+
+.joystick-thumb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.92), rgba(245, 158, 11, 0.86));
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32), 0 0 18px rgba(251, 191, 36, 0.22);
+  pointer-events: none;
 }
 
 .dpad-btn {
@@ -1433,8 +1471,8 @@ html:-webkit-full-screen #root {
 /* Action buttons on bottom right */
 .mobile-actions {
   position: absolute;
-  bottom: 24px;
-  right: 24px;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  right: calc(18px + env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1710,6 +1748,18 @@ html:-webkit-full-screen #root {
     gap: 5px;
   }
 
+  .mobile-joystick {
+    right: calc(88px + env(safe-area-inset-right));
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    width: 112px;
+    height: 112px;
+  }
+
+  .joystick-thumb {
+    width: 42px;
+    height: 42px;
+  }
+
   .mobile-actions {
     bottom: calc(72px + env(safe-area-inset-bottom));
     right: 14px;
@@ -1734,6 +1784,12 @@ html:-webkit-full-screen #root {
   }
 
   .mobile-dpad {
+    width: 104px;
+    height: 104px;
+  }
+
+  .mobile-joystick {
+    right: calc(82px + env(safe-area-inset-right));
     width: 104px;
     height: 104px;
   }
@@ -1790,10 +1846,22 @@ html:-webkit-full-screen #root {
     height: 110px;
     gap: 4px;
   }
+
+  .mobile-joystick {
+    right: calc(78px + env(safe-area-inset-right));
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    width: 106px;
+    height: 106px;
+  }
+
+  .joystick-thumb {
+    width: 40px;
+    height: 40px;
+  }
   
   .mobile-actions {
-    bottom: 12px;
-    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    right: calc(12px + env(safe-area-inset-right));
     gap: 6px;
   }
   
