@@ -9,7 +9,6 @@ import * as THREE from 'three';
 import Character from './components/Character';
 import Camera from './components/Camera';
 import Environment from './components/Environment';
-import { getTerrainY as terrainMathGetTerrainY, getPathCenterX } from './utils/terrainMath';
 
 // 2D Section Overlays
 import Intro from './sections/Intro';
@@ -37,7 +36,6 @@ export default function App() {
   const [introCompleted, setIntroCompleted] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isNight, setIsNight] = useState(false);
-  const [season, setSeason] = useState('summer'); // 'summer', 'winter', 'autumn'
   const [isCameraEnabled, setIsCameraEnabled] = useState(true);
   const [activeCheckpoint, setActiveCheckpoint] = useState(null);
   const [visitedCheckpoints, setVisitedCheckpoints] = useState([]);
@@ -278,9 +276,9 @@ export default function App() {
   const fallTimerRef  = useRef(null);
   const respawnMsgRef = useRef(null);
 
-  // Mirror of getTerrainY — trail uses terrainMath
-  const getTerrainY = (z) => {
-    return terrainMathGetTerrainY(z);
+  // Mirror of getTerrainY — trail is completely flat
+  const getTerrainY = () => {
+    return 0;
   };
 
   const handlePositionChange = (position) => {
@@ -312,12 +310,12 @@ export default function App() {
       fallTimerRef.current = setTimeout(() => {
         // Respawn at NEAREST visited checkpoint (not always base)
         const checkpointPositions = [
-          [getPathCenterX(-8),   terrainMathGetTerrainY(-8) + 0.8,   -8],
-          [getPathCenterX(-38),  terrainMathGetTerrainY(-38) + 0.8,  -38],
-          [getPathCenterX(-70),  terrainMathGetTerrainY(-70) + 0.8,  -70],
-          [getPathCenterX(-102), terrainMathGetTerrainY(-102) + 0.8, -102],
-          [getPathCenterX(-136), terrainMathGetTerrainY(-136) + 0.8, -136],
-          [getPathCenterX(-168), terrainMathGetTerrainY(-168) + 0.8, -168],
+          [0, 0.8, -8],
+          [0, 0.8, -38],
+          [0, 0.8, -70],
+          [0, 0.8, -102],
+          [0, 0.8, -136],
+          [0, 0.8, -168],
         ];
         const lastVisited = Math.max(0, ...visitedCheckpoints);
         const respawnPos  = lastVisited > 0
@@ -372,14 +370,14 @@ export default function App() {
     window.dispatchEvent(new CustomEvent('recenter-camera-character'));
   };
 
-  // Checkpoint nav positions — matched to new rising curved terrain
+  // Checkpoint nav positions — matched to new 30-unit rise terrain
   const menuCheckpoints = [
-    { id: 1, label: 'About Me',   pos: [getPathCenterX(-8),   terrainMathGetTerrainY(-8) + 0.8,   -8]   },
-    { id: 2, label: 'Education',  pos: [getPathCenterX(-38),  terrainMathGetTerrainY(-38) + 0.8,  -38]  },
-    { id: 3, label: 'Skills',     pos: [getPathCenterX(-70),  terrainMathGetTerrainY(-70) + 0.8,  -70]  },
-    { id: 4, label: 'Projects',   pos: [getPathCenterX(-102), terrainMathGetTerrainY(-102) + 0.8, -102]  },
-    { id: 5, label: 'Experience', pos: [getPathCenterX(-136), terrainMathGetTerrainY(-136) + 0.8, -136]  },
-    { id: 6, label: 'Contact',    pos: [getPathCenterX(-168), terrainMathGetTerrainY(-168) + 0.8, -168]  },
+    { id: 1, label: 'About Me',   pos: [0,  0.8,  -8]   },
+    { id: 2, label: 'Education',  pos: [0,  0.8,  -38]  },
+    { id: 3, label: 'Skills',     pos: [0,  0.8,  -70]  },
+    { id: 4, label: 'Projects',   pos: [0,  0.8, -102]  },
+    { id: 5, label: 'Experience', pos: [0,  0.8, -136]  },
+    { id: 6, label: 'Contact',    pos: [0,  0.8, -168]  },
   ];
 
   const handleTeleport = (pos) => {
@@ -455,16 +453,8 @@ export default function App() {
         height: '100dvh', 
         position: 'relative', 
         background: isNight
-          ? (season === 'winter'
-              ? 'linear-gradient(to bottom, #030712 0%, #0b1329 60%, #1c2541 100%)'
-              : season === 'autumn'
-                ? 'linear-gradient(to bottom, #0c0a09 0%, #1c1917 60%, #292524 100%)'
-                : 'linear-gradient(to bottom, #080c18 0%, #0d1422 60%, #111a25 100%)')
-          : (season === 'winter'
-              ? 'linear-gradient(to bottom, #93c5fd 0%, #dbeafe 60%, #f1f5f9 100%)'
-              : season === 'autumn'
-                ? 'linear-gradient(to bottom, #f97316 0%, #ffedd5 60%, #fee2e2 100%)'
-                : 'linear-gradient(to bottom, #38bdf8 0%, #bae6fd 60%, #ffedd5 100%)'),
+          ? 'linear-gradient(to bottom, #080c18 0%, #0d1422 60%, #111a25 100%)'
+          : 'linear-gradient(to bottom, #38bdf8 0%, #bae6fd 60%, #ffedd5 100%)',
         overflow: 'hidden',
         transition: 'background 1.2s ease'
       }}>
@@ -593,7 +583,6 @@ export default function App() {
                   onCheckpointExit={handleCheckpointExit}
                   isNight={isNight}
                   isMobile={isMobile}
-                  season={season}
                 />
 
                 {/* Follow Camera (intro panning -> 3rd person follow) */}
@@ -641,45 +630,6 @@ export default function App() {
             <>
               {/* Volume + Mute — top right */}
               <div className="top-right-hud">
-                {/* Season selector */}
-                <div className="season-select-group" style={{
-                  display: 'flex',
-                  background: 'rgba(15, 23, 42, 0.45)',
-                  backdropFilter: 'blur(8px)',
-                  WebkitBackdropFilter: 'blur(8px)',
-                  border: '1.5px solid rgba(255, 255, 255, 0.12)',
-                  borderRadius: '24px',
-                  padding: '2px',
-                  marginRight: '6px',
-                  gap: '2px',
-                  alignItems: 'center'
-                }}>
-                  {['summer', 'winter', 'autumn'].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setSeason(s)}
-                      style={{
-                        background: season === s
-                          ? 'linear-gradient(135deg, #fbbf24, #f59e0b)'
-                          : 'transparent',
-                        border: 'none',
-                        borderRadius: '20px',
-                        color: season === s ? '#1e293b' : '#ffffff',
-                        fontFamily: "'Outfit', sans-serif",
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        textTransform: 'capitalize',
-                        padding: '4px 10px',
-                        cursor: 'pointer',
-                        transition: 'all 0.22s ease',
-                        boxShadow: season === s ? '0 2px 6px rgba(245, 158, 11, 0.4)' : 'none',
-                      }}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-
                 {/* Camera Orbit/Lock toggle */}
                 <button
                   className="hud-mute-btn"

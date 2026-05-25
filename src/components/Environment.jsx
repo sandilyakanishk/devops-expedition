@@ -8,7 +8,6 @@ import { RigidBody, CuboidCollider, CylinderCollider, BallCollider } from '@reac
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { getClayTexture } from '../utils/clayTexture.js';
-import { getTerrainY, getPathCenterX, getPathPerpendicular } from '../utils/terrainMath.js';
 
 // Retrieve procedural clay bump map
 const clayBumpMap = getClayTexture();
@@ -35,6 +34,15 @@ function isMobileDevice() {
 
 // ── Terrain math ──────────────────────────────────────────────────
 const TRAIL_LENGTH = 185;
+const _TRAIL_RISE  = 0;
+
+function getTerrainY(_z) {
+  return 0;
+}
+// Path center is perfectly straight
+function getPathCenterX(_z) {
+  return 0;
+}
 
 // ── Tiny geometry helpers ─────────────────────────────────────────
 const Box = ({ pos, size, color, rot = [0,0,0], emissive, emissiveInt = 0.9, rough = 0.92, cast = true }) => (
@@ -389,19 +397,11 @@ function WoodenSign({ position, text, rotation = 0 }) {
 // ════════════════════════════════════════════════════════════════
 // MOUNTAIN BODY — cone-based low-poly mountain (like the reference)
 // ════════════════════════════════════════════════════════════════
-function MountainBody({ isNight, season }) {
+function MountainBody({ isNight }) {
   const grassMatRef = useRef();
   const transitionRef = useRef(isNight ? 1 : 0);
-  const color1 = useMemo(() => {
-    if (season === 'winter') return new THREE.Color('#f0f9ff');
-    if (season === 'autumn') return new THREE.Color('#c2410c');
-    return new THREE.Color('#22c55e');
-  }, [season]);
-  const color2 = useMemo(() => {
-    if (season === 'winter') return new THREE.Color('#cbd5e1');
-    if (season === 'autumn') return new THREE.Color('#7c2d12');
-    return new THREE.Color('#14532d');
-  }, [season]);
+  const color1 = useMemo(() => new THREE.Color('#22c55e'), []);
+  const color2 = useMemo(() => new THREE.Color('#14532d'), []);
   const tempCol = useMemo(() => new THREE.Color(), []);
 
   useFrame((s, delta) => {
@@ -479,19 +479,11 @@ function MountainBody({ isNight, season }) {
 // ════════════════════════════════════════════════════════════════
 // SURROUNDING MOUNTAINS — cone shapes on both sides (no wall blocks)
 // ════════════════════════════════════════════════════════════════
-function SurroundingMountains({ isNight, season }) {
+function SurroundingMountains({ isNight }) {
   const grassMatRef = useRef();
   const transitionRef = useRef(isNight ? 1 : 0);
-  const color1 = useMemo(() => {
-    if (season === 'winter') return new THREE.Color('#e2e8f0');
-    if (season === 'autumn') return new THREE.Color('#b45309');
-    return new THREE.Color('#16a34a');
-  }, [season]);
-  const color2 = useMemo(() => {
-    if (season === 'winter') return new THREE.Color('#94a3b8');
-    if (season === 'autumn') return new THREE.Color('#78350f');
-    return new THREE.Color('#14532d');
-  }, [season]);
+  const color1 = useMemo(() => new THREE.Color('#16a34a'), []);
+  const color2 = useMemo(() => new THREE.Color('#14532d'), []);
   const tempCol = useMemo(() => new THREE.Color(), []);
 
   useFrame((s, delta) => {
@@ -556,67 +548,32 @@ function SurroundingMountains({ isNight, season }) {
 // WALKABLE TRAIL — 80 FLAT segments, no rotation = no physics bug
 // Each segment height-steps only 0.375 units (barely noticeable)
 // ════════════════════════════════════════════════════════════════
-function WalkableTrail({ isNight, season }) {
+function WalkableTrail({ isNight }) {
   const SEG_COUNT = 80;
   const SEG_STEP  = TRAIL_LENGTH / SEG_COUNT;   // 2.3125 z-units per seg
   const SEG_WIDTH = 7;                           // walkable width
   const HALF_H    = 0.4;
 
+  const transitionRef = useRef(isNight ? 1 : 0);
+  const color1 = useMemo(() => new THREE.Color('#22c55e'), []);
+  const color2 = useMemo(() => new THREE.Color('#166534'), []);
+  const tempCol = useMemo(() => new THREE.Color(), []);
+
+  const rockC  = '#6b7280';
+  const snowC  = '#f0f9ff';
   const dirtC  = '#92400e';
 
-  // 1. Calculate the curved, steep path segments
-  const trailSegments = useMemo(() => {
-    const arr = [];
-    for (let i = 0; i < SEG_COUNT; i++) {
-      const zStart = -i * SEG_STEP;
-      const zEnd = -(i + 1) * SEG_STEP;
-      const zMid = (zStart + zEnd) / 2;
-      const xMid = getPathCenterX(zMid);
-      const yMid = getTerrainY(zMid);
-      
-      const dx = getPathCenterX(zEnd) - getPathCenterX(zStart);
-      const dz = zEnd - zStart;
-      const dy = getTerrainY(zEnd) - getTerrainY(zStart);
-      const len = Math.hypot(dx, dy, dz);
-      
-      const yaw = Math.atan2(dx, dz);
-      const pitch = -Math.atan2(dy, Math.hypot(dx, dz));
-      
-      // Determine segment color based on season and zone
-      const t = (i + 0.5) / SEG_COUNT;
-      let color = '#22c55e'; // grass
-      let isDirt = true;
-      
-      if (season === 'winter') {
-        color = '#f0f9ff'; // all snow
-        isDirt = false;
-      } else if (season === 'autumn') {
-        isDirt = true;
-        if (t > 0.88) {
-          color = '#f0f9ff'; // snow peak
-          isDirt = false;
-        } else if (t > 0.66) {
-          color = '#78716c'; // rock
-          isDirt = false;
-        } else {
-          color = '#b45309'; // autumn orange/brown grass
-        }
-      } else { // summer
-        if (t > 0.88) {
-          color = '#f0f9ff'; // snow
-          isDirt = false;
-        } else if (t > 0.66) {
-          color = '#6b7280'; // rock
-          isDirt = false;
-        }
-      }
-      
-      arr.push({ x: xMid, y: yMid, z: zMid, len, yaw, pitch, color, isDirt });
-    }
-    return arr;
-  }, [season, SEG_STEP]);
+  const materials = useMemo(() => {
+    return {
+      snow: new THREE.MeshStandardMaterial({ color: snowC, roughness: 0.92, metalness: 0.0, bumpMap: clayBumpMap, bumpScale: 0.015, flatShading: false }),
+      rock: new THREE.MeshStandardMaterial({ color: rockC, roughness: 0.92, metalness: 0.0, bumpMap: clayBumpMap, bumpScale: 0.015, flatShading: false }),
+      grass: new THREE.MeshStandardMaterial({ color: '#22c55e', roughness: 0.92, metalness: 0.0, bumpMap: clayBumpMap, bumpScale: 0.015, flatShading: false }),
+    };
+  }, []);
 
-  // 2. Trail Rocks
+  materials.grass.name = "grassMaterial";
+
+  // Instanced trail rocks memo
   const trailRocks = useMemo(() => {
     const arr = [];
     const SEG_DEPTH = SEG_STEP + 1.8;
@@ -624,25 +581,20 @@ function WalkableTrail({ isNight, season }) {
       const t = (i + 0.5) / SEG_COUNT;
       if (t > 0.88) continue;
       const z = -(i + 0.5) * SEG_STEP;
-      const cy = getTerrainY(z);
-      const cx = getPathCenterX(z);
-      const { px, pz } = getPathPerpendicular(z);
-      const y = cy + 0.43;
+      const y = 0.43;
 
       const r1 = Math.abs(Math.sin(i * 18.23));
       const r2 = Math.abs(Math.cos(i * 27.54));
       const r3 = Math.abs(Math.sin(i * 38.82));
       const r4 = Math.abs(Math.cos(i * 49.19));
 
-      const rock1_local_x = (r1 - 0.5) * 2.2;
-      const rock1_x = cx + rock1_local_x * px;
-      const rock1_z = z + rock1_local_x * pz + (r2 - 0.5) * SEG_DEPTH * 0.2;
+      const rock1_x = (r1 - 0.5) * 2.2;
+      const rock1_z = z + (r2 - 0.5) * SEG_DEPTH;
       const rock1_scale = 0.42 + r1 * 0.38;
       const rock1_rot = r2 * Math.PI;
 
-      const rock2_local_x = (r3 - 0.5) * 2.2;
-      const rock2_x = cx + rock2_local_x * px;
-      const rock2_z = z + rock2_local_x * pz + (r4 - 0.5) * SEG_DEPTH * 0.2;
+      const rock2_x = (r3 - 0.5) * 2.2;
+      const rock2_z = z + (r4 - 0.5) * SEG_DEPTH;
       const rock2_scale = 0.38 + r3 * 0.38;
       const rock2_rot = r4 * Math.PI;
 
@@ -655,185 +607,96 @@ function WalkableTrail({ isNight, season }) {
     return arr;
   }, [SEG_STEP]);
 
-  // 3. Pebbles
+  const trailRocksRef = useRef();
+
+  // Pebbles instancing
   const pebbles = useMemo(() => {
     const arr = [];
     for (let i = 0; i < 60; i++) {
       const z   = -3 - i * 3.1;
-      const cx  = getPathCenterX(z);
-      const cy  = getTerrainY(z);
-      const { px, pz } = getPathPerpendicular(z);
-      const ty  = cy + 0.12;
+      const cx  = 0;
+      const ty  = 0.12;
       const side = i % 2 === 0 ? 1 : -1;
       const scale = 0.1 + (i % 4) * 0.04;
-      const offset = side * (1.9 + (i % 4) * 0.35);
       arr.push({
-        x: cx + offset * px,
+        x: cx + side * (1.9 + (i % 4) * 0.35),
         y: ty,
-        z: z + offset * pz,
+        z,
         scale,
       });
     }
     return arr;
   }, []);
 
-  // 4. Snow patches
+  const pebblesRef = useRef();
+
+  // Snow patches instancing
   const snowPatches = useMemo(() => {
     const arr = [];
     for (let i = 0; i < 12; i++) {
       const z  = -108 - i * 6.5;
-      const cx = getPathCenterX(z);
-      const cy = getTerrainY(z);
-      const { px, pz } = getPathPerpendicular(z);
-      const ty = cy + 0.44;
-      const offset = (i % 2 === 0 ? 2.8 : -2.8);
+      const cx = 0;
+      const ty = 0.44;
       arr.push({
-        x: cx + offset * px,
+        x: cx + (i % 2 === 0 ? 2.8 : -2.8),
         y: ty,
-        z: z + offset * pz,
+        z,
       });
     }
     return arr;
   }, []);
 
-  // 5. Fences
+  const snowPatchesRef = useRef();
+
   const fencesData = useMemo(() => {
     const posts = [];
     const rails = [];
-    const step = 5.0;
-    const count = Math.ceil(TRAIL_LENGTH / step);
-    
-    // Compute posts
-    for (let i = 0; i <= count; i++) {
-      const zVal = -i * step;
-      if (zVal < -185) continue;
+    const step = 5;
+    const count = Math.ceil(TRAIL_LENGTH / step) + 1;
+    for (let i = 0; i < count; i++) {
+      const z = -i * step;
+      if (z < -185) continue;
+      const xLeft = -SEG_WIDTH / 2;
+      const xRight = SEG_WIDTH / 2;
+      const y = 0.4;
       
-      const cx = getPathCenterX(zVal);
-      const cy = getTerrainY(zVal);
-      const { px, pz } = getPathPerpendicular(zVal);
+      posts.push({ x: xLeft, y: y + 0.5, z });
+      posts.push({ x: xRight, y: y + 0.5, z });
       
-      const wHalf = SEG_WIDTH / 2;
-      
-      // Left post
-      posts.push({
-        x: cx - px * wHalf,
-        y: cy + 0.4 + 0.5,
-        z: zVal - pz * wHalf
-      });
-      // Right post
-      posts.push({
-        x: cx + px * wHalf,
-        y: cy + 0.4 + 0.5,
-        z: zVal + pz * wHalf
-      });
+      if (i < count - 1 && -(i + 1) * step >= -185) {
+        const nextZ = -(i + 1) * step;
+        const midZ = (z + nextZ) / 2;
+        rails.push({ x: xLeft, y: y + 0.75, z: midZ });
+        rails.push({ x: xLeft, y: y + 0.4, z: midZ });
+        rails.push({ x: xRight, y: y + 0.75, z: midZ });
+        rails.push({ x: xRight, y: y + 0.4, z: midZ });
+      }
     }
-    
-    // Compute rails connecting posts
-    for (let i = 0; i < posts.length - 2; i += 2) {
-      const pLeft1 = posts[i];
-      const pLeft2 = posts[i + 2];
-      const pRight1 = posts[i + 1];
-      const pRight2 = posts[i + 3];
-      
-      const addRail = (p1, p2, heightOffset) => {
-        const mx = (p1.x + p2.x) / 2;
-        const my = (p1.y + p2.y) / 2 + heightOffset;
-        const mz = (p1.z + p2.z) / 2;
-        
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        const dz = p2.z - p1.z;
-        const len = Math.hypot(dx, dy, dz);
-        
-        const yaw = Math.atan2(dx, dz);
-        const pitch = -Math.atan2(dy, Math.hypot(dx, dz));
-        
-        rails.push({ x: mx, y: my, z: mz, yaw, pitch, len });
-      };
-      
-      // Left side rails
-      addRail(pLeft1, pLeft2, 0.25);
-      addRail(pLeft1, pLeft2, -0.1);
-      
-      // Right side rails
-      addRail(pRight1, pRight2, 0.25);
-      addRail(pRight1, pRight2, -0.1);
-    }
-    
     return { posts, rails };
-  }, []);
+  }, [SEG_WIDTH]);
 
-  const trailBaseRef = useRef();
-  const trailDirtRef = useRef();
-  const trailRocksRef = useRef();
-  const pebblesRef = useRef();
-  const snowPatchesRef = useRef();
   const fencePostsRef = useRef();
   const fenceRailsRef = useRef();
+  const fenceInitializedRef = useRef(false);
 
-  const initializedTrailRef = useRef(false);
-  const initializedRocksRef = useRef(false);
-  const initializedFenceRef = useRef(false);
+  const initializedRef = useRef(false);
 
-  useEffect(() => {
-    initializedTrailRef.current = false;
-  }, [season]);
-
-  useFrame(() => {
-    // 1. Initialize Trail base & dirt path matrices
-    if (!initializedTrailRef.current && trailBaseRef.current && trailDirtRef.current) {
-      const tempObj = new THREE.Object3D();
-      const tempColor = new THREE.Color();
-      
-      trailSegments.forEach((seg, idx) => {
-        // Base
-        tempObj.position.set(seg.x, seg.y, seg.z);
-        tempObj.rotation.set(seg.pitch, seg.yaw, 0);
-        tempObj.scale.set(1, 1, seg.len);
-        tempObj.updateMatrix();
-        trailBaseRef.current.setMatrixAt(idx, tempObj.matrix);
-        
-        tempColor.set(seg.color);
-        trailBaseRef.current.setColorAt(idx, tempColor);
-
-        // Dirt
-        if (seg.isDirt) {
-          const localY = HALF_H + 0.005;
-          const parentMatrix = new THREE.Matrix4().compose(
-            new THREE.Vector3(seg.x, seg.y, seg.z),
-            new THREE.Quaternion().setFromEuler(new THREE.Euler(seg.pitch, seg.yaw, 0)),
-            new THREE.Vector3(1, 1, seg.len)
-          );
-          
-          tempObj.position.set(0, localY, 0);
-          tempObj.rotation.set(0, 0, 0);
-          tempObj.scale.set(1, 1, 1);
-          tempObj.updateMatrix();
-          
-          const worldMatrix = parentMatrix.multiply(tempObj.matrix);
-          trailDirtRef.current.setMatrixAt(idx, worldMatrix);
-        } else {
-          tempObj.position.set(0, -999, 0);
-          tempObj.scale.set(0, 0, 0);
-          tempObj.updateMatrix();
-          trailDirtRef.current.setMatrixAt(idx, tempObj.matrix);
-        }
-      });
-      
-      trailBaseRef.current.instanceMatrix.needsUpdate = true;
-      if (trailBaseRef.current.instanceColor) {
-        trailBaseRef.current.instanceColor.needsUpdate = true;
-      }
-      trailDirtRef.current.instanceMatrix.needsUpdate = true;
-      initializedTrailRef.current = true;
+  useFrame((s, delta) => {
+    const transitionSpeed = 0.25;
+    if (isNight) {
+      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+    } else {
+      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
     }
+    const t = transitionRef.current;
+    tempCol.lerpColors(color1, color2, t);
+    materials.grass.color.copy(tempCol);
 
-    // 2. Initialize Rocks, Pebbles, and Snow Patches
-    if (!initializedRocksRef.current && trailRocksRef.current && pebblesRef.current && snowPatchesRef.current) {
+    if (!initializedRef.current && trailRocksRef.current && pebblesRef.current && snowPatchesRef.current) {
       const tempObj = new THREE.Object3D();
       const tempColor = new THREE.Color();
 
-      // Rocks
+      // Populate trail rocks
       trailRocks.forEach((rock, idx) => {
         tempObj.position.set(rock.x, rock.y, rock.z);
         tempObj.rotation.set(0.04, rock.rot, 0.04);
@@ -848,8 +711,10 @@ function WalkableTrail({ isNight, season }) {
       if (trailRocksRef.current.instanceColor) {
         trailRocksRef.current.instanceColor.needsUpdate = true;
       }
+      trailRocksRef.current.computeBoundingBox();
+      trailRocksRef.current.computeBoundingSphere();
 
-      // Pebbles
+      // Populate pebbles
       pebbles.forEach((p, idx) => {
         tempObj.position.set(p.x, p.y, p.z);
         tempObj.rotation.set(0, idx * 0.8, 0);
@@ -858,26 +723,24 @@ function WalkableTrail({ isNight, season }) {
         pebblesRef.current.setMatrixAt(idx, tempObj.matrix);
       });
       pebblesRef.current.instanceMatrix.needsUpdate = true;
+      pebblesRef.current.computeBoundingBox();
+      pebblesRef.current.computeBoundingSphere();
 
-      // Snow Patches
+      // Populate snow patches
       snowPatches.forEach((p, idx) => {
-        if (season === 'winter') {
-          tempObj.position.set(0, -999, 0);
-          tempObj.scale.set(0, 0, 0);
-        } else {
-          tempObj.position.set(p.x, p.y, p.z);
-          tempObj.scale.set(2.2, 0.08, 1.5);
-        }
+        tempObj.position.set(p.x, p.y, p.z);
+        tempObj.scale.set(2.2, 0.08, 1.5);
         tempObj.updateMatrix();
         snowPatchesRef.current.setMatrixAt(idx, tempObj.matrix);
       });
       snowPatchesRef.current.instanceMatrix.needsUpdate = true;
+      snowPatchesRef.current.computeBoundingBox();
+      snowPatchesRef.current.computeBoundingSphere();
 
-      initializedRocksRef.current = true;
+      initializedRef.current = true;
     }
 
-    // 3. Initialize Fences
-    if (!initializedFenceRef.current && fencePostsRef.current && fenceRailsRef.current) {
+    if (!fenceInitializedRef.current && fencePostsRef.current && fenceRailsRef.current) {
       const tempObj = new THREE.Object3D();
       
       fencesData.posts.forEach((p, idx) => {
@@ -888,49 +751,37 @@ function WalkableTrail({ isNight, season }) {
         fencePostsRef.current.setMatrixAt(idx, tempObj.matrix);
       });
       fencePostsRef.current.instanceMatrix.needsUpdate = true;
+      fencePostsRef.current.computeBoundingBox();
+      fencePostsRef.current.computeBoundingSphere();
       
       fencesData.rails.forEach((r, idx) => {
         tempObj.position.set(r.x, r.y, r.z);
-        tempObj.rotation.set(r.pitch, r.yaw, 0);
-        tempObj.scale.set(1, 1, r.len / 5.0); // since base box geometry has length 5.0
+        tempObj.rotation.set(0, 0, 0);
+        tempObj.scale.set(1, 1, 1);
         tempObj.updateMatrix();
         fenceRailsRef.current.setMatrixAt(idx, tempObj.matrix);
       });
       fenceRailsRef.current.instanceMatrix.needsUpdate = true;
+      fenceRailsRef.current.computeBoundingBox();
+      fenceRailsRef.current.computeBoundingSphere();
       
-      initializedFenceRef.current = true;
+      fenceInitializedRef.current = true;
     }
   });
 
   return (
     <group>
-      {/* Curved, sloped segment colliders for physics */}
-      <RigidBody type="fixed">
-        {trailSegments.map((seg, i) => (
-          <group key={i} position={[seg.x, seg.y, seg.z]} rotation={[seg.pitch, seg.yaw, 0]}>
-            {/* Path floor */}
-            <CuboidCollider args={[SEG_WIDTH / 2, HALF_H, seg.len / 2]} />
-            {/* Left side barricade collider */}
-            <CuboidCollider position={[-SEG_WIDTH / 2 - 0.1, 0.8, 0]} args={[0.1, 0.8, seg.len / 2]} />
-            {/* Right side barricade collider */}
-            <CuboidCollider position={[SEG_WIDTH / 2 + 0.1, 0.8, 0]} args={[0.1, 0.8, seg.len / 2]} />
-          </group>
-        ))}
+      {/* A single, large, static RigidBody for physics (representing the entire flat path, side barricades, and summit wall) */}
+      <RigidBody type="fixed" position={[0, 0, -92.5]}>
+        {/* Walkable path */}
+        <CuboidCollider args={[SEG_WIDTH / 2, HALF_H, 92.5]} />
+        {/* Left side barricade collider */}
+        <CuboidCollider position={[-SEG_WIDTH / 2 - 0.05, 1.2, 0]} args={[0.05, 1.2, 92.5]} />
+        {/* Right side barricade collider */}
+        <CuboidCollider position={[SEG_WIDTH / 2 + 0.05, 1.2, 0]} args={[0.05, 1.2, 92.5]} />
         {/* Summit end wall collider */}
-        <CuboidCollider position={[getPathCenterX(-185), getTerrainY(-185) + 1.2, -185]} args={[SEG_WIDTH / 2, 2.0, 0.2]} />
+        <CuboidCollider position={[0, 1.2, -92.5]} args={[SEG_WIDTH / 2, 2.0, 0.2]} />
       </RigidBody>
-
-      {/* Instanced path base */}
-      <instancedMesh ref={trailBaseRef} args={[null, null, SEG_COUNT]} receiveShadow frustumCulled={false}>
-        <boxGeometry args={[SEG_WIDTH, HALF_H * 2, 1]} />
-        <ClayMaterial roughness={0.92} />
-      </instancedMesh>
-
-      {/* Instanced path center dirt */}
-      <instancedMesh ref={trailDirtRef} args={[null, null, SEG_COUNT]} receiveShadow frustumCulled={false}>
-        <boxGeometry args={[3.2, 0.06, 1]} />
-        <ClayMaterial color={dirtC} roughness={0.97} />
-      </instancedMesh>
 
       {/* Instanced fences posts */}
       <instancedMesh ref={fencePostsRef} args={[null, null, fencesData.posts.length]} castShadow receiveShadow frustumCulled={false}>
@@ -943,6 +794,62 @@ function WalkableTrail({ isNight, season }) {
         <boxGeometry args={[0.04, 0.08, 5.0]} />
         <ClayMaterial color="#7c3d11" roughness={0.92} />
       </instancedMesh>
+
+      {/* Summit visual barricade */}
+      <group position={[0, 0.4, -185]}>
+        {/* Horizontal log barrier */}
+        <Box pos={[0, 0.8, 0]} size={[7.2, 0.15, 0.15]} color="#92400e" />
+        <Box pos={[0, 0.4, 0]} size={[7.2, 0.15, 0.15]} color="#92400e" />
+        {/* Support posts */}
+        {[-3.5, -1.75, 0, 1.75, 3.5].map((x, i) => (
+          <Cyl key={i} pos={[x, 0.5, 0]} args={[0.07, 0.08, 1.0, 5]} color="#7c3d11" />
+        ))}
+        {/* Large boulders piled at the base/sides */}
+        {[-3.0, 0, 3.0].map((x, i) => (
+          <Boulder key={i} position={[x, 0.4, 0.2]} scale={2.0} color="#9ca3af" />
+        ))}
+      </group>
+
+      {/* Visual boxes for the three zones of the trail */}
+      {/* 1. Grass zone */}
+      <group>
+        <mesh receiveShadow position={[0, 0, -61.28]}>
+          <boxGeometry args={[7, HALF_H * 2, 122.56]} />
+          <primitive object={materials.grass} attach="material" />
+        </mesh>
+        <mesh receiveShadow position={[0, -1.2, -61.28]}>
+          <boxGeometry args={[26, 2.4, 122.56]} />
+          <primitive object={materials.grass} attach="material" />
+        </mesh>
+        <mesh position={[0, 0.42, -61.28]} receiveShadow>
+          <boxGeometry args={[3.2, 0.06, 122.56]} />
+          <ClayMaterial color={dirtC} roughness={0.97} />
+        </mesh>
+      </group>
+
+      {/* 2. Rock zone */}
+      <group>
+        <mesh receiveShadow position={[0, 0, -142.22]}>
+          <boxGeometry args={[7, HALF_H * 2, 39.31]} />
+          <primitive object={materials.rock} attach="material" />
+        </mesh>
+        <mesh receiveShadow position={[0, -1.2, -142.22]}>
+          <boxGeometry args={[26, 2.4, 39.31]} />
+          <primitive object={materials.rock} attach="material" />
+        </mesh>
+      </group>
+
+      {/* 3. Snow zone */}
+      <group>
+        <mesh receiveShadow position={[0, 0, -173.44]}>
+          <boxGeometry args={[7, HALF_H * 2, 23.13]} />
+          <primitive object={materials.snow} attach="material" />
+        </mesh>
+        <mesh receiveShadow position={[0, -1.2, -173.44]}>
+          <boxGeometry args={[26, 2.4, 23.13]} />
+          <primitive object={materials.snow} attach="material" />
+        </mesh>
+      </group>
 
       {/* Instanced trail rocks */}
       <instancedMesh ref={trailRocksRef} args={[null, null, trailRocks.length]} receiveShadow frustumCulled={false}>
@@ -962,41 +869,18 @@ function WalkableTrail({ isNight, season }) {
         <ClayMaterial color="#f0f9ff" roughness={0.85} />
       </instancedMesh>
 
-      {/* Summit visual barricade */}
-      <group position={[getPathCenterX(-185), getTerrainY(-185) + 0.4, -185]}>
-        {/* Horizontal log barrier */}
-        <Box pos={[0, 0.8, 0]} size={[7.2, 0.15, 0.15]} color="#92400e" />
-        <Box pos={[0, 0.4, 0]} size={[7.2, 0.15, 0.15]} color="#92400e" />
-        {/* Support posts */}
-        {[-3.5, -1.75, 0, 1.75, 3.5].map((x, i) => (
-          <Cyl key={i} pos={[x, 0.5, 0]} args={[0.07, 0.08, 1.0, 5]} color="#7c3d11" />
-        ))}
-        {/* Large boulders piled at the base/sides */}
-        {[-3.0, 0, 3.0].map((x, i) => (
-          <Boulder key={i} position={[x, 0.4, 0.2]} scale={2.0} color="#9ca3af" />
-        ))}
-      </group>
-
       {/* Torches spaced along the trail */}
       {Array.from({ length: 16 }).map((_, i) => {
         const segIdx = i * 5;
         const z = -(segIdx + 0.5) * SEG_STEP;
-        const cx = getPathCenterX(z);
-        const cy = getTerrainY(z);
-        const { px, pz } = getPathPerpendicular(z);
-        
+        const y = 0.4;
+        const cx = 0;
         const side = segIdx % 2 === 0 ? 1 : -1;
-        const offset = side * 3.8;
-        
-        const tx = cx + offset * px;
-        const ty = cy + 0.4;
-        const tz = z + offset * pz;
-
         // Expose fewer lights/meshes on mobile
         if (isMobileDevice() && segIdx % 15 !== 0) return null;
 
         return (
-          <FireTorch key={i} position={[tx, ty, tz]} isNight={isNight} />
+          <FireTorch key={i} position={[cx + side * 3.8, y, z]} isNight={isNight} />
         );
       })}
     </group>
@@ -1006,19 +890,17 @@ function WalkableTrail({ isNight, season }) {
 // ════════════════════════════════════════════════════════════════
 // FOREST — trees and boulders on mountain slopes
 // ════════════════════════════════════════════════════════════════
-function ForestDecorations({ season }) {
+function ForestDecorations() {
   const trees = useMemo(() => {
     const arr = [];
     for (let i = 0; i < 110; i++) {
       const z     = -1 - i * 1.72;
-      if (z <= -165) continue;
       const cx    = getPathCenterX(z);
       const ty    = getTerrainY(z);
-      const { px, pz } = getPathPerpendicular(z);
       const side  = i % 2 === 0 ? -1 : 1;
       const dist  = 4.5 + (i % 5) * 1.8;
       const scale = 0.65 + (i % 4) * 0.25;
-      arr.push({ x: cx + side * dist * px, y: ty, z: z + side * dist * pz, scale });
+      if (z > -165) arr.push({ x: cx + side*dist, y: ty, z, scale });
     }
     return arr;
   }, []);
@@ -1029,13 +911,10 @@ function ForestDecorations({ season }) {
       const z  = -2 - i * 2.9;
       const cx = getPathCenterX(z);
       const ty = getTerrainY(z);
-      const { px, pz } = getPathPerpendicular(z);
       const side = i%3===0 ? 1 : (i%3===1 ? -1 : (i%5<2?1:-1));
-      const dist = 2.8 + (i%5)*0.9;
       arr.push({
-        x: cx + side * dist * px,
-        y: ty + 0.12,
-        z: z + side * dist * pz,
+        x: cx + side*(2.8 + (i%5)*0.9),
+        y: ty + 0.12, z,
         scale: 0.5 + (i%4)*0.22,
         color: i > 48 ? '#9ca3af' : '#4b5563',
       });
@@ -1051,11 +930,6 @@ function ForestDecorations({ season }) {
 
   const initializedRef = useRef(false);
 
-  // Re-run tree/boulder positioning on season changes or initial render
-  useEffect(() => {
-    initializedRef.current = false;
-  }, [season]);
-
   useFrame(() => {
     if (initializedRef.current) return;
     if (!trunkRef.current || !cone1Ref.current || !cone2Ref.current || !cone3Ref.current || !boulderRef.current) return;
@@ -1064,20 +938,24 @@ function ForestDecorations({ season }) {
 
     // Populate trees
     trees.forEach((t, i) => {
+      // Trunk: Cyl pos={[0, 0.55*s, 0]} args={[0.1*s, 0.14*s, 1.1*s, 6]}
       tempObj.position.set(t.x, t.y + 0.55 * t.scale, t.z);
       tempObj.rotation.set(0, (i * 0.5) % (Math.PI * 2), 0);
       tempObj.scale.set(t.scale, t.scale, t.scale);
       tempObj.updateMatrix();
       trunkRef.current.setMatrixAt(i, tempObj.matrix);
 
+      // Cone 1: pos={[0, 1.4*s, 0]}
       tempObj.position.set(t.x, t.y + 1.4 * t.scale, t.z);
       tempObj.updateMatrix();
       cone1Ref.current.setMatrixAt(i, tempObj.matrix);
 
+      // Cone 2: pos={[0, 2.1*s, 0]}
       tempObj.position.set(t.x, t.y + 2.1 * t.scale, t.z);
       tempObj.updateMatrix();
       cone2Ref.current.setMatrixAt(i, tempObj.matrix);
 
+      // Cone 3: pos={[0, 2.7*s, 0]}
       tempObj.position.set(t.x, t.y + 2.7 * t.scale, t.z);
       tempObj.updateMatrix();
       cone3Ref.current.setMatrixAt(i, tempObj.matrix);
@@ -1087,6 +965,15 @@ function ForestDecorations({ season }) {
     cone1Ref.current.instanceMatrix.needsUpdate = true;
     cone2Ref.current.instanceMatrix.needsUpdate = true;
     cone3Ref.current.instanceMatrix.needsUpdate = true;
+
+    trunkRef.current.computeBoundingBox();
+    trunkRef.current.computeBoundingSphere();
+    cone1Ref.current.computeBoundingBox();
+    cone1Ref.current.computeBoundingSphere();
+    cone2Ref.current.computeBoundingBox();
+    cone2Ref.current.computeBoundingSphere();
+    cone3Ref.current.computeBoundingBox();
+    cone3Ref.current.computeBoundingSphere();
 
     // Populate boulders
     const tempColor = new THREE.Color();
@@ -1102,26 +989,10 @@ function ForestDecorations({ season }) {
     });
 
     boulderRef.current.instanceMatrix.needsUpdate = true;
+    boulderRef.current.computeBoundingBox();
+    boulderRef.current.computeBoundingSphere();
     initializedRef.current = true;
   });
-
-  const colLeaves1 = useMemo(() => {
-    if (season === 'winter') return '#cbd5e1'; // snow covered light-grey/white
-    if (season === 'autumn') return '#c2410c'; // autumn orange-red
-    return '#2d6a4f'; // summer green
-  }, [season]);
-
-  const colLeaves2 = useMemo(() => {
-    if (season === 'winter') return '#e2e8f0';
-    if (season === 'autumn') return '#d97706'; // gold yellow
-    return '#1b4332';
-  }, [season]);
-
-  const colLeaves3 = useMemo(() => {
-    if (season === 'winter') return '#cbd5e1';
-    if (season === 'autumn') return '#7c2d12'; // crimson red/brown
-    return '#166534';
-  }, [season]);
 
   return (
     <group>
@@ -1134,19 +1005,19 @@ function ForestDecorations({ season }) {
       {/* Pine Cone 1 */}
       <instancedMesh ref={cone1Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
         <coneGeometry args={[0.72, 1.5, 32]} />
-        <ClayMaterial color={colLeaves1} roughness={0.85} />
+        <ClayMaterial color="#2d6a4f" roughness={0.85} />
       </instancedMesh>
 
       {/* Pine Cone 2 */}
       <instancedMesh ref={cone2Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
         <coneGeometry args={[0.5, 1.1, 32]} />
-        <ClayMaterial color={colLeaves2} roughness={0.88} />
+        <ClayMaterial color="#1b4332" roughness={0.88} />
       </instancedMesh>
 
       {/* Pine Cone 3 */}
       <instancedMesh ref={cone3Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
         <coneGeometry args={[0.3, 0.8, 32]} />
-        <ClayMaterial color={colLeaves3} roughness={0.9} />
+        <ClayMaterial color="#166534" roughness={0.9} />
       </instancedMesh>
 
       {/* Boulders */}
@@ -1162,41 +1033,6 @@ function ForestDecorations({ season }) {
 // FLOWING STREAM / RIVER
 // ════════════════════════════════════════════════════════════════
 function FlowingStream({ isNight }) {
-  // Stream trajectory points running downwards on the right side of the trail
-  const STREAM_POINTS = useMemo(() => {
-    const zs = [-170, -150, -130, -110, -90, -70, -50, -30, -15, -5, 5];
-    return zs.map(z => {
-      const cx = getPathCenterX(z);
-      const cy = getTerrainY(z);
-      const { px, pz } = getPathPerpendicular(z);
-      // Shift to the right side of the trail (approx 8.5 units)
-      const offset = 8.5;
-      return {
-        x: cx + offset * px,
-        y: cy - 0.1,
-        z: z + offset * pz
-      };
-    });
-  }, []);
-
-  // Stream rocks: character-height (scale ~2.2 -> diameter 2.2 units, matching character height of 1.5 units)
-  const STREAM_ROCKS = useMemo(() => {
-    const zs = [-140, -100, -80, -45, -8, 2];
-    return zs.map((z, idx) => {
-      const cx = getPathCenterX(z);
-      const cy = getTerrainY(z);
-      const { px, pz } = getPathPerpendicular(z);
-      const offset = 8.0;
-      const scale = 2.1 + (idx % 3) * 0.15;
-      return {
-        x: cx + offset * px,
-        y: cy - 0.1,
-        z: z + offset * pz,
-        scale
-      };
-    });
-  }, []);
-
   // Generate procedural seamless water texture
   const waterTexture = useMemo(() => {
     const canvas = document.createElement('canvas');
@@ -1259,13 +1095,41 @@ function FlowingStream({ isNight }) {
   useFrame((state) => {
     const realT = state.clock.getElapsedTime();
     const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
+    // Scrolling offset.y with positive rate scrolls the texture coordinates downstream (summit -> pond)
     waterTexture.offset.y = t * 0.35;
     stillTexture.offset.y = -t * 0.05; // very slow ripple
     stillTexture.offset.x = Math.sin(t * 0.2) * 0.02;
   });
 
+  // Stream trajectory points running downwards on the right side of the trail
+  const STREAM_POINTS = useMemo(() => [
+    { x: 14, y: 12.0, z: -170 }, // high up near summit (slope)
+    { x: 12.5, y: 9.8, z: -150 },
+    { x: 11, y: 7.6, z: -130 },
+    { x: 13, y: 5.8, z: -110 },
+    { x: 12, y: 4.4, z: -90 },
+    { x: 9.5, y: 3.2, z: -70 },
+    { x: 11.5, y: 2.1, z: -50 },
+    { x: 10, y: 1.1, z: -30 },
+    { x: 8.5, y: 0.2, z: -15 },
+    { x: 7.5, y: -0.1, z: -5 }, // flat stream inlet
+    { x: 7.5, y: -0.1, z: 5 },  // still pond
+  ], []);
+
+  // Stream rocks: character-height (scale ~2.2 -> diameter 2.2 units, matching character height of 1.5 units)
+  const STREAM_ROCKS = useMemo(() => [
+    { x: 12.0, y: 9.8,  z: -140, scale: 2.2 },
+    { x: 12.8, y: 5.8,  z: -100, scale: 2.3 },
+    { x: 10.2, y: 4.4,  z: -80,  scale: 2.1 },
+    { x: 10.5, y: 2.1,  z: -45,  scale: 2.2 },
+    { x: 8.0,  y: -0.1, z: -8,   scale: 2.4 }, // Rock in still pond area
+    { x: 7.0,  y: -0.1, z: 2,    scale: 2.2 },
+  ], []);
+
   // Generate smooth, continuous, curvy river water & bed geometries from points
   const { waterGeometry, bedGeometry, bankRocks } = useMemo(() => {
+    // 1. Filter out the last point for spline visual calculation, so it ends at the inlet (z = -5)
+    // and seamlessly meets the circular pond at z = 1.5
     const curvePoints = STREAM_POINTS.slice(0, 10).map(p => new THREE.Vector3(p.x, p.y, p.z));
     const curve = new THREE.CatmullRomCurve3(curvePoints);
 
@@ -1297,16 +1161,20 @@ function FlowingStream({ isNight }) {
       const up = new THREE.Vector3(0, 1, 0);
       const normal = new THREE.Vector3().crossVectors(tangent, up).normalize();
 
+      // Organic variation in width (looks wavy and natural)
       const widthVar = Math.sin(t * Math.PI * 6) * 0.25;
       const waterWidth = 2.4 + widthVar;
       const bedWidth = waterWidth + 0.6;
 
+      // Add high-frequency curvy offset for more wavy flow pathway
       const lateralWavy = Math.sin(t * Math.PI * 12) * 0.2;
       const wavyOffset = normal.clone().multiplyScalar(lateralWavy);
 
+      // Left & Right edges for water
       const wL = new THREE.Vector3().addVectors(tempPt, normal.clone().multiplyScalar(-waterWidth / 2)).add(wavyOffset);
       const wR = new THREE.Vector3().addVectors(tempPt, normal.clone().multiplyScalar(waterWidth / 2)).add(wavyOffset);
 
+      // Left & Right edges for riverbed channel
       const bL = new THREE.Vector3().addVectors(tempPt, normal.clone().multiplyScalar(-bedWidth / 2)).add(wavyOffset);
       const bR = new THREE.Vector3().addVectors(tempPt, normal.clone().multiplyScalar(bedWidth / 2)).add(wavyOffset);
 
@@ -1316,11 +1184,13 @@ function FlowingStream({ isNight }) {
       wL.y += 0.04;
       wR.y += 0.04;
 
+      // Populate water attributes
       vertices.push(wL.x, wL.y, wL.z);
       vertices.push(wR.x, wR.y, wR.z);
       uvs.push(0, cumulativeDistance * 0.08);
       uvs.push(1, cumulativeDistance * 0.08);
 
+      // Populate bed attributes
       bedVertices.push(bL.x, bL.y, bL.z);
       bedVertices.push(bR.x, bR.y, bR.z);
       bedUvs.push(0, cumulativeDistance * 0.05);
@@ -1339,6 +1209,7 @@ function FlowingStream({ isNight }) {
         bedIndices.push(v1, v3, v2);
       }
 
+      // Generate bank rock coordinates at regular intervals (every 3rd segment)
       if (i % 3 === 0 && i < N) {
         const rScaleL = 0.5 + Math.abs(Math.sin(i * 1.5)) * 0.45;
         const rScaleR = 0.5 + Math.abs(Math.cos(i * 1.1)) * 0.45;
@@ -1452,7 +1323,7 @@ function FlowingStream({ isNight }) {
         />
       </mesh>
 
-      {/* ── Instanced Bank Rocks ── */}
+      {/* ── Instanced Bank Rocks (renders in exactly 1 draw call!) ── */}
       <instancedMesh ref={bankRocksRef} args={[null, null, bankRocks.length]} receiveShadow frustumCulled={false}>
         <dodecahedronGeometry args={[0.5, 2]} />
         <ClayMaterial roughness={0.95} />
@@ -1462,16 +1333,20 @@ function FlowingStream({ isNight }) {
       {segments.map((seg, i) => (
         <RigidBody key={i} type="fixed" position={seg.pos} rotation={seg.rot}>
           {/* Rapier U-channel colliders */}
+          {/* Bed floor */}
           <CuboidCollider args={[1.5, 0.1, seg.len / 2]} position={[0, -0.1, 0]} />
+          {/* Left Bank */}
           <CuboidCollider args={[0.2, 0.5, seg.len / 2]} position={[-1.5, 0.3, 0]} />
+          {/* Right Bank */}
           <CuboidCollider args={[0.2, 0.5, seg.len / 2]} position={[1.5, 0.3, 0]} />
         </RigidBody>
       ))}
 
-      {/* ── Still Pond Ending Area ── */}
-      <RigidBody type="fixed" position={[STREAM_POINTS[STREAM_POINTS.length - 1].x, -0.05, STREAM_POINTS[STREAM_POINTS.length - 1].z]}>
+      {/* ── Still Pond Ending Area (visual expansion at starting zone) ── */}
+      <RigidBody type="fixed" position={[7.5, -0.05, 1.5]}>
         <CuboidCollider args={[4.2, 0.1, 4.2]} position={[0, -0.1, 0]} />
         <group>
+          {/* Main circular pond shape */}
           <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
             <circleGeometry args={[4.2, 32]} />
             <meshStandardMaterial
@@ -1485,6 +1360,7 @@ function FlowingStream({ isNight }) {
               side={THREE.DoubleSide}
             />
           </mesh>
+          {/* Pond stone edge */}
           {Array.from({ length: 12 }).map((_, idx) => {
             const angle = (idx / 12) * Math.PI * 2;
             const px = Math.cos(angle) * 4.3;
@@ -1496,7 +1372,7 @@ function FlowingStream({ isNight }) {
         </group>
       </RigidBody>
 
-      {/* ── Stream Boulders ── */}
+      {/* ── Stream Boulders (character height, static physics obstacles) ── */}
       {STREAM_ROCKS.map((rock, idx) => (
         <RigidBody key={idx} type="fixed" position={[rock.x, rock.y, rock.z]}>
           <BallCollider args={[rock.scale * 0.5]} position={[0, 0, 0]} />
@@ -1516,42 +1392,35 @@ function Waterfall() {
     w: 0.24+Math.random()*0.18, len: 1.8+Math.random()*1.4,
   })), []);
   const meshes = useRef([]);
-  const Z = -88;
-  const cx = getPathCenterX(Z);
-  const ty = getTerrainY(Z);
-  const { px, pz } = getPathPerpendicular(Z);
+  const Z = -88; const ty = getTerrainY(Z);
 
   useFrame((s) => {
     const realT = s.clock.getElapsedTime();
     const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
     meshes.current.forEach((m, i) => {
-      if (m) {
-        const d = strips[i];
-        const cycle = (t * d.speed + d.delay) % 6;
-        m.position.y = ty + 8 - cycle * 1.5;
-        if (m.position.y < ty - 2) m.position.y = ty + 8;
-      }
+      if (!m) return;
+      const d = strips[i];
+      const cycle = (t * d.speed + d.delay) % 6;
+      m.position.y = ty + 9 - cycle * 1.5;
+      if (m.position.y < ty - 2) m.position.y = ty + 9;
     });
   });
 
   return (
     <group>
-      {/* Waterfall rock backing */}
-      <mesh castShadow position={[cx - 9 * px, ty + 7, Z - 9 * pz]}>
+      <mesh castShadow position={[getPathCenterX(Z)-9, ty+7, Z]}>
         <boxGeometry args={[5, 16, 6]} />
         <ClayMaterial color="#374151" roughness={0.95} />
       </mesh>
-      {/* Water flow strips */}
       {strips.map((d, i) => (
         <mesh key={i} ref={el => meshes.current[i] = el}
-          position={[cx - 10 * px + d.ox * px, ty + 8, Z - 10 * pz + d.ox * pz]}>
+          position={[getPathCenterX(Z)-10+d.ox, ty+8, Z]}>
           <boxGeometry args={[d.w, d.len, 0.1]} />
           <ClayMaterial color="#93c5fd" transparent opacity={0.68}
             roughness={0.6} depthWrite={false} />
         </mesh>
       ))}
-      {/* Splash pool */}
-      <mesh receiveShadow position={[cx - 10 * px, ty - 0.1, Z - 10 * pz]}>
+      <mesh receiveShadow position={[getPathCenterX(Z)-10, ty-0.1, Z]}>
         <cylinderGeometry args={[2.8, 2.8, 0.22, 32]} />
         <ClayMaterial color="#bfdbfe" transparent opacity={0.7}
           roughness={0.6} />
@@ -1727,7 +1596,7 @@ function NightSky({ isNight }) {
 // ════════════════════════════════════════════════════════════════
 // DAY CLOUDS — fluffy animated clouds
 // ════════════════════════════════════════════════════════════════
-function DayClouds({ isNight, season }) {
+function DayClouds({ isNight }) {
   const cloudData = useMemo(() => Array.from({length: 16}).map((_, i) => ({
     x: -65 + i * 10,
     y:  20 + (i%4)*3.5,
@@ -1736,23 +1605,19 @@ function DayClouds({ isNight, season }) {
     scale: 1.0 + (i%4)*0.4,
   })), []);
 
-  const offsets = useMemo(() => [
-    [0,0,0],[1.3,0.4,0],[-1.1,0.3,0],[0.55,0.85,0],
-    [-0.5,0.6,0],[2.1,0.1,0],[-1.8,0.1,0],
-    [0.1,0.1,0.6],[-0.2,0.2,-0.6],[1.0,0.5,0.4],
-  ], []);
-
-  const totalInstances = cloudData.length * offsets.length; // 160
-  const instancedRef = useRef();
+  const refs = useRef([]);
+  const groupRef = useRef();
   const transitionRef = useRef(isNight ? 1 : 0);
 
-  const cloudColor = useMemo(() => {
-    if (season === 'winter') return new THREE.Color('#cbd5e1');
-    if (season === 'autumn') return new THREE.Color('#e2e8f0');
-    return new THREE.Color('#f8fafc');
-  }, [season]);
-
-  const matRef = useRef();
+  const sharedMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: new THREE.Color("#f8fafc"),
+    transparent: true,
+    opacity: 0.88,
+    roughness: 0.92,
+    bumpMap: clayBumpMap,
+    bumpScale: 0.015,
+    depthWrite: false,
+  }), []);
 
   useFrame((s, delta) => {
     const transitionSpeed = 0.25;
@@ -1764,57 +1629,40 @@ function DayClouds({ isNight, season }) {
     const t = transitionRef.current;
     const isVisible = (1 - t) > 0.001;
 
-    if (instancedRef.current) {
-      instancedRef.current.visible = isVisible;
-    }
+    if (groupRef.current) groupRef.current.visible = isVisible;
 
-    if (isVisible && instancedRef.current) {
-      if (matRef.current) {
-        matRef.current.opacity = (1 - t) * 0.95;
-        matRef.current.color.copy(cloudColor);
-      }
-      
+    if (isVisible) {
+      sharedMaterial.opacity = (1 - t) * 0.88;
       const stepTime = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
-      const tempObj = new THREE.Object3D();
-      
-      let idx = 0;
-      cloudData.forEach((cloud, i) => {
-        const speedPerSec = cloud.speed * 60;
-        let x = cloud.x + stepTime * speedPerSec;
+      refs.current.forEach((c, i) => {
+        if (!c) return;
+        const speedPerSec = cloudData[i].speed * 60; // speed was added per frame, assuming 60 FPS
+        let x = cloudData[i].x + stepTime * speedPerSec;
         const width = 144;
         x = ((x + 72) % width + width) % width - 72;
-
-        offsets.forEach(([cx, cy, cz], j) => {
-          const radius = 0.82 + (j % 3) * 0.24;
-          const worldX = x + cx * cloud.scale;
-          const worldY = cloud.y + cy * cloud.scale;
-          const worldZ = cloud.z + cz * cloud.scale;
-
-          tempObj.position.set(worldX, worldY, worldZ);
-          tempObj.scale.setScalar(radius * cloud.scale);
-          tempObj.updateMatrix();
-          instancedRef.current.setMatrixAt(idx, tempObj.matrix);
-          idx++;
-        });
+        c.position.x = x;
       });
-      instancedRef.current.instanceMatrix.needsUpdate = true;
     }
   });
 
   return (
-    <instancedMesh ref={instancedRef} args={[null, null, totalInstances]} frustumCulled={false}>
-      <sphereGeometry args={[1, 12, 10]} />
-      <meshStandardMaterial
-        ref={matRef}
-        color={cloudColor}
-        transparent
-        opacity={0.95}
-        roughness={0.95}
-        bumpMap={clayBumpMap}
-        bumpScale={0.02}
-        depthWrite={false}
-      />
-    </instancedMesh>
+    <group ref={groupRef}>
+      {cloudData.map((d, i) => (
+        <group key={i} ref={el => refs.current[i] = el}
+          position={[d.x, d.y, d.z]} scale={d.scale}>
+          {[
+            [0,0,0],[1.3,0.4,0],[-1.1,0.3,0],[0.55,0.85,0],
+            [-0.5,0.6,0],[2.1,0.1,0],[-1.8,0.1,0],
+            [0.1,0.1,0.6],[-0.2,0.2,-0.6],[1.0,0.5,0.4],
+          ].map(([cx,cy,cz], j) => (
+            <mesh key={j} position={[cx, cy, cz]}>
+              <sphereGeometry args={[0.82+(j%3)*0.24, 16, 12]} />
+              <primitive object={sharedMaterial} attach="material" />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
   );
 }
 
@@ -1931,7 +1779,7 @@ function SittingOwl({ position, isNight }) {
 // ════════════════════════════════════════════════════════════════
 // ANIMATED BIRDS — flocking V-formation (day only)
 // ════════════════════════════════════════════════════════════════
-function AnimatedBirds({ isNight, season }) {
+function AnimatedBirds({ isNight }) {
   const FLOCK = 35;
   const birds = useMemo(() => Array.from({length: FLOCK}).map((_, i) => {
     const startX = -22 + (i%7)*6;
@@ -1945,25 +1793,24 @@ function AnimatedBirds({ isNight, season }) {
     };
   }), []);
 
-  const bodyRef = useRef();
-  const leftWingRef = useRef();
-  const rightWingRef = useRef();
+  const birdRefs = useRef([]);
+  const lRefs    = useRef([]);
+  const rRefs    = useRef([]);
+  const groupRef = useRef();
   const transitionRef = useRef(isNight ? 1 : 0);
 
-  const birdColor = useMemo(() => {
-    if (season === 'winter') return new THREE.Color('#94a3b8'); // ice blue-grey birds
-    if (season === 'autumn') return new THREE.Color('#78350f'); // brown autumn birds
-    return new THREE.Color('#334155'); // default slate clay
-  }, [season]);
-
-  const wingColor = useMemo(() => {
-    if (season === 'winter') return new THREE.Color('#cbd5e1');
-    if (season === 'autumn') return new THREE.Color('#b45309');
-    return new THREE.Color('#475569');
-  }, [season]);
-
-  const bodyMatRef = useRef();
-  const wingMatRef = useRef();
+  const wingMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    color: new THREE.Color("#1f2937"),
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 1
+  }), []);
+  
+  const bodyMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    color: new THREE.Color("#111827"),
+    transparent: true,
+    opacity: 1
+  }), []);
 
   useFrame((state, delta) => {
     const transitionSpeed = 0.25;
@@ -1975,99 +1822,51 @@ function AnimatedBirds({ isNight, season }) {
     const t = transitionRef.current;
     const isVisible = (1 - t) > 0.001;
 
-    if (bodyRef.current) bodyRef.current.visible = isVisible;
-    if (leftWingRef.current) leftWingRef.current.visible = isVisible;
-    if (rightWingRef.current) rightWingRef.current.visible = isVisible;
+    if (groupRef.current) groupRef.current.visible = isVisible;
 
-    if (isVisible && bodyRef.current && leftWingRef.current && rightWingRef.current) {
-      if (bodyMatRef.current) {
-        bodyMatRef.current.opacity = 1 - t;
-        bodyMatRef.current.color.copy(birdColor);
-      }
-      if (wingMatRef.current) {
-        wingMatRef.current.opacity = 1 - t;
-        wingMatRef.current.color.copy(wingColor);
-      }
-
+    if (isVisible) {
+      wingMaterial.opacity = 1 - t;
+      bodyMaterial.opacity = 1 - t;
+      
       const time = Math.floor(state.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
-      const tempObj = new THREE.Object3D();
-
-      birds.forEach((d, i) => {
-        let x = d.x + d.speed * time * 45;
+      birdRefs.current.forEach((b, i) => {
+        if (!b) return;
+        // Deterministic position based on quantized time (speed * time * 45)
+        let x = birds[i].x + birds[i].speed * time * 45;
         const width = 105;
         x = ((x + 50) % width + width) % width - 50;
-        const y = d.y + Math.sin(time * 0.38 + d.phase) * 1.3;
-        const z = d.z;
-
-        // 1. Body
-        tempObj.position.set(x, y, z);
-        tempObj.rotation.set(0, 0, 0);
-        tempObj.scale.set(1, 1, 1);
-        tempObj.updateMatrix();
-        bodyRef.current.setMatrixAt(i, tempObj.matrix);
-
-        // 2. Left Wing
-        const lWingAngle = -0.28 + Math.sin(time * d.flap + d.phase) * 0.52;
-        tempObj.position.set(x - 0.26, y, z);
-        tempObj.rotation.set(0, 0, lWingAngle);
-        tempObj.updateMatrix();
-        leftWingRef.current.setMatrixAt(i, tempObj.matrix);
-
-        // 3. Right Wing
-        const rWingAngle = 0.28 - Math.sin(time * d.flap + d.phase) * 0.52;
-        tempObj.position.set(x + 0.26, y, z);
-        tempObj.rotation.set(0, 0, rWingAngle);
-        tempObj.updateMatrix();
-        rightWingRef.current.setMatrixAt(i, tempObj.matrix);
+        b.position.x = x;
+        b.position.y = birds[i].y + Math.sin(time*0.38 + birds[i].phase)*1.3;
       });
-
-      bodyRef.current.instanceMatrix.needsUpdate = true;
-      leftWingRef.current.instanceMatrix.needsUpdate = true;
-      rightWingRef.current.instanceMatrix.needsUpdate = true;
+      lRefs.current.forEach((w, i) => {
+        if (!w) return;
+        w.rotation.z = -0.28 + Math.sin(time*birds[i].flap + birds[i].phase)*0.52;
+      });
+      rRefs.current.forEach((w, i) => {
+        if (!w) return;
+        w.rotation.z =  0.28 - Math.sin(time*birds[i].flap + birds[i].phase)*0.52;
+      });
     }
   });
 
   return (
-    <group>
-      {/* Bodies */}
-      <instancedMesh ref={bodyRef} args={[null, null, FLOCK]} frustumCulled={false}>
-        <sphereGeometry args={[0.08, 8, 8]} />
-        <meshStandardMaterial
-          ref={bodyMatRef}
-          color={birdColor}
-          roughness={0.9}
-          bumpMap={clayBumpMap}
-          bumpScale={0.015}
-          transparent
-        />
-      </instancedMesh>
-
-      {/* Left Wings */}
-      <instancedMesh ref={leftWingRef} args={[null, null, FLOCK]} frustumCulled={false}>
-        <planeGeometry args={[0.58, 0.17]} />
-        <meshStandardMaterial
-          ref={wingMatRef}
-          color={wingColor}
-          side={THREE.DoubleSide}
-          roughness={0.9}
-          bumpMap={clayBumpMap}
-          bumpScale={0.015}
-          transparent
-        />
-      </instancedMesh>
-
-      {/* Right Wings */}
-      <instancedMesh ref={rightWingRef} args={[null, null, FLOCK]} frustumCulled={false}>
-        <planeGeometry args={[0.58, 0.17]} />
-        <meshStandardMaterial
-          color={wingColor}
-          side={THREE.DoubleSide}
-          roughness={0.9}
-          bumpMap={clayBumpMap}
-          bumpScale={0.015}
-          transparent
-        />
-      </instancedMesh>
+    <group ref={groupRef}>
+      {birds.map((d, i) => (
+        <group key={i} ref={el => birdRefs.current[i]=el} position={[d.x, d.y, d.z]}>
+          <mesh ref={el => lRefs.current[i]=el} position={[-0.26,0,0]}>
+            <planeGeometry args={[0.58, 0.17]} />
+            <primitive object={wingMaterial} attach="material" />
+          </mesh>
+          <mesh ref={el => rRefs.current[i]=el} position={[0.26,0,0]}>
+            <planeGeometry args={[0.58, 0.17]} />
+            <primitive object={wingMaterial} attach="material" />
+          </mesh>
+          <mesh>
+            <sphereGeometry args={[0.08,8,8]} />
+            <primitive object={bodyMaterial} attach="material" />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 }
@@ -2075,34 +1874,15 @@ function AnimatedBirds({ isNight, season }) {
 // ════════════════════════════════════════════════════════════════
 // WIND LEAVES
 // ════════════════════════════════════════════════════════════════
-function WindLeaves({ season }) {
+function WindLeaves() {
   const disabled = isMobileDevice();
-  const count = useMemo(() => {
-    if (season === 'autumn') return 120;
-    return 30;
-  }, [season]);
-
-  const leafData = useMemo(() => {
-    const colorsSummer = ['#4d7c0f', '#65a30d', '#86efac', '#a3e635', '#d9f99d'];
-    const colorsAutumn = ['#c2410c', '#d97706', '#b45309', '#7c2d12', '#f59e0b'];
-    const colorsWinter = ['#e2e8f0', '#cbd5e1', '#94a3b8', '#f1f5f9', '#cbd5e1'];
-
-    return Array.from({ length: count }).map((_, i) => {
-      const isAutumn = season === 'autumn';
-      const isWinter = season === 'winter';
-      const colors = isAutumn ? colorsAutumn : (isWinter ? colorsWinter : colorsSummer);
-
-      return {
-        startX: -6 + Math.random() * 12,
-        startY: 1 + Math.random() * 4,
-        startZ: isAutumn ? -2 - Math.random() * 180 : -2 - Math.random() * 90,
-        speed: 0.22 + Math.random() * 0.42,
-        drift: 0.45 + Math.random() * 1.4,
-        color: colors[i % colors.length],
-      };
-    });
-  }, [count, season]);
-
+  const COUNT = 30;
+  const leafData = useMemo(() => Array.from({length:COUNT}).map((_,i)=>({
+    startX: -6+Math.random()*12, startY: 1+Math.random()*4,
+    startZ: -2-Math.random()*90, speed: 0.22+Math.random()*0.42,
+    drift: 0.45+Math.random()*1.4,
+    color: ['#4d7c0f','#65a30d','#86efac','#a3e635','#d9f99d'][i%5],
+  })), []);
   const meshes = useRef([]);
 
   useFrame((s) => {
@@ -2112,17 +1892,13 @@ function WindLeaves({ season }) {
     meshes.current.forEach((m, i) => {
       if (!m) return;
       const d = leafData[i];
-      if (!d) return;
       const cycle = (t * d.speed + i * 1.1) % 7;
-      m.position.x = d.startX + Math.sin(cycle * 0.9) * 1.8 + cycle * d.drift * 0.28;
-      m.position.y = d.startY + Math.sin(cycle * 1.3 + i) * 0.45 - cycle * 0.13;
-      m.position.z = d.startZ + Math.cos(cycle * 0.7 + i) * 1.1;
+      m.position.x = d.startX + Math.sin(cycle*0.9)*1.8 + cycle*d.drift*0.28;
+      m.position.y = d.startY + Math.sin(cycle*1.3+i)*0.45 - cycle*0.13;
+      m.position.z = d.startZ + Math.cos(cycle*0.7+i)*1.1;
       m.rotation.x = cycle * 2.2;
-      m.rotation.z = Math.sin(cycle * 1.6 + i) * 0.6;
-      if (cycle > 6.6) {
-        m.position.x = d.startX;
-        m.position.y = d.startY;
-      }
+      m.rotation.z = Math.sin(cycle*1.6+i)*0.6;
+      if (cycle > 6.6) { m.position.x = d.startX; m.position.y = d.startY; }
     });
   });
 
@@ -2130,8 +1906,8 @@ function WindLeaves({ season }) {
 
   return (
     <group>
-      {leafData.map((d, i) => (
-        <mesh key={i} ref={el => meshes.current[i] = el} position={[d.startX, d.startY, d.startZ]}>
+      {leafData.map((d,i) => (
+        <mesh key={i} ref={el=>meshes.current[i]=el} position={[d.startX, d.startY, d.startZ]}>
           <planeGeometry args={[0.14, 0.09]} />
           <ClayMaterial color={d.color} side={THREE.DoubleSide} roughness={0.92} />
         </mesh>
@@ -2143,28 +1919,22 @@ function WindLeaves({ season }) {
 // ════════════════════════════════════════════════════════════════
 // SNOW PARTICLES (upper trail)
 // ════════════════════════════════════════════════════════════════
-function SnowParticles({ season }) {
-  const isMobile = isMobileDevice();
-  const count = useMemo(() => {
-    if (season === 'winter') {
-      return isMobile ? 100 : 350;
-    }
-    return isMobile ? 25 : 80;
-  }, [season, isMobile]);
+function SnowParticles() {
+  const COUNT = isMobileDevice() ? 25 : 80;
 
   const snowSystem = useMemo(() => {
     const geom = new THREE.BufferGeometry();
-    const positions = new Float32Array(count * 3);
-    const phases = new Float32Array(count);
-    const speeds = new Float32Array(count);
-    const drifts = new Float32Array(count);
-    const sizes = new Float32Array(count);
-    const baseYs = new Float32Array(count);
-    const terrainYs = new Float32Array(count);
+    const positions = new Float32Array(COUNT * 3);
+    const phases = new Float32Array(COUNT);
+    const speeds = new Float32Array(COUNT);
+    const drifts = new Float32Array(COUNT);
+    const sizes = new Float32Array(COUNT);
+    const baseYs = new Float32Array(COUNT);
+    const terrainYs = new Float32Array(COUNT);
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < COUNT; i++) {
       const x = -8 + Math.random() * 16;
-      const z = season === 'winter' ? -Math.random() * 185 : -105 - Math.random() * 80;
+      const z = -105 - Math.random() * 80;
       const ty = getTerrainY(z);
 
       positions[i * 3] = x;
@@ -2225,7 +1995,7 @@ function SnowParticles({ season }) {
     });
 
     return { geom, mat };
-  }, [count, season]);
+  }, [COUNT]);
 
   useFrame((s) => {
     snowSystem.mat.uniforms.uTime.value = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
@@ -2349,36 +2119,20 @@ function Fireflies({ isNight }) {
 // ════════════════════════════════════════════════════════════════
 function MistBands({ isNight }) {
   const disabled = isMobileDevice();
-  const zPositions = useMemo(() => [-22,-55,-88,-125,-162], []);
+  const zPositions = [-22,-55,-88,-125,-162];
 
-  const mistSpheres = useMemo(() => {
-    if (disabled) return [];
-    const arr = [];
-    zPositions.forEach((z, i) => {
-      const ty = getTerrainY(z);
-      const cx = getPathCenterX(z);
-      [-1,0,1,2,-2].forEach(j => {
-        arr.push({
-          x: cx + j * 5,
-          y: ty + 0.35 + i * 0.15,
-          z: z + j * 2,
-          radius: 2.4 + j * 0.4
-        });
-      });
-    });
-    return arr;
-  }, [disabled, zPositions]);
-
-  const instancedRef = useRef();
   const transitionRef = useRef(isNight ? 1 : 0);
-
+  
   const color1 = useMemo(() => new THREE.Color('#e2e8f0'), []);
   const color2 = useMemo(() => new THREE.Color('#1e2942'), []);
   const tempCol = useMemo(() => new THREE.Color(), []);
 
-  const matRef = useRef();
-
-  const initializedRef = useRef(false);
+  const sharedMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: new THREE.Color('#e2e8f0'),
+    transparent: true,
+    opacity: 0.11,
+    depthWrite: false,
+  }), []);
 
   useFrame((s, delta) => {
     if (disabled) return;
@@ -2389,45 +2143,31 @@ function MistBands({ isNight }) {
       transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
     }
     const t = transitionRef.current;
-
-    if (instancedRef.current) {
-      instancedRef.current.visible = true;
-    }
-
-    if (matRef.current) {
-      tempCol.lerpColors(color1, color2, t);
-      matRef.current.color.copy(tempCol);
-      matRef.current.opacity = 0.11 + t * 0.05;
-    }
-
-    if (!initializedRef.current && instancedRef.current && mistSpheres.length > 0) {
-      const tempObj = new THREE.Object3D();
-      mistSpheres.forEach((sphere, idx) => {
-        tempObj.position.set(sphere.x, sphere.y, sphere.z);
-        tempObj.scale.setScalar(sphere.radius);
-        tempObj.updateMatrix();
-        instancedRef.current.setMatrixAt(idx, tempObj.matrix);
-      });
-      instancedRef.current.instanceMatrix.needsUpdate = true;
-      instancedRef.current.computeBoundingBox();
-      instancedRef.current.computeBoundingSphere();
-      initializedRef.current = true;
-    }
+    
+    tempCol.lerpColors(color1, color2, t);
+    sharedMaterial.color.copy(tempCol);
+    sharedMaterial.opacity = 0.11 + t * 0.05;
   });
 
   if (disabled) return null;
 
   return (
-    <instancedMesh ref={instancedRef} args={[null, null, mistSpheres.length]} frustumCulled={false}>
-      <sphereGeometry args={[1, 6, 5]} />
-      <meshStandardMaterial
-        ref={matRef}
-        color="#e2e8f0"
-        transparent
-        opacity={0.11}
-        depthWrite={false}
-      />
-    </instancedMesh>
+    <group>
+      {zPositions.map((z, i) => {
+        const ty = getTerrainY(z);
+        const cx = getPathCenterX(z);
+        return (
+          <group key={i}>
+            {[-1,0,1,2,-2].map(j => (
+              <mesh key={j} position={[cx+j*5, ty+0.35+i*0.15, z+j*2]}>
+                <sphereGeometry args={[2.4+j*0.4, 6, 5]} />
+                <primitive object={sharedMaterial} attach="material" />
+              </mesh>
+            ))}
+          </group>
+        );
+      })}
+    </group>
   );
 }
 
@@ -3087,7 +2827,7 @@ function CheckpointSensors({ onCheckpointEnter, onCheckpointExit }) {
 
 
 // ── Lighting ──────────────────────────────────────────────────────
-function Lighting({ isNight, season }) {
+function Lighting({ isNight }) {
   const ambRef = useRef();
   const dirRef = useRef();
   const hemiRef = useRef();
@@ -3095,74 +2835,28 @@ function Lighting({ isNight, season }) {
   const transitionRef = useRef(isNight ? 1 : 0);
 
   const colors = useMemo(() => {
-    if (season === 'winter') {
-      return {
-        ambDay: new THREE.Color('#e0f2fe'),
-        ambDawn: new THREE.Color('#cbd5e1'),
-        ambNight: new THREE.Color('#0f172a'),
+    return {
+      ambDay: new THREE.Color('#fef9c3'),
+      ambDawn: new THREE.Color('#fbbf24'),
+      ambNight: new THREE.Color('#1e2942'),
 
-        dirDay: new THREE.Color('#f8fafc'),
-        dirDawn: new THREE.Color('#94a3b8'),
-        dirNight: new THREE.Color('#1e293b'),
+      dirDay: new THREE.Color('#fff8e1'),
+      dirDawn: new THREE.Color('#ea580c'),
+      dirNight: new THREE.Color('#3b5bdb'),
 
-        hemiSkyDay: new THREE.Color('#cbd5e1'),
-        hemiSkyDawn: new THREE.Color('#94a3b8'),
-        hemiSkyNight: new THREE.Color('#090d16'),
+      hemiSkyDay: new THREE.Color('#bae6fd'),
+      hemiSkyDawn: new THREE.Color('#fbbf24'),
+      hemiSkyNight: new THREE.Color('#0f172a'),
 
-        hemiGndDay: new THREE.Color('#475569'),
-        hemiGndDawn: new THREE.Color('#334155'),
-        hemiGndNight: new THREE.Color('#020617'),
+      hemiGndDay: new THREE.Color('#6b7280'),
+      hemiGndDawn: new THREE.Color('#7c2d12'),
+      hemiGndNight: new THREE.Color('#111827'),
 
-        skyDay: new THREE.Color('#93c5fd'),
-        skyDawn: new THREE.Color('#94a3b8'),
-        skyNight: new THREE.Color('#020617'),
-      };
-    } else if (season === 'autumn') {
-      return {
-        ambDay: new THREE.Color('#ffedd5'),
-        ambDawn: new THREE.Color('#f97316'),
-        ambNight: new THREE.Color('#1c1917'),
-
-        dirDay: new THREE.Color('#fde68a'),
-        dirDawn: new THREE.Color('#ea580c'),
-        dirNight: new THREE.Color('#292524'),
-
-        hemiSkyDay: new THREE.Color('#fed7aa'),
-        hemiSkyDawn: new THREE.Color('#ea580c'),
-        hemiSkyNight: new THREE.Color('#0c0a09'),
-
-        hemiGndDay: new THREE.Color('#78350f'),
-        hemiGndDawn: new THREE.Color('#7c2d12'),
-        hemiGndNight: new THREE.Color('#1c1917'),
-
-        skyDay: new THREE.Color('#f97316'),
-        skyDawn: new THREE.Color('#ea580c'),
-        skyNight: new THREE.Color('#0c0a09'),
-      };
-    } else {
-      return {
-        ambDay: new THREE.Color('#fef9c3'),
-        ambDawn: new THREE.Color('#fbbf24'),
-        ambNight: new THREE.Color('#1e2942'),
-
-        dirDay: new THREE.Color('#fff8e1'),
-        dirDawn: new THREE.Color('#ea580c'),
-        dirNight: new THREE.Color('#3b5bdb'),
-
-        hemiSkyDay: new THREE.Color('#bae6fd'),
-        hemiSkyDawn: new THREE.Color('#fbbf24'),
-        hemiSkyNight: new THREE.Color('#0f172a'),
-
-        hemiGndDay: new THREE.Color('#6b7280'),
-        hemiGndDawn: new THREE.Color('#7c2d12'),
-        hemiGndNight: new THREE.Color('#111827'),
-
-        skyDay: new THREE.Color('#bae6fd'),
-        skyDawn: new THREE.Color('#ea580c'),
-        skyNight: new THREE.Color('#080c18'),
-      };
-    }
-  }, [season]);
+      skyDay: new THREE.Color('#bae6fd'),
+      skyDawn: new THREE.Color('#ea580c'),
+      skyNight: new THREE.Color('#080c18'),
+    };
+  }, []);
 
   const positions = useMemo(() => {
     return {
@@ -3172,52 +2866,27 @@ function Lighting({ isNight, season }) {
     };
   }, []);
 
-  const values = useMemo(() => {
-    if (season === 'winter') {
-      return {
-        ambIntDay: 0.6,
-        ambIntDawn: 0.45,
-        ambIntNight: 0.22,
+  const values = {
+    ambIntDay: 0.55,
+    ambIntDawn: 0.5,
+    ambIntNight: 0.25,
 
-        dirIntDay: 1.1,
-        dirIntDawn: 0.8,
-        dirIntNight: 0.35,
+    dirIntDay: 1.35,
+    dirIntDawn: 0.9,
+    dirIntNight: 0.45,
 
-        hemiIntDay: 0.5,
-        hemiIntDawn: 0.35,
-        hemiIntNight: 0.3,
+    hemiIntDay: 0.45,
+    hemiIntDawn: 0.35,
+    hemiIntNight: 0.35,
 
-        fogNearDay: 8,
-        fogNearDawn: 5,
-        fogNearNight: 3,
+    fogNearDay: 15,
+    fogNearDawn: 10,
+    fogNearNight: 5,
 
-        fogFarDay: 65,
-        fogFarDawn: 50,
-        fogFarNight: 45,
-      };
-    }
-    return {
-      ambIntDay: 0.55,
-      ambIntDawn: 0.5,
-      ambIntNight: 0.25,
-
-      dirIntDay: 1.35,
-      dirIntDawn: 0.9,
-      dirIntNight: 0.45,
-
-      hemiIntDay: 0.45,
-      hemiIntDawn: 0.35,
-      hemiIntNight: 0.35,
-
-      fogNearDay: 15,
-      fogNearDawn: 10,
-      fogNearNight: 5,
-
-      fogFarDay: 95,
-      fogFarDawn: 80,
-      fogFarNight: 65,
-    };
-  }, [season]);
+    fogFarDay: 95,
+    fogFarDawn: 80,
+    fogFarNight: 65,
+  };
 
   const { tempColor1, tempColor2, tempColor3, tempColor4, tempColor5, tempVector1 } = useMemo(() => {
     return {
@@ -3359,58 +3028,8 @@ function Lighting({ isNight, season }) {
 }
 
 
-// ════════════════════════════════════════════════════════════════
-// CLAY SUN (Summer day only)
-// ════════════════════════════════════════════════════════════════
-function ClaySun() {
-  const groupRef = useRef();
-
-  const rays = useMemo(() => {
-    return Array.from({ length: 8 }).map((_, i) => {
-      const angle = (i / 8) * Math.PI * 2;
-      return {
-        angle,
-        x: Math.cos(angle) * 2.3,
-        y: Math.sin(angle) * 2.3,
-        rotZ: angle - Math.PI / 2,
-      };
-    });
-  }, []);
-
-  useFrame((s) => {
-    const playerZ = window.playerZ || 0;
-    if (groupRef.current) {
-      groupRef.current.position.set(18, 28, 8 + playerZ);
-      const realT = s.clock.getElapsedTime();
-      const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
-      groupRef.current.rotation.z = t * 0.15;
-      const wiggleScale = 1.0 + Math.sin(t * 8.0) * 0.05;
-      groupRef.current.scale.set(wiggleScale, wiggleScale, wiggleScale);
-    }
-  });
-
-  return (
-    <group ref={groupRef}>
-      {/* Sun center */}
-      <mesh castShadow>
-        <sphereGeometry args={[1.8, 16, 16]} />
-        <ClayMaterial color="#f59e0b" roughness={0.9} />
-      </mesh>
-
-      {/* Sun rays */}
-      {rays.map((ray, i) => (
-        <mesh key={i} position={[ray.x, ray.y, 0]} rotation={[0, 0, ray.rotZ]} castShadow>
-          <coneGeometry args={[0.3, 1.2, 5]} />
-          <ClayMaterial color="#fbbf24" roughness={0.88} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-
 // ── Main Environment ──────────────────────────────────────────────
-export default function Environment({ onCheckpointEnter, onCheckpointExit, isNight, isMobile, season }) {
+export default function Environment({ onCheckpointEnter, onCheckpointExit, isNight, isMobile }) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.isMobileDevice = !!isMobile;
@@ -3419,28 +3038,27 @@ export default function Environment({ onCheckpointEnter, onCheckpointExit, isNig
 
   return (
     <group>
-      <Lighting isNight={isNight} season={season} />
+      <Lighting isNight={isNight} />
 
       {/* ── SKY ELEMENTS ── */}
       <NightSky isNight={isNight} />
-      <DayClouds isNight={isNight} season={season} />
-      <AnimatedBirds isNight={isNight} season={season} />
-      {season === 'summer' && !isNight && <ClaySun />}
+      <DayClouds isNight={isNight} />
+      <AnimatedBirds isNight={isNight} />
 
       {/* ── TERRAIN (flat segments = no rotation bug) ── */}
-      <WalkableTrail isNight={isNight} season={season} />
+      <WalkableTrail isNight={isNight} />
 
       {/* ── MOUNTAIN VISUALS ── */}
       <group position={[0, 0, -150]}>
-        <MountainBody isNight={isNight} season={season} />
+        <MountainBody isNight={isNight} />
       </group>
-      <SurroundingMountains isNight={isNight} season={season} />
+      <SurroundingMountains isNight={isNight} />
 
       {/* ── NATURE ── */}
-      <ForestDecorations season={season} />
+      <ForestDecorations />
       <MistBands isNight={isNight} />
-      <WindLeaves season={season} />
-      <SnowParticles season={season} />
+      <WindLeaves />
+      <SnowParticles />
       <Fireflies isNight={isNight} />
       <Waterfall />
       <FlowingStream isNight={isNight} />
