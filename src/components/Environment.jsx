@@ -1468,13 +1468,13 @@ function Boat() {
     lastTimeRef.current = t;
 
     // Rocking and bobbing
-    boatRef.current.position.y = -0.14 + Math.sin(t * 2.5) * 0.02;
+    boatRef.current.position.y = -0.12 + Math.sin(t * 2.5) * 0.02;
     boatRef.current.rotation.z = Math.sin(t * 1.8) * 0.03;
     boatRef.current.rotation.x = Math.cos(t * 1.5) * 0.02;
   });
 
   return (
-    <group ref={boatRef} position={[7.5, -0.14, 0]}>
+    <group ref={boatRef} position={[8.2, -0.12, 1.5]} rotation={[0, 0.4, 0]} scale={[3.8, 3.8, 3.8]}>
       <primitive object={scene} />
     </group>
   );
@@ -2330,6 +2330,33 @@ function CheckpointArch({ z, label, isNight }) {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const flameRef = useRef(); const flameRef2 = useRef();
 
+  // Load Torii Gate
+  const toriiScene = useGLTF((import.meta.env.BASE_URL || '/') + 'quaternius_cc0-torii-gate-983.glb');
+
+  const toriiGate = useMemo(() => {
+    const clone = toriiScene.scene.clone();
+    clone.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        if (child.material) {
+          const applyClay = (mat) => {
+            mat.bumpMap = clayBumpMap;
+            mat.bumpScale = 0.012;
+            mat.roughness = 0.88;
+            mat.flatShading = true;
+          };
+          if (Array.isArray(child.material)) {
+            child.material.forEach(applyClay);
+          } else {
+            applyClay(child.material);
+          }
+        }
+      }
+    });
+    return clone;
+  }, [toriiScene.scene]);
+
   // Generate engraved canvas texture for this checkpoint label
   const bannerTexture = useMemo(() => {
     const canvas = document.createElement('canvas');
@@ -2397,52 +2424,59 @@ function CheckpointArch({ z, label, isNight }) {
 
   return (
     <group ref={groupRef}>
-      {/* Left post */}
-      <Cyl pos={[cx - 4.2, ty + 1.65, z]} args={[0.12, 0.14, 3.3, 16]} color="#7c3d11" rough={0.92} />
-      {/* Right post */}
-      <Cyl pos={[cx + 4.2, ty + 1.65, z]} args={[0.12, 0.14, 3.3, 16]} color="#7c3d11" rough={0.92} />
-      {/* Crossbar */}
-      <Box pos={[cx, ty + 3.32, z]} size={[8.8, 0.18, 0.18]} color="#92400e" />
-      {/* Sitting Owl perched on top-left of the crossbar (visible at night only) */}
-      <SittingOwl position={[cx - 2.8, ty + 3.41, z]} isNight={isNight} />
-      {/* Banner */}
-      <Box pos={[cx, ty + 3.0, z - 0.05]} size={[3.8, 0.48, 0.06]} color="#b45309" />
-      
-      {/* Engraved text plane on Banner (positioned in front of banner box) */}
-      <mesh position={[cx, ty + 3.0, z - 0.018]} rotation={[0, 0, 0]}>
-        <planeGeometry args={[3.7, 0.46]} />
-        <ClayMaterial 
-          map={bannerTexture} 
-          transparent 
-          alphaTest={0.01} 
-          roughness={0.7} 
-        />
-      </mesh>
-      {/* Rope */}
-      {[-1.6, -0.6, 0.4, 1.4].map((ox, i) => (
-        <Box key={i} pos={[cx + ox, ty + 3.2 + Math.sin(i * 0.9) * -0.08, z]} size={[0.65, 0.03, 0.03]} color="#78350f" />
+      {/* Torii Gate Model (Scaled & Grounded) */}
+      <group position={[cx, ty, z]} scale={[1.45, 1.45, 1.45]}>
+        <primitive object={toriiGate} />
+      </group>
+
+      {/* Physics colliders for Torii Gate pillars */}
+      <RigidBody type="fixed" position={[cx - 3.6, ty + 1.8, z]}>
+        <CuboidCollider args={[0.3, 1.8, 0.3]} />
+      </RigidBody>
+      <RigidBody type="fixed" position={[cx + 3.6, ty + 1.8, z]}>
+        <CuboidCollider args={[0.3, 1.8, 0.3]} />
+      </RigidBody>
+
+      {/* Sitting Owl perched on Torii Gate crossbar */}
+      <SittingOwl position={[cx - 2.0, ty + 5.65, z]} isNight={isNight} />
+
+      {/* Hanging banner setup */}
+      <RigidBody type="fixed" position={[cx, ty + 3.5, z]}>
+        <CuboidCollider args={[1.9, 0.24, 0.1]} />
+        <group>
+          {/* Main banner board */}
+          <mesh castShadow>
+            <boxGeometry args={[3.8, 0.48, 0.06]} />
+            <ClayMaterial color="#b45309" roughness={0.94} />
+          </mesh>
+          {/* Engraved text plane */}
+          <mesh position={[0, 0, 0.032]}>
+            <planeGeometry args={[3.7, 0.46]} />
+            <ClayMaterial map={bannerTexture} transparent alphaTest={0.01} roughness={0.7} />
+          </mesh>
+        </group>
+      </RigidBody>
+
+      {/* Hanging ropes from crossbar to banner */}
+      {[-1.2, 1.2].map((ox, i) => (
+        <Cyl key={i} pos={[cx + ox, ty + 4.6, z]} args={[0.015, 0.015, 1.8, 6]} color="#78350f" />
       ))}
-      {/* Left torch */}
-      <Cyl pos={[cx - 4.2, ty + 3.6, z]} args={[0.05, 0.07, 0.28, 6]} color="#7c3d11" />
-      <mesh position={[cx - 4.2, ty + 3.78, z]}>
+
+      {/* Left torch on post */}
+      <Cyl pos={[cx - 3.9, ty + 3.2, z]} args={[0.05, 0.07, 0.28, 6]} color="#7c3d11" />
+      <mesh position={[cx - 3.9, ty + 3.38, z]}>
         <sphereGeometry args={[0.09, 6, 6]} />
         <meshStandardMaterial color="#ff7700" emissive="#ff4400" emissiveIntensity={3} />
       </mesh>
-      <pointLight ref={flameRef} position={[cx - 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />
-      {/* Right torch */}
-      <Cyl pos={[cx + 4.2, ty + 3.6, z]} args={[0.05, 0.07, 0.28, 6]} color="#7c3d11" />
-      <mesh position={[cx + 4.2, ty + 3.78, z]}>
+      <pointLight ref={flameRef} position={[cx - 3.9, ty + 3.48, z]} color="#ff9900" intensity={3} distance={7} />
+
+      {/* Right torch on post */}
+      <Cyl pos={[cx + 3.9, ty + 3.2, z]} args={[0.05, 0.07, 0.28, 6]} color="#7c3d11" />
+      <mesh position={[cx + 3.9, ty + 3.38, z]}>
         <sphereGeometry args={[0.09, 6, 6]} />
         <meshStandardMaterial color="#ff7700" emissive="#ff4400" emissiveIntensity={3} />
       </mesh>
-      <pointLight ref={flameRef2} position={[cx + 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />
-      {/* Flag pennants on posts */}
-      {[[-4.2, '#ef4444'], [4.2, '#3b82f6']].map(([ox, col], i) => (
-        <mesh key={i} position={[cx + ox + (ox < 0 ? 0.3 : -0.3), ty + 3.28, z - 0.04]}>
-          <coneGeometry args={[0.16, 0.38, 4]} rotation={[0, 0, ox < 0 ? Math.PI / 2 : -Math.PI / 2]} />
-          <ClayMaterial color={col} roughness={0.7} />
-        </mesh>
-      ))}
+      <pointLight ref={flameRef2} position={[cx + 3.9, ty + 3.48, z]} color="#ff9900" intensity={3} distance={7} />
     </group>
   );
 }
