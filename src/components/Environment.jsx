@@ -1132,27 +1132,27 @@ function FlowingStream({ isNight }) {
 
   // Stream trajectory points running downwards on the right side of the trail
   const STREAM_POINTS = useMemo(() => [
-    { x: 14, y: 12.0, z: -170 }, // high up near summit (slope)
-    { x: 12.5, y: 9.8, z: -150 },
-    { x: 11, y: 7.6, z: -130 },
-    { x: 13, y: 5.8, z: -110 },
-    { x: 12, y: 4.4, z: -90 },
-    { x: 9.5, y: 3.2, z: -70 },
-    { x: 11.5, y: 2.1, z: -50 },
-    { x: 10, y: 1.1, z: -30 },
-    { x: 8.5, y: 0.2, z: -15 },
-    { x: 7.5, y: -0.1, z: -5 }, // flat stream inlet
-    { x: 7.5, y: -0.1, z: 5 },  // still pond
+    { x: 14, y: -0.2, z: -170 }, // flat stream along path
+    { x: 12.5, y: -0.2, z: -150 },
+    { x: 11, y: -0.2, z: -130 },
+    { x: 13, y: -0.2, z: -110 },
+    { x: 12, y: -0.2, z: -90 },
+    { x: 9.5, y: -0.2, z: -70 },
+    { x: 11.5, y: -0.2, z: -50 },
+    { x: 10, y: -0.2, z: -30 },
+    { x: 8.5, y: -0.2, z: -15 },
+    { x: 7.5, y: -0.2, z: -5 }, // flat stream inlet
+    { x: 7.5, y: -0.2, z: 5 },  // still pond
   ], []);
 
   // Stream rocks: character-height (scale ~2.2 -> diameter 2.2 units, matching character height of 1.5 units)
   const STREAM_ROCKS = useMemo(() => [
-    { x: 12.0, y: 9.8,  z: -140, scale: 2.2 },
-    { x: 12.8, y: 5.8,  z: -100, scale: 2.3 },
-    { x: 10.2, y: 4.4,  z: -80,  scale: 2.1 },
-    { x: 10.5, y: 2.1,  z: -45,  scale: 2.2 },
-    { x: 8.0,  y: -0.1, z: -8,   scale: 2.4 }, // Rock in still pond area
-    { x: 7.0,  y: -0.1, z: 2,    scale: 2.2 },
+    { x: 12.0, y: -0.2,  z: -140, scale: 2.2 },
+    { x: 12.8, y: -0.2,  z: -100, scale: 2.3 },
+    { x: 10.2, y: -0.2,  z: -80,  scale: 2.1 },
+    { x: 10.5, y: -0.2,  z: -45,  scale: 2.2 },
+    { x: 8.0,  y: -0.2,  z: -8,   scale: 2.4 }, // Rock in still pond area
+    { x: 7.0,  y: -0.2,  z: 2,    scale: 2.2 },
   ], []);
 
   // Generate smooth, continuous, curvy river water & bed geometries from points
