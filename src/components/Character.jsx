@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useKeyboardControls } from '@react-three/drei';
 import { RigidBody, CapsuleCollider } from '@react-three/rapier';
@@ -10,38 +10,48 @@ import { getClayTexture } from '../utils/clayTexture.js';
 // Retrieve procedural clay bump map
 const clayBumpMap = getClayTexture();
 
+// Global material cache to avoid creating separate material instances for hundreds of character parts
+const materialCache = {};
+function getCachedMaterial(color, roughness, metalness, bumpScale, flatShading) {
+  const key = `${color}_${roughness}_${metalness}_${bumpScale}_${flatShading}`;
+  if (!materialCache[key]) {
+    materialCache[key] = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(color),
+      roughness,
+      metalness,
+      bumpMap: clayBumpMap,
+      bumpScale,
+      flatShading,
+    });
+  }
+  return materialCache[key];
+}
+
 // Helper Clay Material to give everything a hand-molded clay texture
-function ClayMaterial({ color, roughness = 0.92, metalness = 0.0, bumpScale = 0.015, ...props }) {
-  return (
-    <meshStandardMaterial
-      color={color}
-      roughness={roughness}
-      metalness={metalness}
-      bumpMap={clayBumpMap}
-      bumpScale={bumpScale}
-      {...props}
-    />
-  );
+function ClayMaterial({ color, roughness = 0.92, metalness = 0.0, bumpScale = 0.015, flatShading = true, ...props }) {
+  const material = useMemo(() => {
+    return getCachedMaterial(color, roughness, metalness, bumpScale, flatShading);
+  }, [color, roughness, metalness, bumpScale, flatShading]);
+
+  return <primitive object={material} attach="material" {...props} />;
 }
 
 // ─── Colour palette ──────────────────────────────────────────────
-const SKIN    = '#d4956a';
-const SKIN_D  = '#b87850';
-const HAIR    = '#2a1500';
-const CAP     = '#1a1a1a'; // Adidas Black Cap
-const CAP_D   = '#111111'; // Adidas Black Cap Dark
-const JACKET  = '#eaeaea'; // Adidas T-shirt (light grey)
-const COLLAR  = '#eaeaea'; // Adidas T-shirt collar
-const PANTS   = '#18181b'; // Adidas Black track pants
-const BOOT    = '#ffffff'; // Adidas White sneakers
-const SOLE    = '#111111'; // Adidas Black sneaker sole
-const LACE    = '#ffffff'; // Adidas White sneaker laces
-const PACK    = '#374151'; // Sporty grey backpack
-const PACK_D  = '#1f2937'; // Dark grey backpack lid
-const PACK_S  = '#111827'; // Black straps
-const POLE    = '#c8a060';
+const SKIN    = '#e8a27b'; // Peach/Tan skin
+const SKIN_D  = '#c8855e'; // Dark skin shading
+const HAIR    = '#fbbf24'; // Golden blonde spiky hair
+const SHIRT   = '#59bca6'; // Teal/Mint green open shirt
+const INNER_T = '#ffffff'; // White inner T-shirt
+const PANTS   = '#b2591e'; // Orange-brown/tan trousers
+const SHOE    = '#556b2f'; // Olive green shoes
+const SOLE    = '#1a240f'; // Dark olive sole
+const LACE    = '#cccccc'; // Grey laces
+const PACK    = '#70482c'; // Brown leather backpack
+const PACK_D  = '#5c3c26'; // Darker brown backpack parts
+const PACK_S  = '#362215'; // Dark straps
+const POLE    = '#c8a060'; // Trekking pole shaft
 const GRIP    = '#1a1a1a'; // Black grip
-const METAL   = '#b0b0b0';
+const METAL   = '#b0b0b0'; // Metal accents
 const IND_O   = '#FF9933';
 const IND_G   = '#138808';
 const IND_B   = '#000080';
@@ -57,6 +67,8 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
   const headlampRef     = useRef();
   const lastFootRef     = useRef(0);
   const flagGroupRef    = useRef();
+  const headRef         = useRef();
+  const lastActiveTimeRef = useRef(0);
 
   const [, getKeys] = useKeyboardControls();
 
@@ -186,6 +198,34 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
       flagGroupRef.current.rotation.z = Math.cos(t * windSpeed * 1.2) * (windIntensity * 0.3);
     }
 
+    // Idle head look-around animation (Quantized with t at 12 FPS)
+    if (isMoving) {
+      lastActiveTimeRef.current = realT;
+      if (headRef.current) {
+        headRef.current.rotation.y = 0;
+        headRef.current.rotation.x = 0;
+        headRef.current.rotation.z = 0;
+      }
+    } else {
+      const idleDuration = realT - lastActiveTimeRef.current;
+      if (idleDuration > 2.0) {
+        const idleT = Math.floor(idleDuration * 12) / 12;
+        const animT = idleT - 2.0;
+        if (headRef.current) {
+          headRef.current.rotation.y = Math.sin(animT * 1.5) * 0.45;
+          headRef.current.rotation.x = Math.max(0, Math.cos(animT * 3.0)) * 0.08;
+          headRef.current.rotation.z = Math.sin(animT * 0.75) * 0.05;
+        }
+      } else {
+        if (headRef.current) {
+          const headDecay = 1.0 - Math.exp(-10.0 * delta);
+          headRef.current.rotation.y = THREE.MathUtils.lerp(headRef.current.rotation.y, 0, headDecay);
+          headRef.current.rotation.x = THREE.MathUtils.lerp(headRef.current.rotation.x, 0, headDecay);
+          headRef.current.rotation.z = THREE.MathUtils.lerp(headRef.current.rotation.z, 0, headDecay);
+        }
+      }
+    }
+
     characterRotationRef.current = characterRef.current.rotation.y;
   });
 
@@ -204,122 +244,97 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
         <group ref={bodyBobRef}>
 
           {/* ══════════════════════════════════════════
-              HEAD
+              HEAD (Low-Poly, Faceted, with Sunglasses & Spiky Hair)
           ══════════════════════════════════════════ */}
-          <group position={[0, 1.14, 0]}>
+          <group ref={headRef} position={[0, 1.14, 0]}>
 
-            {/* Skull sphere */}
+            {/* Low-Poly Skull */}
             <mesh castShadow>
-              <sphereGeometry args={[0.268, 32, 32]} />
+              <sphereGeometry args={[0.268, 8, 8]} />
               <ClayMaterial color={SKIN} roughness={0.68} />
             </mesh>
 
-            {/* Sculpted Smooth Jaw/Chin */}
+            {/* Low-Poly Jaw/Chin */}
             <mesh castShadow position={[0, -0.09, 0.05]} scale={[0.9, 0.76, 1.0]}>
-              <sphereGeometry args={[0.13, 24, 24]} />
+              <sphereGeometry args={[0.13, 6, 6]} />
               <ClayMaterial color={SKIN} roughness={0.7} />
             </mesh>
 
-            {/* Stylized Cheekbones */}
-            {[-0.10, 0.10].map((cx, i) => (
-              <mesh key={i} position={[cx, -0.02, 0.16]} scale={[1, 0.8, 0.6]}>
-                <sphereGeometry args={[0.06, 16, 16]} />
-                <ClayMaterial color={SKIN_D} roughness={0.75} />
-              </mesh>
-            ))}
-
-            {/* Ears */}
+            {/* Low-Poly Ears */}
             {[[-0.268, 0.02, -0.01], [0.268, 0.02, -0.01]].map(([x, y, z], i) => (
               <mesh key={i} position={[x, y, z]} scale={[0.42, 0.70, 0.52]}>
-                <sphereGeometry args={[0.12, 16, 16]} />
+                <sphereGeometry args={[0.12, 6, 6]} />
                 <ClayMaterial color={SKIN_D} roughness={0.75} />
               </mesh>
             ))}
 
-            {/* Eyes – white + pupil + highlight */}
-            {[[-0.104, 0.055], [0.104, 0.055]].map(([ex, ey], i) => (
-              <group key={i} position={[ex, ey, 0.234]}>
-                <mesh castShadow>
-                  <sphereGeometry args={[0.044, 10, 10]} />
-                  <ClayMaterial color="#fff" roughness={0.35} />
-                </mesh>
-                <mesh position={[i === 0 ? -0.006 : 0.006, -0.003, 0.030]}>
-                  <sphereGeometry args={[0.031, 8, 8]} />
-                  <ClayMaterial color="#161220" />
-                </mesh>
-                <mesh position={[i === 0 ? -0.004 : 0.004, 0.005, 0.042]}>
-                  <sphereGeometry args={[0.013, 6, 6]} />
-                  <ClayMaterial color="#fff" emissive="#fff" emissiveIntensity={1.5} />
-                </mesh>
-              </group>
-            ))}
+            {/* Low-Poly Sunglasses (Replacing Eyes/Eyebrows) */}
+            <group position={[0, 0.05, 0.05]}>
+              {/* Front Frame */}
+              <mesh castShadow position={[0, 0, 0.185]} rotation={[0.04, 0, 0]}>
+                <boxGeometry args={[0.42, 0.08, 0.04]} />
+                <ClayMaterial color="#1a1a1a" roughness={0.2} metalness={0.8} />
+              </mesh>
+              {/* Lenses */}
+              <mesh position={[0, 0, 0.198]} rotation={[0.04, 0, 0]}>
+                <boxGeometry args={[0.39, 0.06, 0.02]} />
+                <ClayMaterial color="#0f0f11" roughness={0.1} metalness={0.9} />
+              </mesh>
+              {/* Left Temple (arm) */}
+              <mesh position={[-0.21, 0, 0.10]} rotation={[0.04, 0.1, 0]}>
+                <boxGeometry args={[0.03, 0.05, 0.2]} />
+                <ClayMaterial color="#1a1a1a" roughness={0.2} metalness={0.8} />
+              </mesh>
+              {/* Right Temple (arm) */}
+              <mesh position={[0.21, 0, 0.10]} rotation={[0.04, -0.1, 0]}>
+                <boxGeometry args={[0.03, 0.05, 0.2]} />
+                <ClayMaterial color="#1a1a1a" roughness={0.2} metalness={0.8} />
+              </mesh>
+            </group>
 
-            {/* Eyebrows */}
-            {[[-0.104, 0.12, -0.18], [0.104, 0.12, 0.18]].map(([ex, ey, rz], i) => (
-              <mesh key={i} position={[ex, ey, 0.239]} rotation={[0.06, i === 0 ? 0.12 : -0.12, rz]}>
-                <boxGeometry args={[0.076, 0.013, 0.018]} />
-                <ClayMaterial color={HAIR} />
+            {/* Low-Poly Spiky Hair (Blonde) */}
+            <mesh position={[0, 0.14, -0.03]} scale={[1.02, 0.75, 1.02]}>
+              <sphereGeometry args={[0.27, 8, 8]} />
+              <ClayMaterial color={HAIR} roughness={0.90} />
+            </mesh>
+            {[
+              // Center spikes
+              { pos: [0, 0.28, 0.08], rot: [0.3, 0, 0], scale: [0.12, 0.16, 0.12] },
+              { pos: [0, 0.30, -0.04], rot: [0.1, 0, 0], scale: [0.13, 0.18, 0.13] },
+              { pos: [0, 0.26, -0.16], rot: [-0.2, 0, 0], scale: [0.12, 0.16, 0.12] },
+              // Left spikes
+              { pos: [-0.12, 0.25, 0.06], rot: [0.25, 0, 0.3], scale: [0.11, 0.15, 0.11] },
+              { pos: [-0.15, 0.24, -0.06], rot: [0.0, 0, 0.4], scale: [0.12, 0.16, 0.12] },
+              { pos: [-0.11, 0.20, -0.16], rot: [-0.2, 0, 0.35], scale: [0.11, 0.14, 0.11] },
+              // Right spikes
+              { pos: [0.12, 0.25, 0.06], rot: [0.25, 0, -0.3], scale: [0.11, 0.15, 0.11] },
+              { pos: [0.15, 0.24, -0.06], rot: [0.0, 0, -0.4], scale: [0.12, 0.16, 0.12] },
+              { pos: [0.11, 0.20, -0.16], rot: [-0.2, 0, -0.35], scale: [0.11, 0.14, 0.11] },
+              // Front fringe spikes
+              { pos: [-0.06, 0.27, 0.14], rot: [0.4, 0.2, -0.1], scale: [0.09, 0.14, 0.09] },
+              { pos: [0.06, 0.27, 0.14], rot: [0.4, -0.2, 0.1], scale: [0.09, 0.14, 0.09] },
+            ].map((spike, idx) => (
+              <mesh
+                key={idx}
+                position={spike.pos}
+                rotation={spike.rot}
+                scale={spike.scale}
+                castShadow
+              >
+                <coneGeometry args={[0.8, 1.2, 4]} />
+                <ClayMaterial color={HAIR} roughness={0.88} />
               </mesh>
             ))}
 
-            {/* Smooth tapered chiseled nose */}
-            <mesh position={[0, 0.01, 0.252]} rotation={[-0.2, 0, 0]}>
-              <cylinderGeometry args={[0.018, 0.032, 0.12, 16]} />
-              <ClayMaterial color={SKIN_D} roughness={0.82} />
-            </mesh>
-
-            {/* Mouth (simple line) */}
-            <mesh position={[0, -0.098, 0.253]}>
-              <boxGeometry args={[0.058, 0.011, 0.010]} />
-              <ClayMaterial color="#c06050" roughness={0.85} />
-            </mesh>
-            {/* Cheek blush */}
-            {[-0.19, 0.19].map((cx, i) => (
-              <mesh key={i} position={[cx, -0.035, 0.21]} scale={[1, 0.6, 0.3]}>
-                <sphereGeometry args={[0.055, 16, 16]} />
-                <ClayMaterial color="#e09080" roughness={0.9} transparent opacity={0.35} />
-              </mesh>
-            ))}
-
-            {/* Hair – dark dome on top/back */}
-            <mesh position={[0, 0.18, -0.06]} scale={[1.05, 0.52, 1.05]}>
-              <sphereGeometry args={[0.278, 24, 24]} />
-              <ClayMaterial color={HAIR} roughness={0.96} />
-            </mesh>
-
-            {/* ── Trekking Cap ── */}
-            {/* Dome */}
-            <mesh position={[0, 0.145, -0.025]} scale={[1.05, 0.72, 1.06]}>
-              <sphereGeometry args={[0.272, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.60]} />
-              <ClayMaterial color={CAP} roughness={0.90} />
-            </mesh>
-            {/* Front brim */}
-            <mesh position={[0, 0.036, 0.218]} rotation={[-0.28, 0, 0]}>
-              <cylinderGeometry args={[0.218, 0.225, 0.022, 32, 1, false, -0.62, 1.24]} />
-              <ClayMaterial color={CAP_D} roughness={0.92} />
-            </mesh>
-            {/* Top button */}
-            <mesh position={[0, 0.358, -0.028]}>
-              <cylinderGeometry args={[0.022, 0.022, 0.022, 12]} />
-              <ClayMaterial color={CAP_D} roughness={0.85} />
-            </mesh>
-            {/* Adidas Cap 3-Stripes */}
-            {[-0.032, 0, 0.032].map((ox, idx) => (
-              <mesh key={idx} position={[ox, 0.26, 0.158]} rotation={[0.42, 0, 0]}>
-                <boxGeometry args={[0.011, 0.11, 0.012]} />
-                <ClayMaterial color="#ffffff" roughness={0.7} />
-              </mesh>
-            ))}
-
-            {/* ── Headlamp ── */}
+            {/* ── Headlamp (Functional Night Item) ── */}
             <group position={[0, 0.115, 0.274]}>
               <mesh>
                 <boxGeometry args={[0.074, 0.044, 0.032]} />
-                <ClayMaterial color="#1c1c1c" roughness={0.45} metalness={0.55} />
+                <ClayMaterial color="#1a1a1a" roughness={0.45} metalness={0.55} />
               </mesh>
               {/* Lens */}
               <mesh position={[0, 0, 0.018]}>
-                <circleGeometry args={[0.022, 8]} />
+                <circleGeometry args={[0.022, 6]} />
                 <ClayMaterial color="#ffe880" emissive="#ffdf40" emissiveIntensity={0.5} />
               </mesh>
               <pointLight ref={headlampRef} color="#ffedd5" intensity={0} distance={16} position={[0, 0.2, 0.8]} decay={1.5} />
@@ -331,34 +346,34 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
               NECK
           ══════════════════════════════════════════ */}
           <mesh castShadow position={[0, 0.845, 0]}>
-            <cylinderGeometry args={[0.082, 0.092, 0.14, 24]} />
+            <cylinderGeometry args={[0.082, 0.092, 0.14, 8]} />
             <ClayMaterial color={SKIN} roughness={0.70} />
           </mesh>
 
           {/* ══════════════════════════════════════════
-              TORSO
+              TORSO (Open Shirt over White T-shirt)
           ══════════════════════════════════════════ */}
           <group position={[0, 0.58, 0]}>
-            {/* Main rounded cylinder */}
+            {/* Main shirt body */}
             <mesh castShadow>
-              <cylinderGeometry args={[0.216, 0.200, 0.46, 32]} />
-              <ClayMaterial color={JACKET} roughness={0.74} />
+              <cylinderGeometry args={[0.216, 0.200, 0.46, 12]} />
+              <ClayMaterial color={SHIRT} roughness={0.74} />
             </mesh>
-            {/* Chest fill sphere */}
-            <mesh position={[0, 0.10, 0.09]} scale={[0.80, 0.48, 0.40]}>
-              <sphereGeometry args={[0.22, 32, 24]} />
-              <ClayMaterial color={JACKET} roughness={0.74} />
+            {/* Inner White T-Shirt */}
+            <mesh position={[0, 0.08, 0.08]} scale={[0.82, 0.62, 0.50]}>
+              <sphereGeometry args={[0.22, 8, 8]} />
+              <ClayMaterial color={INNER_T} roughness={0.74} />
             </mesh>
-            {/* Shirt collar */}
-            <mesh position={[0, 0.225, 0.112]}>
-              <cylinderGeometry args={[0.070, 0.080, 0.068, 24]} />
-              <ClayMaterial color={COLLAR} roughness={0.80} />
-            </mesh>
-            {/* Adidas chest logo (three slanted stripes) */}
-            {[[-0.016, 0.024], [0, 0.038], [0.016, 0.052]].map(([ox, h], idx) => (
-              <mesh key={idx} position={[-0.085 + ox, 0.10 + (h - 0.038)/2, 0.198]} rotation={[0.08, 0.1, 0.45]}>
-                <boxGeometry args={[0.010, h, 0.008]} />
-                <ClayMaterial color="#111111" roughness={0.5} />
+            {/* Open collar pieces */}
+            {[-0.08, 0.08].map((cx, idx) => (
+              <mesh
+                key={idx}
+                position={[cx, 0.18, 0.12]}
+                rotation={[0.2, idx === 0 ? 0.4 : -0.4, idx === 0 ? 0.3 : -0.3]}
+                scale={[0.06, 0.14, 0.05]}
+              >
+                <boxGeometry />
+                <ClayMaterial color={SHIRT} roughness={0.80} />
               </mesh>
             ))}
           </group>
@@ -366,23 +381,23 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
           {/* Shoulder joints */}
           {[[-0.274, 0.78, 0], [0.274, 0.78, 0]].map(([sx, sy, sz], i) => (
             <mesh key={i} castShadow position={[sx, sy, sz]}>
-              <sphereGeometry args={[0.095, 24, 24]} />
-              <ClayMaterial color={JACKET} roughness={0.74} />
+              <sphereGeometry args={[0.095, 8, 8]} />
+              <ClayMaterial color={SHIRT} roughness={0.74} />
             </mesh>
           ))}
 
           {/* ══════════════════════════════════════════
-              BACKPACK
+              BACKPACK (Brown leather style)
           ══════════════════════════════════════════ */}
           <group position={[0, 0.64, -0.265]}>
             {/* Main pack body */}
             <mesh castShadow>
-              <cylinderGeometry args={[0.165, 0.148, 0.500, 24]} />
+              <cylinderGeometry args={[0.165, 0.148, 0.500, 8]} />
               <ClayMaterial color={PACK} roughness={0.88} />
             </mesh>
             {/* Top lid dome */}
             <mesh position={[0, 0.276, 0]} scale={[1.02, 0.52, 1.02]}>
-              <sphereGeometry args={[0.165, 24, 16]} />
+              <sphereGeometry args={[0.165, 8, 6]} />
               <ClayMaterial color={PACK_D} roughness={0.90} />
             </mesh>
             {/* Compression straps */}
@@ -394,17 +409,17 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
             ))}
             {/* Side pockets */}
             <mesh position={[-0.196, -0.02, 0.018]}>
-              <cylinderGeometry args={[0.042, 0.037, 0.20, 7]} />
-              <ClayMaterial color="#5a8035" roughness={0.90} />
+              <cylinderGeometry args={[0.042, 0.037, 0.20, 5]} />
+              <ClayMaterial color={PACK_D} roughness={0.90} />
             </mesh>
             <mesh position={[0.196, -0.02, 0.018]}>
-              <cylinderGeometry args={[0.042, 0.037, 0.20, 7]} />
+              <cylinderGeometry args={[0.042, 0.037, 0.20, 5]} />
               <ClayMaterial color={PACK_D} roughness={0.90} />
             </mesh>
             {/* Shoulder straps visible from front */}
             {[[-0.09, 0.20, 0.112, 0.12], [0.09, 0.20, 0.112, -0.12]].map(([px, py, pz, rz], i) => (
               <mesh key={i} position={[px, py, pz]} rotation={[0.28, 0, rz]}>
-                <cylinderGeometry args={[0.022, 0.019, 0.36, 5]} />
+                <cylinderGeometry args={[0.022, 0.019, 0.36, 4]} />
                 <ClayMaterial color={PACK_S} roughness={0.88} />
               </mesh>
             ))}
@@ -420,12 +435,12 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
             </mesh>
             {/* Sleeping roll */}
             <mesh position={[0, -0.31, 0.058]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.060, 0.060, 0.28, 20]} />
-              <ClayMaterial color="#16a34a" roughness={0.75} />
+              <cylinderGeometry args={[0.060, 0.060, 0.28, 8]} />
+              <ClayMaterial color="#4f7a28" roughness={0.75} />
             </mesh>
             <mesh position={[0, -0.31, 0.058]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.063, 0.063, 0.044, 20]} />
-              <ClayMaterial color="#78350f" roughness={0.80} />
+              <cylinderGeometry args={[0.063, 0.063, 0.044, 8]} />
+              <ClayMaterial color={PACK_S} roughness={0.80} />
             </mesh>
 
             {/* 🇮🇳 Indian Flag */}
@@ -503,39 +518,39 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
           {/* end BACKPACK */}
 
           {/* ══════════════════════════════════════════
-              HIP / PELVIS
+              HIP / PELVIS (Orange-Brown)
           ══════════════════════════════════════════ */}
           <mesh castShadow position={[0, 0.298, 0.010]} scale={[1.06, 0.50, 0.94]}>
-            <sphereGeometry args={[0.196, 24, 16]} />
+            <sphereGeometry args={[0.196, 8, 8]} />
             <ClayMaterial color={PANTS} roughness={0.88} />
           </mesh>
 
           {/* ══════════════════════════════════════════
-              LEFT ARM
+              LEFT ARM (Teal sleeves, skin hands)
           ══════════════════════════════════════════ */}
           <group ref={leftArmRef} position={[-0.312, 0.780, 0]}>
             <mesh castShadow position={[0, -0.130, 0]}>
-              <cylinderGeometry args={[0.072, 0.064, 0.26, 16]} />
-              <ClayMaterial color={JACKET} roughness={0.74} />
+              <cylinderGeometry args={[0.072, 0.064, 0.26, 8]} />
+              <ClayMaterial color={SHIRT} roughness={0.74} />
             </mesh>
             {/* Elbow */}
             <mesh position={[0, -0.270, 0]}>
-              <sphereGeometry args={[0.066, 16, 16]} />
-              <ClayMaterial color={SKIN} roughness={0.74} />
+              <sphereGeometry args={[0.066, 8, 8]} />
+              <ClayMaterial color={SHIRT} roughness={0.74} />
             </mesh>
             <mesh castShadow position={[0, -0.412, 0]}>
-              <cylinderGeometry args={[0.060, 0.052, 0.26, 16]} />
-              <ClayMaterial color={SKIN} roughness={0.72} />
+              <cylinderGeometry args={[0.060, 0.052, 0.26, 8]} />
+              <ClayMaterial color={SHIRT} roughness={0.72} />
             </mesh>
             {/* Hand */}
             <mesh position={[0, -0.558, 0]}>
-              <sphereGeometry args={[0.058, 16, 16]} />
+              <sphereGeometry args={[0.058, 8, 8]} />
               <ClayMaterial color={SKIN} roughness={0.72} />
             </mesh>
             {/* Finger hints */}
             {[-0.018, 0.018].map((dx, i) => (
               <mesh key={i} position={[dx, -0.612, 0.012]}>
-                <sphereGeometry args={[0.022, 6, 6]} />
+                <sphereGeometry args={[0.022, 4, 4]} />
                 <ClayMaterial color={SKIN_D} roughness={0.82} />
               </mesh>
             ))}
@@ -547,22 +562,22 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
           <group ref={rightArmRef} position={[0.312, 0.780, 0]}>
             {/* Upper arm angled slightly forward */}
             <mesh castShadow position={[0, -0.130, 0.028]} rotation={[-0.14, 0, 0]}>
-              <cylinderGeometry args={[0.072, 0.064, 0.26, 16]} />
-              <ClayMaterial color={JACKET} roughness={0.74} />
+              <cylinderGeometry args={[0.072, 0.064, 0.26, 8]} />
+              <ClayMaterial color={SHIRT} roughness={0.74} />
             </mesh>
             {/* Elbow */}
             <mesh position={[0, -0.268, 0.050]}>
-              <sphereGeometry args={[0.066, 16, 16]} />
-              <ClayMaterial color={SKIN} roughness={0.74} />
+              <sphereGeometry args={[0.066, 8, 8]} />
+              <ClayMaterial color={SHIRT} roughness={0.74} />
             </mesh>
             {/* Lower arm */}
             <mesh castShadow position={[0, -0.410, 0.096]} rotation={[-0.34, 0, 0]}>
-              <cylinderGeometry args={[0.060, 0.052, 0.26, 16]} />
-              <ClayMaterial color={SKIN} roughness={0.72} />
+              <cylinderGeometry args={[0.060, 0.052, 0.26, 8]} />
+              <ClayMaterial color={SHIRT} roughness={0.72} />
             </mesh>
             {/* Hand */}
             <mesh position={[0.028, -0.554, 0.172]}>
-              <sphereGeometry args={[0.062, 16, 16]} />
+              <sphereGeometry args={[0.062, 8, 8]} />
               <ClayMaterial color={SKIN} roughness={0.72} />
             </mesh>
 
@@ -570,44 +585,44 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
             <group position={[0.038, -0.542, 0.185]} rotation={[0.60, 0, 0.06]}>
               {/* Grip */}
               <mesh castShadow>
-                <cylinderGeometry args={[0.024, 0.022, 0.18, 7]} />
+                <cylinderGeometry args={[0.024, 0.022, 0.18, 5]} />
                 <ClayMaterial color={GRIP} roughness={0.93} />
               </mesh>
               {/* Grip texture rings */}
               {[0.042, 0.000, -0.042].map((gy, i) => (
                 <mesh key={i} position={[0, gy, 0]}>
-                  <cylinderGeometry args={[0.027, 0.027, 0.016, 7]} />
+                  <cylinderGeometry args={[0.027, 0.027, 0.016, 5]} />
                   <ClayMaterial color={PACK_S} roughness={0.95} />
                 </mesh>
               ))}
               {/* Wrist strap */}
               <mesh position={[0, 0.105, 0]} rotation={[0, 0, Math.PI / 2]}>
-                <torusGeometry args={[0.038, 0.008, 4, 10, Math.PI * 1.35]} />
+                <torusGeometry args={[0.038, 0.008, 4, 8, Math.PI * 1.35]} />
                 <ClayMaterial color={GRIP} roughness={0.88} />
               </mesh>
               {/* Shaft section 1 */}
               <mesh castShadow position={[0, -0.62, 0]}>
-                <cylinderGeometry args={[0.013, 0.012, 1.04, 6]} />
+                <cylinderGeometry args={[0.013, 0.012, 1.04, 5]} />
                 <ClayMaterial color={POLE} roughness={0.78} />
               </mesh>
               {/* Shaft section join ring */}
               <mesh position={[0, -1.15, 0]}>
-                <cylinderGeometry args={[0.016, 0.016, 0.024, 6]} />
+                <cylinderGeometry args={[0.016, 0.016, 0.024, 5]} />
                 <ClayMaterial color={METAL} metalness={0.82} roughness={0.22} />
               </mesh>
               {/* Shaft section 2 (narrower) */}
               <mesh castShadow position={[0, -1.52, 0]}>
-                <cylinderGeometry args={[0.011, 0.009, 0.72, 6]} />
+                <cylinderGeometry args={[0.011, 0.009, 0.72, 5]} />
                 <ClayMaterial color={POLE} roughness={0.78} />
               </mesh>
               {/* Basket (stops pole sinking) */}
               <mesh position={[0, -1.89, 0]}>
-                <cylinderGeometry args={[0.040, 0.040, 0.010, 8]} />
+                <cylinderGeometry args={[0.040, 0.040, 0.010, 6]} />
                 <ClayMaterial color="#222" roughness={0.92} />
               </mesh>
               {/* Metal tip */}
               <mesh position={[0, -1.96, 0]}>
-                <coneGeometry args={[0.009, 0.082, 5]} />
+                <coneGeometry args={[0.009, 0.082, 4]} />
                 <ClayMaterial color={METAL} metalness={0.94} roughness={0.16} />
               </mesh>
             </group>
@@ -615,43 +630,43 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
           {/* end RIGHT ARM */}
 
           {/* ══════════════════════════════════════════
-              LEFT LEG
+              LEFT LEG (Orange-brown pants, olive green shoes)
           ══════════════════════════════════════════ */}
           <group ref={leftLegRef} position={[-0.114, 0.262, 0]}>
             {/* Upper leg */}
             <mesh castShadow position={[0, -0.138, 0]}>
-              <cylinderGeometry args={[0.092, 0.082, 0.276, 16]} />
+              <cylinderGeometry args={[0.092, 0.082, 0.276, 8]} />
               <ClayMaterial color={PANTS} roughness={0.88} />
             </mesh>
             {/* Knee sphere */}
             <mesh position={[0, -0.288, 0]}>
-              <sphereGeometry args={[0.085, 16, 16]} />
+              <sphereGeometry args={[0.085, 8, 8]} />
               <ClayMaterial color={PANTS} roughness={0.88} />
             </mesh>
             {/* Lower leg */}
             <mesh castShadow position={[0, -0.456, 0]}>
-              <cylinderGeometry args={[0.078, 0.068, 0.300, 16]} />
+              <cylinderGeometry args={[0.078, 0.068, 0.300, 8]} />
               <ClayMaterial color={PANTS} roughness={0.88} />
             </mesh>
             {/* Ankle */}
             <mesh position={[0, -0.622, 0.010]}>
-              <sphereGeometry args={[0.072, 16, 16]} />
-              <ClayMaterial color={BOOT} roughness={0.92} />
+              <sphereGeometry args={[0.072, 8, 8]} />
+              <ClayMaterial color={SHOE} roughness={0.92} />
             </mesh>
             {/* Boot upper (ankle cuff) */}
             <mesh castShadow position={[0, -0.720, 0.010]}>
-              <cylinderGeometry args={[0.080, 0.076, 0.18, 16]} />
-              <ClayMaterial color={BOOT} roughness={0.92} />
+              <cylinderGeometry args={[0.080, 0.076, 0.18, 8]} />
+              <ClayMaterial color={SHOE} roughness={0.92} />
             </mesh>
             {/* Boot toe box */}
             <mesh castShadow position={[-0.004, -0.836, 0.052]}>
               <boxGeometry args={[0.148, 0.108, 0.238]} />
-              <ClayMaterial color={BOOT} roughness={0.92} />
+              <ClayMaterial color={SHOE} roughness={0.92} />
             </mesh>
             {/* Heel bump */}
             <mesh position={[-0.004, -0.840, -0.068]}>
-              <sphereGeometry args={[0.068, 16, 16]} />
-              <ClayMaterial color={BOOT} roughness={0.92} />
+              <sphereGeometry args={[0.068, 8, 8]} />
+              <ClayMaterial color={SHOE} roughness={0.92} />
             </mesh>
             {/* Sole */}
             <mesh position={[-0.004, -0.894, 0.046]}>
@@ -674,59 +689,51 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
             ))}
             {/* Lace cross-knot */}
             <mesh position={[-0.004, -0.660, 0.117]}>
-              <sphereGeometry args={[0.018, 6, 6]} />
+              <sphereGeometry args={[0.018, 5, 5]} />
               <ClayMaterial color={LACE} roughness={0.70} />
             </mesh>
-
-            {/* Adidas 3-Stripes down left side of pants */}
-            {[-0.032, 0, 0.032].map((oz, i) => (
-              <mesh key={`p-l-${i}`} position={[-0.096, -0.30, oz]}>
-                <boxGeometry args={[0.010, 0.60, 0.010]} />
-                <ClayMaterial color="#ffffff" roughness={0.7} />
-              </mesh>
-            ))}
-
-            {/* Adidas sneaker stripes (outer side left) */}
-            {[-0.035, 0, 0.035].map((oz, i) => (
-              <mesh key={`s-l-${i}`} position={[-0.079, -0.836, 0.052 + oz]} rotation={[0, 0, 0.2]}>
-                <boxGeometry args={[0.008, 0.068, 0.015]} />
-                <ClayMaterial color="#111111" roughness={0.5} />
-              </mesh>
-            ))}
           </group>
 
           {/* ══════════════════════════════════════════
-              RIGHT LEG
+              RIGHT LEG (Orange-brown pants, olive green shoes)
           ══════════════════════════════════════════ */}
           <group ref={rightLegRef} position={[0.114, 0.262, 0]}>
+            {/* Upper leg */}
             <mesh castShadow position={[0, -0.138, 0]}>
-              <cylinderGeometry args={[0.092, 0.082, 0.276, 16]} />
+              <cylinderGeometry args={[0.092, 0.082, 0.276, 8]} />
               <ClayMaterial color={PANTS} roughness={0.88} />
             </mesh>
+            {/* Knee sphere */}
             <mesh position={[0, -0.288, 0]}>
-              <sphereGeometry args={[0.085, 16, 16]} />
+              <sphereGeometry args={[0.085, 8, 8]} />
               <ClayMaterial color={PANTS} roughness={0.88} />
             </mesh>
+            {/* Lower leg */}
             <mesh castShadow position={[0, -0.456, 0]}>
-              <cylinderGeometry args={[0.078, 0.068, 0.300, 16]} />
+              <cylinderGeometry args={[0.078, 0.068, 0.300, 8]} />
               <ClayMaterial color={PANTS} roughness={0.88} />
             </mesh>
+            {/* Ankle */}
             <mesh position={[0, -0.622, 0.010]}>
-              <sphereGeometry args={[0.072, 16, 16]} />
-              <ClayMaterial color={BOOT} roughness={0.92} />
+              <sphereGeometry args={[0.072, 8, 8]} />
+              <ClayMaterial color={SHOE} roughness={0.92} />
             </mesh>
+            {/* Boot upper (ankle cuff) */}
             <mesh castShadow position={[0, -0.720, 0.010]}>
-              <cylinderGeometry args={[0.080, 0.076, 0.18, 16]} />
-              <ClayMaterial color={BOOT} roughness={0.92} />
+              <cylinderGeometry args={[0.080, 0.076, 0.18, 8]} />
+              <ClayMaterial color={SHOE} roughness={0.92} />
             </mesh>
+            {/* Boot toe box */}
             <mesh castShadow position={[0.004, -0.836, 0.052]}>
               <boxGeometry args={[0.148, 0.108, 0.238]} />
-              <ClayMaterial color={BOOT} roughness={0.92} />
+              <ClayMaterial color={SHOE} roughness={0.92} />
             </mesh>
+            {/* Heel bump */}
             <mesh position={[0.004, -0.840, -0.068]}>
-              <sphereGeometry args={[0.068, 16, 16]} />
-              <ClayMaterial color={BOOT} roughness={0.92} />
+              <sphereGeometry args={[0.068, 8, 8]} />
+              <ClayMaterial color={SHOE} roughness={0.92} />
             </mesh>
+            {/* Sole */}
             <mesh position={[0.004, -0.894, 0.046]}>
               <boxGeometry args={[0.158, 0.034, 0.270]} />
               <ClayMaterial color={SOLE} roughness={0.98} />
@@ -744,7 +751,7 @@ export default function Character({ onPositionChange, teleportTarget, clearTelep
               </mesh>
             ))}
             <mesh position={[0.004, -0.660, 0.117]}>
-              <sphereGeometry args={[0.018, 6, 6]} />
+              <sphereGeometry args={[0.018, 5, 5]} />
               <ClayMaterial color={LACE} roughness={0.70} />
             </mesh>
           </group>

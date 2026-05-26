@@ -254,7 +254,16 @@ function LanternPost({ position, isNight }) {
   const color2 = useMemo(() => new THREE.Color("#fef08a"), []);
   const tempCol = useMemo(() => new THREE.Color(), []);
 
+  const tickRef = useRef(0);
+  const accumDeltaRef = useRef(0);
+
   useFrame((s, delta) => {
+    tickRef.current++;
+    accumDeltaRef.current += delta;
+    if (tickRef.current % 5 !== 0) return;
+    const d = accumDeltaRef.current;
+    accumDeltaRef.current = 0;
+
     const pzVal = window.playerZ || 0;
     const dist = Math.abs(pz - pzVal);
     const cullDist = isMobileDevice() ? 30 : 60;
@@ -266,9 +275,9 @@ function LanternPost({ position, isNight }) {
 
     const transitionSpeed = 0.25;
     if (isNight) {
-      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+      transitionRef.current = Math.min(1, transitionRef.current + d * transitionSpeed);
     } else {
-      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+      transitionRef.current = Math.max(0, transitionRef.current - d * transitionSpeed);
     }
     const t = transitionRef.current;
 
@@ -331,7 +340,16 @@ function FireTorch({ position, isNight }) {
   const tempCol = useMemo(() => new THREE.Color(), []);
   const tempEmissive = useMemo(() => new THREE.Color(), []);
 
+  const tickRef = useRef(0);
+  const accumDeltaRef = useRef(0);
+
   useFrame((s, delta) => {
+    tickRef.current++;
+    accumDeltaRef.current += delta;
+    if (tickRef.current % 5 !== 0) return;
+    const d = accumDeltaRef.current;
+    accumDeltaRef.current = 0;
+
     const pzVal = window.playerZ || 0;
     const dist = Math.abs(pz - pzVal);
     const cullDist = isMobileDevice() ? 25 : 55;
@@ -343,9 +361,9 @@ function FireTorch({ position, isNight }) {
 
     const transitionSpeed = 0.25;
     if (isNight) {
-      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+      transitionRef.current = Math.min(1, transitionRef.current + d * transitionSpeed);
     } else {
-      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+      transitionRef.current = Math.max(0, transitionRef.current - d * transitionSpeed);
     }
     const t = transitionRef.current;
 
@@ -1413,6 +1431,56 @@ function FlowingStream({ isNight }) {
 }
 
 // ════════════════════════════════════════════════════════════════
+// BOAT
+// ════════════════════════════════════════════════════════════════
+function Boat() {
+  const { scene } = useGLTF((import.meta.env.BASE_URL || '/') + 'quaternius_cc0-boat-724.glb');
+  const boatRef = useRef();
+  const lastTimeRef = useRef(0);
+
+  useMemo(() => {
+    scene.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        if (child.material) {
+          const applyClay = (mat) => {
+            mat.bumpMap = clayBumpMap;
+            mat.bumpScale = 0.012;
+            mat.roughness = 0.9;
+            mat.flatShading = true;
+          };
+          if (Array.isArray(child.material)) {
+            child.material.forEach(applyClay);
+          } else {
+            applyClay(child.material);
+          }
+        }
+      }
+    });
+  }, [scene]);
+
+  useFrame((state) => {
+    if (!boatRef.current) return;
+    const realT = state.clock.getElapsedTime();
+    const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
+    if (t === lastTimeRef.current) return;
+    lastTimeRef.current = t;
+
+    // Rocking and bobbing
+    boatRef.current.position.y = -0.14 + Math.sin(t * 2.5) * 0.02;
+    boatRef.current.rotation.z = Math.sin(t * 1.8) * 0.03;
+    boatRef.current.rotation.x = Math.cos(t * 1.5) * 0.02;
+  });
+
+  return (
+    <group ref={boatRef} position={[7.5, -0.14, 0]}>
+      <primitive object={scene} />
+    </group>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
 // WATERFALL
 // ════════════════════════════════════════════════════════════════
 function Waterfall() {
@@ -1665,6 +1733,8 @@ function DayClouds({ isNight }) {
     };
   }, [geometries]);
 
+  const lastStepTimeRef = useRef(0);
+
   useFrame((s, delta) => {
     const transitionSpeed = 0.25;
     if (isNight) {
@@ -1680,6 +1750,11 @@ function DayClouds({ isNight }) {
     if (isVisible) {
       sharedMaterial.opacity = (1 - t) * 0.88;
       const stepTime = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+      
+      const isTransitioning = (isNight && t < 1) || (!isNight && t > 0);
+      if (stepTime === lastStepTimeRef.current && !isTransitioning) return;
+      lastStepTimeRef.current = stepTime;
+
       refs.current.forEach((c, i) => {
         if (!c) return;
         const speedPerSec = cloudData[i].speed * 60; // speed was added per frame, assuming 60 FPS
@@ -1718,6 +1793,7 @@ function SittingOwl({ position, isNight }) {
   const headRef = useRef();
   const groupRef = useRef();
   const transitionRef = useRef(isNight ? 1 : 0);
+  const lastStepTimeRef = useRef(0);
 
   useFrame((state, delta) => {
     const transitionSpeed = 0.25;
@@ -1734,6 +1810,11 @@ function SittingOwl({ position, isNight }) {
       if (isVisible) {
         // Slight breathing animation
         const time = Math.floor(state.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+        
+        const isTransitioning = (isNight && t < 1) || (!isNight && t > 0);
+        if (time === lastStepTimeRef.current && !isTransitioning) return;
+        lastStepTimeRef.current = time;
+
         groupRef.current.scale.setScalar(1.0 + Math.sin(time * 2.5) * 0.015);
         
         // Owl looks around slowly
@@ -1868,6 +1949,8 @@ function AnimatedBirds({ isNight }) {
     };
   }, [wingGeom, bodyGeom]);
 
+  const lastStepTimeRef = useRef(0);
+
   useFrame((state, delta) => {
     const transitionSpeed = 0.25;
     if (isNight) {
@@ -1885,6 +1968,11 @@ function AnimatedBirds({ isNight }) {
       bodyMaterial.opacity = 1 - t;
       
       const time = Math.floor(state.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+      
+      const isTransitioning = (isNight && t < 1) || (!isNight && t > 0);
+      if (time === lastStepTimeRef.current && !isTransitioning) return;
+      lastStepTimeRef.current = time;
+
       birdRefs.current.forEach((b, i) => {
         if (!b) return;
         // Deterministic position based on quantized time (speed * time * 45)
@@ -1938,10 +2026,15 @@ function WindLeaves() {
   })), []);
   const meshes = useRef([]);
 
+  const lastTimeRef = useRef(0);
+
   useFrame((s) => {
     if (disabled) return;
     const realT = s.clock.getElapsedTime();
     const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
+    if (t === lastTimeRef.current) return;
+    lastTimeRef.current = t;
+
     meshes.current.forEach((m, i) => {
       if (!m) return;
       const d = leafData[i];
@@ -2050,8 +2143,13 @@ function SnowParticles() {
     return { geom, mat };
   }, [COUNT]);
 
+  const lastTimeRef = useRef(0);
+
   useFrame((s) => {
-    snowSystem.mat.uniforms.uTime.value = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+    const t = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+    if (t === lastTimeRef.current) return;
+    lastTimeRef.current = t;
+    snowSystem.mat.uniforms.uTime.value = t;
   });
 
   return (
@@ -2259,32 +2357,40 @@ function CheckpointArch({ z, label, isNight }) {
   }, [label]);
 
   const groupRef = useRef();
+  const tickRef = useRef(0);
+  const lastTimeRef = useRef(0);
 
   useFrame((s) => {
-    const pzVal = window.playerZ || 0;
-    const dist = Math.abs(z - pzVal);
-    const cullDist = isMobileDevice() ? 25 : 55;
-    
-    if (dist > cullDist) {
-      if (groupRef.current) groupRef.current.visible = false;
-      return;
+    tickRef.current++;
+    if (tickRef.current % 6 === 0) {
+      const pzVal = window.playerZ || 0;
+      const dist = Math.abs(z - pzVal);
+      const cullDist = isMobileDevice() ? 25 : 55;
+      if (groupRef.current) groupRef.current.visible = (dist < cullDist);
     }
-    if (groupRef.current) groupRef.current.visible = true;
 
-    const realT = s.clock.getElapsedTime();
-    const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
-    if (flameRef.current) {
-      const isNear = dist < 25;
-      flameRef.current.visible = isNear;
-      if (isNear) {
-        flameRef.current.intensity = (isNight ? 4 : 1.2) + Math.sin(t * 11) * 0.6;
+    if (groupRef.current && groupRef.current.visible) {
+      const realT = s.clock.getElapsedTime();
+      const t = Math.floor(realT * 12) / 12; // 12 FPS stop-motion
+      if (t === lastTimeRef.current) return;
+      lastTimeRef.current = t;
+
+      const pzVal = window.playerZ || 0;
+      const dist = Math.abs(z - pzVal);
+
+      if (flameRef.current) {
+        const isNear = dist < 25;
+        flameRef.current.visible = isNear;
+        if (isNear) {
+          flameRef.current.intensity = (isNight ? 4 : 1.2) + Math.sin(t * 11) * 0.6;
+        }
       }
-    }
-    if (flameRef2.current) {
-      const isNear = dist < 25;
-      flameRef2.current.visible = isNear;
-      if (isNear) {
-        flameRef2.current.intensity = (isNight ? 4 : 1.2) + Math.sin(t * 9 + 1) * 0.6;
+      if (flameRef2.current) {
+        const isNear = dist < 25;
+        flameRef2.current.visible = isNear;
+        if (isNear) {
+          flameRef2.current.intensity = (isNight ? 4 : 1.2) + Math.sin(t * 9 + 1) * 0.6;
+        }
       }
     }
   });
@@ -2421,12 +2527,16 @@ function SkillLog({ position, skill, rotation = 0 }) {
 function Zone_AboutMe({ z, isNight }) {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const groupRef = useRef();
+  const tickRef = useRef(0);
 
   useFrame(() => {
     if (!groupRef.current) return;
-    const pzVal = window.playerZ || 0;
-    const dist = Math.abs(z - pzVal);
-    groupRef.current.visible = (dist < 55);
+    tickRef.current++;
+    if (tickRef.current % 8 === 0) {
+      const pzVal = window.playerZ || 0;
+      const dist = Math.abs(z - pzVal);
+      groupRef.current.visible = (dist < 55);
+    }
   });
 
   return (
@@ -2468,12 +2578,16 @@ function Zone_AboutMe({ z, isNight }) {
 function Zone_Education({ z, isNight }) {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const groupRef = useRef();
+  const tickRef = useRef(0);
 
   useFrame(() => {
     if (!groupRef.current) return;
-    const pzVal = window.playerZ || 0;
-    const dist = Math.abs(z - pzVal);
-    groupRef.current.visible = (dist < 55);
+    tickRef.current++;
+    if (tickRef.current % 8 === 0) {
+      const pzVal = window.playerZ || 0;
+      const dist = Math.abs(z - pzVal);
+      groupRef.current.visible = (dist < 55);
+    }
   });
 
   return (
@@ -2514,16 +2628,22 @@ function Zone_Skills({ z, isNight }) {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const glowRef = useRef();
   const groupRef = useRef();
+  const tickRef = useRef(0);
+  const lastTimeRef = useRef(0);
 
   useFrame((s) => {
     if (!groupRef.current) return;
-    const pzVal = window.playerZ || 0;
-    const dist = Math.abs(z - pzVal);
-    const visible = dist < 55;
-    groupRef.current.visible = visible;
+    tickRef.current++;
+    if (tickRef.current % 8 === 0) {
+      const pzVal = window.playerZ || 0;
+      const dist = Math.abs(z - pzVal);
+      groupRef.current.visible = (dist < 55);
+    }
 
-    if (visible && glowRef.current) {
+    if (groupRef.current.visible && glowRef.current) {
       const time = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+      if (time === lastTimeRef.current) return;
+      lastTimeRef.current = time;
       glowRef.current.intensity = 1 + Math.sin(time * 4) * 0.4;
     }
   });
@@ -2603,16 +2723,22 @@ function Zone_Projects({ z, isNight }) {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const screenRefs = useRef([]);
   const groupRef = useRef();
+  const tickRef = useRef(0);
+  const lastTimeRef = useRef(0);
 
   useFrame((s) => {
     if (!groupRef.current) return;
-    const pzVal = window.playerZ || 0;
-    const dist = Math.abs(z - pzVal);
-    const visible = dist < 55;
-    groupRef.current.visible = visible;
+    tickRef.current++;
+    if (tickRef.current % 8 === 0) {
+      const pzVal = window.playerZ || 0;
+      const dist = Math.abs(z - pzVal);
+      groupRef.current.visible = (dist < 55);
+    }
 
-    if (visible) {
+    if (groupRef.current.visible) {
       const t = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+      if (t === lastTimeRef.current) return;
+      lastTimeRef.current = t;
       screenRefs.current.forEach((m, i) => {
         if (m) m.position.y = ty + 2.06 + Math.sin(t * 0.8 + i) * 0.09;
       });
@@ -2665,16 +2791,22 @@ function Zone_Experience({ z, isNight }) {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const flagRefs = useRef([]);
   const groupRef = useRef();
+  const tickRef = useRef(0);
+  const lastTimeRef = useRef(0);
 
   useFrame((s) => {
     if (!groupRef.current) return;
-    const pzVal = window.playerZ || 0;
-    const dist = Math.abs(z - pzVal);
-    const visible = dist < 55;
-    groupRef.current.visible = visible;
+    tickRef.current++;
+    if (tickRef.current % 8 === 0) {
+      const pzVal = window.playerZ || 0;
+      const dist = Math.abs(z - pzVal);
+      groupRef.current.visible = (dist < 55);
+    }
 
-    if (visible) {
+    if (groupRef.current.visible) {
       const t = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+      if (t === lastTimeRef.current) return;
+      lastTimeRef.current = t;
       flagRefs.current.forEach((m, i) => {
         if (m) {
           m.rotation.z = Math.sin(t * 2.5 + i) * 0.15;
@@ -2766,15 +2898,22 @@ function Zone_Contact({ z, isNight }) {
 
   const groupRef = useRef();
 
+  const tickRef = useRef(0);
+  const lastTimeRef = useRef(0);
+
   useFrame((s) => {
     if (!groupRef.current) return;
-    const pzVal = window.playerZ || 0;
-    const dist = Math.abs(z - pzVal);
-    const visible = dist < 55;
-    groupRef.current.visible = visible;
+    tickRef.current++;
+    if (tickRef.current % 8 === 0) {
+      const pzVal = window.playerZ || 0;
+      const dist = Math.abs(z - pzVal);
+      groupRef.current.visible = (dist < 55);
+    }
 
-    if (visible) {
+    if (groupRef.current.visible) {
       const t = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+      if (t === lastTimeRef.current) return;
+      lastTimeRef.current = t;
       if (beaconRef.current) beaconRef.current.intensity = 2.5 + Math.sin(t * 2.8) * 1.2;
       if (sigRef.current) sigRef.current.scale.setScalar(1 + Math.sin(t * 1.8) * 0.12);
     }
@@ -3113,6 +3252,7 @@ export default function Environment({ onCheckpointEnter, onCheckpointExit, isNig
       <Fireflies isNight={isNight} />
       <Waterfall />
       <FlowingStream isNight={isNight} />
+      <Boat />
 
       {/* ── BASE CAMP ── */}
       <Zone_AboutMe z={-8} isNight={isNight} />
