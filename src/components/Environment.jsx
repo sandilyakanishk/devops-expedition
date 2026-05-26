@@ -113,18 +113,21 @@ function Campfire({ position, isNight }) {
 
     const pzVal = window.playerZ || 0;
     const dist = Math.abs(pz - pzVal);
-    const cullDist = isMobileDevice() ? 35 : 70;
+    const cullDist = isMobileDevice() ? 30 : 60;
     if (dist > cullDist) {
-      if (groupRef.current) groupRef.current.visible = false;
+      if (groupRef.current && groupRef.current.visible) groupRef.current.visible = false;
       return;
     }
-    if (groupRef.current) groupRef.current.visible = true;
+    if (groupRef.current && !groupRef.current.visible) groupRef.current.visible = true;
 
-    const transitionSpeed = 0.25;
-    if (isNight) {
-      transitionRef.current = Math.min(1, transitionRef.current + d * transitionSpeed);
-    } else {
-      transitionRef.current = Math.max(0, transitionRef.current - d * transitionSpeed);
+    const target = isNight ? 1 : 0;
+    if (transitionRef.current !== target) {
+      const transitionSpeed = 0.25;
+      if (isNight) {
+        transitionRef.current = Math.min(1, transitionRef.current + d * transitionSpeed);
+      } else {
+        transitionRef.current = Math.max(0, transitionRef.current - d * transitionSpeed);
+      }
     }
     const tVal = transitionRef.current;
 
@@ -135,7 +138,7 @@ function Campfire({ position, isNight }) {
       flameRef.current.rotation.y = t * 0.9;
     }
     if (glowRef.current) {
-      const isNear = dist < 30;
+      const isNear = dist < 25 && tVal > 0.05;
       glowRef.current.visible = isNear;
       if (isNear) {
         const baseIntensity = 2 + tVal * 2;
@@ -265,35 +268,39 @@ function LanternPost({ position, isNight }) {
     accumDeltaRef.current = 0;
 
     const pzVal = window.playerZ || 0;
-    const dist = Math.abs(pz - pzVal);
-    const cullDist = isMobileDevice() ? 30 : 60;
+    const dist = Math.abs(position[2] - pzVal);
+    const cullDist = isMobileDevice() ? 25 : 55;
     if (dist > cullDist) {
-      if (groupRef.current) groupRef.current.visible = false;
+      if (groupRef.current && groupRef.current.visible) groupRef.current.visible = false;
       return;
     }
-    if (groupRef.current) groupRef.current.visible = true;
+    if (groupRef.current && !groupRef.current.visible) groupRef.current.visible = true;
 
-    const transitionSpeed = 0.25;
-    if (isNight) {
-      transitionRef.current = Math.min(1, transitionRef.current + d * transitionSpeed);
-    } else {
-      transitionRef.current = Math.max(0, transitionRef.current - d * transitionSpeed);
+    const target = isNight ? 1 : 0;
+    if (transitionRef.current !== target) {
+      const transitionSpeed = 0.25;
+      if (isNight) {
+        transitionRef.current = Math.min(1, transitionRef.current + d * transitionSpeed);
+      } else {
+        transitionRef.current = Math.max(0, transitionRef.current - d * transitionSpeed);
+      }
+      const t = transitionRef.current;
+      if (matRef.current) {
+        tempCol.lerpColors(color1, color2, t);
+        matRef.current.color.copy(tempCol);
+        matRef.current.emissiveIntensity = t * 2.5;
+        matRef.current.opacity = 0.4 + t * 0.52;
+      }
     }
-    const t = transitionRef.current;
 
+    const t = transitionRef.current;
     if (lRef.current) {
-      const isNear = dist < 25;
+      const isNear = dist < 20 && t > 0.05;
       lRef.current.visible = isNear;
       if (isNear) {
         const timeVal = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
         lRef.current.intensity = t * (5 + Math.sin(timeVal * 11) * 0.5);
       }
-    }
-    if (matRef.current) {
-      tempCol.lerpColors(color1, color2, t);
-      matRef.current.color.copy(tempCol);
-      matRef.current.emissiveIntensity = t * 2.5;
-      matRef.current.opacity = 0.4 + t * 0.52;
     }
   });
 
@@ -351,37 +358,41 @@ function FireTorch({ position, isNight }) {
     accumDeltaRef.current = 0;
 
     const pzVal = window.playerZ || 0;
-    const dist = Math.abs(pz - pzVal);
-    const cullDist = isMobileDevice() ? 25 : 55;
+    const dist = Math.abs(position[2] - pzVal);
+    const cullDist = isMobileDevice() ? 25 : 50;
     if (dist > cullDist) {
-      if (groupRef.current) groupRef.current.visible = false;
+      if (groupRef.current && groupRef.current.visible) groupRef.current.visible = false;
       return;
     }
-    if (groupRef.current) groupRef.current.visible = true;
+    if (groupRef.current && !groupRef.current.visible) groupRef.current.visible = true;
 
-    const transitionSpeed = 0.25;
-    if (isNight) {
-      transitionRef.current = Math.min(1, transitionRef.current + d * transitionSpeed);
-    } else {
-      transitionRef.current = Math.max(0, transitionRef.current - d * transitionSpeed);
+    const target = isNight ? 1 : 0;
+    if (transitionRef.current !== target) {
+      const transitionSpeed = 0.25;
+      if (isNight) {
+        transitionRef.current = Math.min(1, transitionRef.current + d * transitionSpeed);
+      } else {
+        transitionRef.current = Math.max(0, transitionRef.current - d * transitionSpeed);
+      }
+      const t = transitionRef.current;
+      if (matRef.current) {
+        tempCol.lerpColors(color1, color2, t);
+        tempEmissive.lerpColors(emissive1, emissive2, t);
+        matRef.current.color.copy(tempCol);
+        matRef.current.emissive.copy(tempEmissive);
+        matRef.current.emissiveIntensity = t * 3;
+        matRef.current.opacity = 1.0 - t * 0.1;
+      }
     }
-    const t = transitionRef.current;
 
+    const t = transitionRef.current;
     const timeVal = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
-    if (flameRef.current) {
+    if (flameRef.current && t > 0.05) {
       const scaleY = 1 + Math.sin(timeVal * 12 + position[2]) * 0.15 * t;
       flameRef.current.scale.set(1, scaleY, 1);
     }
-    if (matRef.current) {
-      tempCol.lerpColors(color1, color2, t);
-      tempEmissive.lerpColors(emissive1, emissive2, t);
-      matRef.current.color.copy(tempCol);
-      matRef.current.emissive.copy(tempEmissive);
-      matRef.current.emissiveIntensity = t * 3;
-      matRef.current.opacity = 1.0 - t * 0.1;
-    }
     if (lRef.current) {
-      const isNear = dist < 10;
+      const isNear = dist < 10 && t > 0.05;
       lRef.current.visible = isNear;
       if (isNear) {
         lRef.current.intensity = t * (2 + Math.sin(timeVal * 14 + position[2]) * 0.4);
@@ -730,9 +741,81 @@ function WalkableTrail({ isNight }) {
   const fenceRailsRef = useRef();
   const fenceInitializedRef = useRef(false);
 
-  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!trailRocksRef.current || !pebblesRef.current || !snowPatchesRef.current || !fencePostsRef.current || !fenceRailsRef.current) return;
+
+    const tempObj = new THREE.Object3D();
+    const tempColor = new THREE.Color();
+
+    // Populate trail rocks
+    trailRocks.forEach((rock, idx) => {
+      tempObj.position.set(rock.x, rock.y, rock.z);
+      tempObj.rotation.set(0.04, rock.rot, 0.04);
+      tempObj.scale.set(rock.scale * 1.6, 0.08, rock.scale);
+      tempObj.updateMatrix();
+      trailRocksRef.current.setMatrixAt(idx, tempObj.matrix);
+
+      tempColor.set(rock.color);
+      trailRocksRef.current.setColorAt(idx, tempColor);
+    });
+    trailRocksRef.current.instanceMatrix.needsUpdate = true;
+    if (trailRocksRef.current.instanceColor) {
+      trailRocksRef.current.instanceColor.needsUpdate = true;
+    }
+    trailRocksRef.current.computeBoundingBox();
+    trailRocksRef.current.computeBoundingSphere();
+
+    // Populate pebbles
+    pebbles.forEach((p, idx) => {
+      tempObj.position.set(p.x, p.y, p.z);
+      tempObj.rotation.set(0, idx * 0.8, 0);
+      tempObj.scale.setScalar(p.scale);
+      tempObj.updateMatrix();
+      pebblesRef.current.setMatrixAt(idx, tempObj.matrix);
+    });
+    pebblesRef.current.instanceMatrix.needsUpdate = true;
+    pebblesRef.current.computeBoundingBox();
+    pebblesRef.current.computeBoundingSphere();
+
+    // Populate snow patches
+    snowPatches.forEach((p, idx) => {
+      tempObj.position.set(p.x, p.y, p.z);
+      tempObj.scale.set(2.2, 0.08, 1.5);
+      tempObj.updateMatrix();
+      snowPatchesRef.current.setMatrixAt(idx, tempObj.matrix);
+    });
+    snowPatchesRef.current.instanceMatrix.needsUpdate = true;
+    snowPatchesRef.current.computeBoundingBox();
+    snowPatchesRef.current.computeBoundingSphere();
+
+    // Populate fences
+    fencesData.posts.forEach((p, idx) => {
+      tempObj.position.set(p.x, p.y, p.z);
+      tempObj.rotation.set(0, 0, 0);
+      tempObj.scale.set(1, 1, 1);
+      tempObj.updateMatrix();
+      fencePostsRef.current.setMatrixAt(idx, tempObj.matrix);
+    });
+    fencePostsRef.current.instanceMatrix.needsUpdate = true;
+    fencePostsRef.current.computeBoundingBox();
+    fencePostsRef.current.computeBoundingSphere();
+    
+    fencesData.rails.forEach((r, idx) => {
+      tempObj.position.set(r.x, r.y, r.z);
+      tempObj.rotation.set(0, 0, 0);
+      tempObj.scale.set(1, 1, 1);
+      tempObj.updateMatrix();
+      fenceRailsRef.current.setMatrixAt(idx, tempObj.matrix);
+    });
+    fenceRailsRef.current.instanceMatrix.needsUpdate = true;
+    fenceRailsRef.current.computeBoundingBox();
+    fenceRailsRef.current.computeBoundingSphere();
+  }, [trailRocks, pebbles, snowPatches, fencesData]);
 
   useFrame((s, delta) => {
+    const target = isNight ? 1 : 0;
+    if (transitionRef.current === target) return;
+
     const transitionSpeed = 0.25;
     if (isNight) {
       transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
@@ -742,82 +825,6 @@ function WalkableTrail({ isNight }) {
     const t = transitionRef.current;
     tempCol.lerpColors(color1, color2, t);
     materials.grass.color.copy(tempCol);
-
-    if (!initializedRef.current && trailRocksRef.current && pebblesRef.current && snowPatchesRef.current) {
-      const tempObj = new THREE.Object3D();
-      const tempColor = new THREE.Color();
-
-      // Populate trail rocks
-      trailRocks.forEach((rock, idx) => {
-        tempObj.position.set(rock.x, rock.y, rock.z);
-        tempObj.rotation.set(0.04, rock.rot, 0.04);
-        tempObj.scale.set(rock.scale * 1.6, 0.08, rock.scale);
-        tempObj.updateMatrix();
-        trailRocksRef.current.setMatrixAt(idx, tempObj.matrix);
-
-        tempColor.set(rock.color);
-        trailRocksRef.current.setColorAt(idx, tempColor);
-      });
-      trailRocksRef.current.instanceMatrix.needsUpdate = true;
-      if (trailRocksRef.current.instanceColor) {
-        trailRocksRef.current.instanceColor.needsUpdate = true;
-      }
-      trailRocksRef.current.computeBoundingBox();
-      trailRocksRef.current.computeBoundingSphere();
-
-      // Populate pebbles
-      pebbles.forEach((p, idx) => {
-        tempObj.position.set(p.x, p.y, p.z);
-        tempObj.rotation.set(0, idx * 0.8, 0);
-        tempObj.scale.setScalar(p.scale);
-        tempObj.updateMatrix();
-        pebblesRef.current.setMatrixAt(idx, tempObj.matrix);
-      });
-      pebblesRef.current.instanceMatrix.needsUpdate = true;
-      pebblesRef.current.computeBoundingBox();
-      pebblesRef.current.computeBoundingSphere();
-
-      // Populate snow patches
-      snowPatches.forEach((p, idx) => {
-        tempObj.position.set(p.x, p.y, p.z);
-        tempObj.scale.set(2.2, 0.08, 1.5);
-        tempObj.updateMatrix();
-        snowPatchesRef.current.setMatrixAt(idx, tempObj.matrix);
-      });
-      snowPatchesRef.current.instanceMatrix.needsUpdate = true;
-      snowPatchesRef.current.computeBoundingBox();
-      snowPatchesRef.current.computeBoundingSphere();
-
-      initializedRef.current = true;
-    }
-
-    if (!fenceInitializedRef.current && fencePostsRef.current && fenceRailsRef.current) {
-      const tempObj = new THREE.Object3D();
-      
-      fencesData.posts.forEach((p, idx) => {
-        tempObj.position.set(p.x, p.y, p.z);
-        tempObj.rotation.set(0, 0, 0);
-        tempObj.scale.set(1, 1, 1);
-        tempObj.updateMatrix();
-        fencePostsRef.current.setMatrixAt(idx, tempObj.matrix);
-      });
-      fencePostsRef.current.instanceMatrix.needsUpdate = true;
-      fencePostsRef.current.computeBoundingBox();
-      fencePostsRef.current.computeBoundingSphere();
-      
-      fencesData.rails.forEach((r, idx) => {
-        tempObj.position.set(r.x, r.y, r.z);
-        tempObj.rotation.set(0, 0, 0);
-        tempObj.scale.set(1, 1, 1);
-        tempObj.updateMatrix();
-        fenceRailsRef.current.setMatrixAt(idx, tempObj.matrix);
-      });
-      fenceRailsRef.current.instanceMatrix.needsUpdate = true;
-      fenceRailsRef.current.computeBoundingBox();
-      fenceRailsRef.current.computeBoundingSphere();
-      
-      fenceInitializedRef.current = true;
-    }
   });
 
   return (
@@ -1009,10 +1016,7 @@ function ForestDecorations() {
   const barkInstRef = useRef();
   const leavesInstRef = useRef();
   const boulderRef = useRef();
-  const initializedRef = useRef(false);
-
-  useFrame(() => {
-    if (initializedRef.current) return;
+  useEffect(() => {
     if (!barkInstRef.current || !leavesInstRef.current || !boulderRef.current || !barkGeom || !leavesGeom) return;
 
     const tempObj = new THREE.Object3D();
@@ -1052,8 +1056,7 @@ function ForestDecorations() {
     boulderRef.current.instanceMatrix.needsUpdate = true;
     boulderRef.current.computeBoundingBox();
     boulderRef.current.computeBoundingSphere();
-    initializedRef.current = true;
-  });
+  }, [barkGeom, leavesGeom, trees, boulders]);
 
   return (
     <group>
@@ -1766,17 +1769,20 @@ function DayClouds({ isNight }) {
     }
   });
 
+  const isMobile = isMobileDevice();
+  const cloudSpheres = useMemo(() => {
+    return isMobile
+      ? [[0,0,0],[1.1,0.3,0],[-0.9,0.2,0],[0.3,0.6,0]]
+      : [[0,0,0],[1.3,0.4,0],[-1.1,0.3,0],[0.55,0.85,0],[-0.5,0.6,0],[1.0,0.5,0.4]];
+  }, [isMobile]);
+
   return (
     <group ref={groupRef}>
       {cloudData.map((d, i) => (
         <group key={i} ref={el => refs.current[i] = el}
           position={[d.x, d.y, d.z]} scale={d.scale}>
-          {[
-            [0,0,0],[1.3,0.4,0],[-1.1,0.3,0],[0.55,0.85,0],
-            [-0.5,0.6,0],[2.1,0.1,0],[-1.8,0.1,0],
-            [0.1,0.1,0.6],[-0.2,0.2,-0.6],[1.0,0.5,0.4],
-          ].map(([cx,cy,cz], j) => (
-            <mesh key={j} position={[cx, cy, cz]} geometry={geometries[j % 3]}>
+          {cloudSpheres.map(([cx,cy,cz], j) => (
+            <mesh key={j} position={[cx, cy, cz]} geometry={geometries[j % geometries.length]}>
               <primitive object={sharedMaterial} attach="material" />
             </mesh>
           ))}
@@ -1796,6 +1802,14 @@ function SittingOwl({ position, isNight }) {
   const lastStepTimeRef = useRef(0);
 
   useFrame((state, delta) => {
+    const pzVal = window.playerZ || 0;
+    const dist = Math.abs(position[2] - pzVal);
+    const cullDist = isMobileDevice() ? 25 : 55;
+    if (dist > cullDist) {
+      if (groupRef.current && groupRef.current.visible) groupRef.current.visible = false;
+      return;
+    }
+
     const transitionSpeed = 0.25;
     if (isNight) {
       transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
@@ -2309,7 +2323,7 @@ function MistBands({ isNight }) {
         const cx = getPathCenterX(z);
         return (
           <group key={i}>
-            {[-1,0,1,2,-2].map(j => (
+            {[-1,0,1].map(j => (
               <mesh key={j} position={[cx+j*5, ty+0.35+i*0.15, z+j*2]}>
                 <sphereGeometry args={[2.4+j*0.4, 6, 5]} />
                 <primitive object={sharedMaterial} attach="material" />
@@ -2486,6 +2500,7 @@ function CheckpointArch({ z, label, isNight }) {
 // ════════════════════════════════════════════════════════════════
 function SkillLog({ position, skill, rotation = 0 }) {
   const [px, py, pz] = position;
+  const isMobile = isMobileDevice();
 
   // Generate local canvas texture for the skill name
   const texture = useMemo(() => {
@@ -2518,21 +2533,25 @@ function SkillLog({ position, skill, rotation = 0 }) {
       <group>
         {/* Log body */}
         <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.28, 0.32, 1.6, 16]} />
+          <cylinderGeometry args={[0.28, 0.32, 1.6, isMobile ? 8 : 12]} />
           <ClayMaterial color="#6b3e0e" roughness={0.96} />
         </mesh>
-        {/* Bark ring at each end */}
-        {[-0.80, 0.80].map((ox, i) => (
+        
+        {/* Bark ring at each end - omitted on mobile */}
+        {!isMobile && [-0.80, 0.80].map((ox, i) => (
           <mesh key={i} position={[ox, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.285, 0.325, 0.06, 16]} />
+            <cylinderGeometry args={[0.285, 0.325, 0.06, 12]} />
             <ClayMaterial color="#4a2b06" roughness={0.98} />
           </mesh>
         ))}
-        {/* Tree-ring face (top end disc) */}
-        <mesh position={[0.82, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <circleGeometry args={[0.28, 16]} />
-          <ClayMaterial color="#8b5e2a" roughness={0.88} />
-        </mesh>
+        
+        {/* Tree-ring face (top end disc) - omitted on mobile */}
+        {!isMobile && (
+          <mesh position={[0.82, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <circleGeometry args={[0.28, 12]} />
+            <ClayMaterial color="#8b5e2a" roughness={0.88} />
+          </mesh>
+        )}
         
         {/* Engraved text plane */}
         <mesh position={[0, 0.266, 0.135]} rotation={[-Math.PI / 3, 0, 0]}>
@@ -2545,11 +2564,13 @@ function SkillLog({ position, skill, rotation = 0 }) {
           />
         </mesh>
 
-        {/* Small plant/moss on log */}
-        <mesh position={[0.1, 0.3, 0.2]}>
-          <sphereGeometry args={[0.06, 10, 10]} />
-          <ClayMaterial color="#16a34a" roughness={0.9} />
-        </mesh>
+        {/* Small plant/moss on log - omitted on mobile */}
+        {!isMobile && (
+          <mesh position={[0.1, 0.3, 0.2]}>
+            <sphereGeometry args={[0.06, 8, 8]} />
+            <ClayMaterial color="#16a34a" roughness={0.9} />
+          </mesh>
+        )}
       </group>
     </RigidBody>
   );
@@ -2558,23 +2579,11 @@ function SkillLog({ position, skill, rotation = 0 }) {
 // ════════════════════════════════════════════════════════════════
 // CHECKPOINT ZONES (About Me, Education, Skills, Projects, Experience, Contact)
 // ════════════════════════════════════════════════════════════════
-function Zone_AboutMe({ z, isNight }) {
+const Zone_AboutMe = forwardRef(({ z, isNight }, ref) => {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
-  const groupRef = useRef();
-  const tickRef = useRef(0);
-
-  useFrame(() => {
-    if (!groupRef.current) return;
-    tickRef.current++;
-    if (tickRef.current % 8 === 0) {
-      const pzVal = window.playerZ || 0;
-      const dist = Math.abs(z - pzVal);
-      groupRef.current.visible = (dist < 55);
-    }
-  });
 
   return (
-    <group ref={groupRef}>
+    <group ref={ref}>
       <CheckpointArch z={z + 4} label="ABOUT ME" isNight={isNight} />
       <Campfire position={[cx+3.0, ty+0.46, z]} isNight={isNight} />
       <WoodenHut position={[cx-5, ty+0.46, z-1]} />
@@ -2607,25 +2616,13 @@ function Zone_AboutMe({ z, isNight }) {
       ))}
     </group>
   );
-}
+});
 
-function Zone_Education({ z, isNight }) {
+const Zone_Education = forwardRef(({ z, isNight }, ref) => {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
-  const groupRef = useRef();
-  const tickRef = useRef(0);
-
-  useFrame(() => {
-    if (!groupRef.current) return;
-    tickRef.current++;
-    if (tickRef.current % 8 === 0) {
-      const pzVal = window.playerZ || 0;
-      const dist = Math.abs(z - pzVal);
-      groupRef.current.visible = (dist < 55);
-    }
-  });
 
   return (
-    <group ref={groupRef}>
+    <group ref={ref}>
       <CheckpointArch z={z + 4} label="EDUCATION" isNight={isNight} />
       {['#1e40af','#b91c1c','#16a34a','#7c3d11'].map((c,i)=>(
         <Box key={i} pos={[cx-4,ty+0.5+i*0.14,z]} size={[0.9,0.13,0.7]} color={c} rot={[0,(i%2)*0.12,0]} />
@@ -2656,26 +2653,16 @@ function Zone_Education({ z, isNight }) {
       <LanternPost position={[cx+3.2, ty+0.46, z-1]} isNight={isNight} />
     </group>
   );
-}
+});
 
-function Zone_Skills({ z, isNight }) {
+const Zone_Skills = forwardRef(({ z, isNight }, ref) => {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const glowRef = useRef();
-  const groupRef = useRef();
-  const tickRef = useRef(0);
   const lastTimeRef = useRef(0);
 
   useFrame((s) => {
-    if (!groupRef.current) return;
-    tickRef.current++;
-    if (tickRef.current % 8 === 0) {
-      const pzVal = window.playerZ || 0;
-      const dist = Math.abs(z - pzVal);
-      groupRef.current.visible = (dist < 55);
-    }
-
-    if (groupRef.current.visible && glowRef.current) {
-      const time = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+    if (ref && ref.current && ref.current.visible && glowRef.current) {
+      const time = Math.floor(s.clock.getElapsedTime() * 12) / 12;
       if (time === lastTimeRef.current) return;
       lastTimeRef.current = time;
       glowRef.current.intensity = 1 + Math.sin(time * 4) * 0.4;
@@ -2703,7 +2690,7 @@ function Zone_Skills({ z, isNight }) {
   const row2 = skills.slice(6, 12);
 
   return (
-    <group ref={groupRef}>
+    <group ref={ref}>
       <CheckpointArch z={z + 5} label="SKILLS" isNight={isNight} />
 
       {/* ── Left Side Skill Logs (stacked vertically at trail edges) ── */}
@@ -2751,26 +2738,16 @@ function Zone_Skills({ z, isNight }) {
       ))}
     </group>
   );
-}
+});
 
-function Zone_Projects({ z, isNight }) {
+const Zone_Projects = forwardRef(({ z, isNight }, ref) => {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const screenRefs = useRef([]);
-  const groupRef = useRef();
-  const tickRef = useRef(0);
   const lastTimeRef = useRef(0);
 
   useFrame((s) => {
-    if (!groupRef.current) return;
-    tickRef.current++;
-    if (tickRef.current % 8 === 0) {
-      const pzVal = window.playerZ || 0;
-      const dist = Math.abs(z - pzVal);
-      groupRef.current.visible = (dist < 55);
-    }
-
-    if (groupRef.current.visible) {
-      const t = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+    if (ref && ref.current && ref.current.visible) {
+      const t = Math.floor(s.clock.getElapsedTime() * 12) / 12;
       if (t === lastTimeRef.current) return;
       lastTimeRef.current = t;
       screenRefs.current.forEach((m, i) => {
@@ -2781,7 +2758,7 @@ function Zone_Projects({ z, isNight }) {
 
   const projects=[{title:'Cloud Infra',color:'#38bdf8'},{title:'DevOps Pipeline',color:'#34d399'},{title:'AI Monitor',color:'#a78bfa'}];
   return (
-    <group ref={groupRef}>
+    <group ref={ref}>
       <CheckpointArch z={z + 4} label="PROJECTS" isNight={isNight} />
       {projects.map((p,i)=>{
         // Place Screen 0 and 1 on left side, Screen 2 on right side
@@ -2819,26 +2796,16 @@ function Zone_Projects({ z, isNight }) {
       ))}
     </group>
   );
-}
+});
 
-function Zone_Experience({ z, isNight }) {
+const Zone_Experience = forwardRef(({ z, isNight }, ref) => {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const flagRefs = useRef([]);
-  const groupRef = useRef();
-  const tickRef = useRef(0);
   const lastTimeRef = useRef(0);
 
   useFrame((s) => {
-    if (!groupRef.current) return;
-    tickRef.current++;
-    if (tickRef.current % 8 === 0) {
-      const pzVal = window.playerZ || 0;
-      const dist = Math.abs(z - pzVal);
-      groupRef.current.visible = (dist < 55);
-    }
-
-    if (groupRef.current.visible) {
-      const t = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+    if (ref && ref.current && ref.current.visible) {
+      const t = Math.floor(s.clock.getElapsedTime() * 12) / 12;
       if (t === lastTimeRef.current) return;
       lastTimeRef.current = t;
       flagRefs.current.forEach((m, i) => {
@@ -2852,7 +2819,7 @@ function Zone_Experience({ z, isNight }) {
 
   const flags=[{color:'#ef4444',text:'CLOUD'},{color:'#3b82f6',text:'DEVOPS'},{color:'#22c55e',text:'LINUX'}];
   return (
-    <group ref={groupRef}>
+    <group ref={ref}>
       <CheckpointArch z={z + 4} label="EXPERIENCE" isNight={isNight} />
       {flags.map((f,i)=>{
         // Place flag 0 and 1 on left side, flag 2 on right side
@@ -2890,9 +2857,9 @@ function Zone_Experience({ z, isNight }) {
       <LanternPost position={[cx-5, ty+0.46, z+1]} isNight={isNight} />
     </group>
   );
-}
+});
 
-function Zone_Contact({ z, isNight }) {
+const Zone_Contact = forwardRef(({ z, isNight }, ref) => {
   const ty = getTerrainY(z); const cx = getPathCenterX(z);
   const beaconRef = useRef(); const sigRef = useRef();
 
@@ -2930,22 +2897,11 @@ function Zone_Contact({ z, isNight }) {
     return tex;
   }, []);
 
-  const groupRef = useRef();
-
-  const tickRef = useRef(0);
   const lastTimeRef = useRef(0);
 
   useFrame((s) => {
-    if (!groupRef.current) return;
-    tickRef.current++;
-    if (tickRef.current % 8 === 0) {
-      const pzVal = window.playerZ || 0;
-      const dist = Math.abs(z - pzVal);
-      groupRef.current.visible = (dist < 55);
-    }
-
-    if (groupRef.current.visible) {
-      const t = Math.floor(s.clock.getElapsedTime() * 12) / 12; // 12 FPS stop-motion
+    if (ref && ref.current && ref.current.visible) {
+      const t = Math.floor(s.clock.getElapsedTime() * 12) / 12;
       if (t === lastTimeRef.current) return;
       lastTimeRef.current = t;
       if (beaconRef.current) beaconRef.current.intensity = 2.5 + Math.sin(t * 2.8) * 1.2;
@@ -2954,7 +2910,7 @@ function Zone_Contact({ z, isNight }) {
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={ref}>
       {/* Signal tower */}
       <RigidBody type="fixed" position={[cx+5, ty+0.46, z-1]}>
         <CuboidCollider args={[0.3, 2.6, 0.3]} position={[0, 2.6, 0]} />
@@ -3028,7 +2984,7 @@ function Zone_Contact({ z, isNight }) {
       </RigidBody>
     </group>
   );
-}
+});
 
 // ── Checkpoint sensors ────────────────────────────────────────────
 function CheckpointSensors({ onCheckpointEnter, onCheckpointExit }) {
@@ -3230,7 +3186,7 @@ function Lighting({ isNight }) {
       <ambientLight ref={ambRef} />
       <directionalLight
         ref={dirRef}
-        castShadow
+        castShadow={!isMobileDevice()}
         shadow-mapSize={[1024, 1024]}
         shadow-camera-far={70}
         shadow-camera-near={0.1}
@@ -3259,6 +3215,28 @@ export default function Environment({ onCheckpointEnter, onCheckpointExit, isNig
       window.isMobileDevice = !!isMobile;
     }
   }, [isMobile]);
+
+  // Refs for culling zones
+  const zoneAboutMeRef = useRef();
+  const zoneEducationRef = useRef();
+  const zoneSkillsRef = useRef();
+  const zoneProjectsRef = useRef();
+  const zoneExperienceRef = useRef();
+  const zoneContactRef = useRef();
+
+  const tickRef = useRef(0);
+  useFrame(() => {
+    tickRef.current++;
+    if (tickRef.current % 10 !== 0) return;
+    const pzVal = window.playerZ || 0;
+    
+    if (zoneAboutMeRef.current) zoneAboutMeRef.current.visible = Math.abs(-8 - pzVal) < 55;
+    if (zoneEducationRef.current) zoneEducationRef.current.visible = Math.abs(-38 - pzVal) < 55;
+    if (zoneSkillsRef.current) zoneSkillsRef.current.visible = Math.abs(-70 - pzVal) < 55;
+    if (zoneProjectsRef.current) zoneProjectsRef.current.visible = Math.abs(-102 - pzVal) < 55;
+    if (zoneExperienceRef.current) zoneExperienceRef.current.visible = Math.abs(-136 - pzVal) < 55;
+    if (zoneContactRef.current) zoneContactRef.current.visible = Math.abs(-168 - pzVal) < 55;
+  });
 
   return (
     <group>
@@ -3289,21 +3267,24 @@ export default function Environment({ onCheckpointEnter, onCheckpointExit, isNig
       <Boat />
 
       {/* ── BASE CAMP ── */}
-      <Zone_AboutMe z={-8} isNight={isNight} />
+      <Zone_AboutMe ref={zoneAboutMeRef} z={-8} isNight={isNight} />
 
       {/* ── Trail lanterns ── */}
-      {[-15,-30,-45,-60,-75,-90,-105,-120,-135,-150,-165,-180].map((z,i)=>(
-        <LanternPost key={i}
-          position={[getPathCenterX(z)+(i%2===0?2.8:-2.8), getTerrainY(z)+0.46, z]}
-          isNight={isNight} />
-      ))}
+      {[-15,-30,-45,-60,-75,-90,-105,-120,-135,-150,-165,-180].map((z,i)=>{
+        if (isMobileDevice() && i % 2 !== 0) return null;
+        return (
+          <LanternPost key={i}
+            position={[getPathCenterX(z)+(i%2===0?2.8:-2.8), getTerrainY(z)+0.46, z]}
+            isNight={isNight} />
+        );
+      })}
 
       {/* ── CHECKPOINTS ── */}
-      <Zone_Education  z={-38}  isNight={isNight} />
-      <Zone_Skills     z={-70}  isNight={isNight} />
-      <Zone_Projects   z={-102} isNight={isNight} />
-      <Zone_Experience z={-136} isNight={isNight} />
-      <Zone_Contact    z={-168} isNight={isNight} />
+      <Zone_Education  ref={zoneEducationRef}  z={-38}  isNight={isNight} />
+      <Zone_Skills     ref={zoneSkillsRef}     z={-70}  isNight={isNight} />
+      <Zone_Projects   ref={zoneProjectsRef}   z={-102} isNight={isNight} />
+      <Zone_Experience ref={zoneExperienceRef} z={-136} isNight={isNight} />
+      <Zone_Contact    ref={zoneContactRef}    z={-168} isNight={isNight} />
 
       {/* ── PHYSICS TRIGGERS ── */}
       <CheckpointSensors
