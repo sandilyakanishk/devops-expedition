@@ -5,26 +5,47 @@
 import { useRef, useMemo, useEffect, forwardRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody, CuboidCollider, CylinderCollider, BallCollider } from '@react-three/rapier';
-import { Html } from '@react-three/drei';
+import { Html, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { getClayTexture } from '../utils/clayTexture.js';
 
 // Retrieve procedural clay bump map
 const clayBumpMap = getClayTexture();
 
+// Global material cache to avoid creating separate material instances for hundreds of environment parts
+const materialCache = {};
+function getCachedMaterial(color, roughness, metalness, bumpScale) {
+  const key = `${color}_${roughness}_${metalness}_${bumpScale}`;
+  if (!materialCache[key]) {
+    materialCache[key] = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(color),
+      roughness,
+      metalness,
+      bumpMap: clayBumpMap,
+      bumpScale,
+    });
+  }
+  return materialCache[key];
+}
+
 // Helper Clay Material to give everything a hand-molded clay texture
 const ClayMaterial = forwardRef(({ color, roughness = 0.92, metalness = 0.0, bumpScale = 0.015, ...props }, ref) => {
-  return (
-    <meshStandardMaterial
-      ref={ref}
-      color={color}
-      roughness={roughness}
-      metalness={metalness}
-      bumpMap={clayBumpMap}
-      bumpScale={bumpScale}
-      {...props}
-    />
-  );
+  if (ref) {
+    return (
+      <meshStandardMaterial
+        ref={ref}
+        color={color}
+        roughness={roughness}
+        metalness={metalness}
+        bumpMap={clayBumpMap}
+        bumpScale={bumpScale}
+        {...props}
+      />
+    );
+  }
+
+  const material = getCachedMaterial(color, roughness, metalness, bumpScale);
+  return <primitive object={material} attach="material" {...props} />;
 });
 
 function isMobileDevice() {
@@ -80,7 +101,16 @@ function Campfire({ position, isNight }) {
   const [px, py, pz] = position;
   const transitionRef = useRef(isNight ? 1 : 0);
 
+  const tickRef = useRef(0);
+  const accumDeltaRef = useRef(0);
+
   useFrame((s, delta) => {
+    tickRef.current++;
+    accumDeltaRef.current += delta;
+    if (tickRef.current % 5 !== 0) return;
+    const d = accumDeltaRef.current;
+    accumDeltaRef.current = 0;
+
     const pzVal = window.playerZ || 0;
     const dist = Math.abs(pz - pzVal);
     const cullDist = isMobileDevice() ? 35 : 70;
@@ -92,9 +122,9 @@ function Campfire({ position, isNight }) {
 
     const transitionSpeed = 0.25;
     if (isNight) {
-      transitionRef.current = Math.min(1, transitionRef.current + delta * transitionSpeed);
+      transitionRef.current = Math.min(1, transitionRef.current + d * transitionSpeed);
     } else {
-      transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
+      transitionRef.current = Math.max(0, transitionRef.current - d * transitionSpeed);
     }
     const tVal = transitionRef.current;
 
@@ -153,7 +183,7 @@ function Campfire({ position, isNight }) {
           <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={3}
             transparent opacity={0.7} depthWrite={false} />
         </mesh>
-        {!isMobileDevice() && <pointLight ref={glowRef} color="#ff8c00" intensity={2.5} distance={10} />}
+        <pointLight ref={glowRef} color="#ff8c00" intensity={2.5} distance={10} />
       </group>
     </RigidBody>
   );
@@ -280,7 +310,7 @@ function LanternPost({ position, isNight }) {
             roughness={0.6}
           />
         </mesh>
-        {!isMobileDevice() && <pointLight ref={lRef} position={[0, 2.3, 0]} color="#ff9f00" intensity={0} distance={12} />}
+        <pointLight ref={lRef} position={[0, 2.3, 0]} color="#ff9f00" intensity={0} distance={12} />
       </group>
     </RigidBody>
   );
@@ -363,9 +393,7 @@ function FireTorch({ position, isNight }) {
           opacity={1.0}
         />
       </mesh>
-      {!isMobileDevice() && (
-        <pointLight ref={lRef} position={[0, 0.9, 0]} color="#ff7f00" intensity={0} distance={8} />
-      )}
+      <pointLight ref={lRef} position={[0, 0.9, 0]} color="#ff7f00" intensity={0} distance={8} />
     </group>
   );
 }
@@ -480,11 +508,18 @@ function MountainBody({ isNight }) {
 // SURROUNDING MOUNTAINS — cone shapes on both sides (no wall blocks)
 // ════════════════════════════════════════════════════════════════
 function SurroundingMountains({ isNight }) {
-  const grassMatRef = useRef();
   const transitionRef = useRef(isNight ? 1 : 0);
   const color1 = useMemo(() => new THREE.Color('#16a34a'), []);
   const color2 = useMemo(() => new THREE.Color('#14532d'), []);
   const tempCol = useMemo(() => new THREE.Color(), []);
+
+  const grassMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: new THREE.Color('#16a34a'),
+    roughness: 0.92,
+    metalness: 0.0,
+    bumpMap: clayBumpMap,
+    bumpScale: 0.015,
+  }), []);
 
   useFrame((s, delta) => {
     const transitionSpeed = 0.25;
@@ -494,10 +529,8 @@ function SurroundingMountains({ isNight }) {
       transitionRef.current = Math.max(0, transitionRef.current - delta * transitionSpeed);
     }
     const t = transitionRef.current;
-    if (grassMatRef.current) {
-      tempCol.lerpColors(color1, color2, t);
-      grassMatRef.current.color.copy(tempCol);
-    }
+    tempCol.lerpColors(color1, color2, t);
+    grassMaterial.color.copy(tempCol);
   });
 
   const mountains = [
@@ -524,7 +557,7 @@ function SurroundingMountains({ isNight }) {
           {/* Green base */}
           <mesh receiveShadow>
             <coneGeometry args={[m.r * 1.6, m.h * 0.38, 32]} />
-            <ClayMaterial ref={grassMatRef} color="#16a34a" roughness={0.92} />
+            <primitive object={grassMaterial} attach="material" />
           </mesh>
           {/* Rocky body */}
           <mesh position={[0, m.h * 0.25, 0]}>
@@ -891,6 +924,39 @@ function WalkableTrail({ isNight }) {
 // FOREST — trees and boulders on mountain slopes
 // ════════════════════════════════════════════════════════════════
 function ForestDecorations() {
+  const { scene } = useGLTF((import.meta.env.BASE_URL || '/') + 'blendertimer-low-poly-17.glb');
+
+  const { barkGeom, barkMat, leavesGeom, leavesMat } = useMemo(() => {
+    let barkG, barkM, leavesG, leavesM;
+    scene.traverse((child) => {
+      if (child.isMesh) {
+        if (child.material.name === 'Bark') {
+          barkG = child.geometry;
+          barkM = child.material.clone();
+          barkM.bumpMap = clayBumpMap;
+          barkM.bumpScale = 0.015;
+          barkM.roughness = 0.92;
+          barkM.flatShading = true;
+        } else if (child.material.name === 'Leaves') {
+          leavesG = child.geometry;
+          leavesM = child.material.clone();
+          leavesM.bumpMap = clayBumpMap;
+          leavesM.bumpScale = 0.015;
+          leavesM.roughness = 0.92;
+          leavesM.flatShading = true;
+        }
+      }
+    });
+    return { barkGeom: barkG, barkMat: barkM, leavesGeom: leavesG, leavesMat: leavesM };
+  }, [scene]);
+
+  useEffect(() => {
+    return () => {
+      if (barkMat) barkMat.dispose();
+      if (leavesMat) leavesMat.dispose();
+    };
+  }, [barkMat, leavesMat]);
+
   const trees = useMemo(() => {
     const arr = [];
     for (let i = 0; i < 110; i++) {
@@ -922,58 +988,35 @@ function ForestDecorations() {
     return arr;
   }, []);
 
-  const trunkRef = useRef();
-  const cone1Ref = useRef();
-  const cone2Ref = useRef();
-  const cone3Ref = useRef();
+  const barkInstRef = useRef();
+  const leavesInstRef = useRef();
   const boulderRef = useRef();
-
   const initializedRef = useRef(false);
 
   useFrame(() => {
     if (initializedRef.current) return;
-    if (!trunkRef.current || !cone1Ref.current || !cone2Ref.current || !cone3Ref.current || !boulderRef.current) return;
+    if (!barkInstRef.current || !leavesInstRef.current || !boulderRef.current || !barkGeom || !leavesGeom) return;
 
     const tempObj = new THREE.Object3D();
 
     // Populate trees
     trees.forEach((t, i) => {
-      // Trunk: Cyl pos={[0, 0.55*s, 0]} args={[0.1*s, 0.14*s, 1.1*s, 6]}
-      tempObj.position.set(t.x, t.y + 0.55 * t.scale, t.z);
+      tempObj.position.set(t.x, t.y, t.z);
       tempObj.rotation.set(0, (i * 0.5) % (Math.PI * 2), 0);
-      tempObj.scale.set(t.scale, t.scale, t.scale);
+      const s = t.scale * 1.5;
+      tempObj.scale.set(s, s, s);
       tempObj.updateMatrix();
-      trunkRef.current.setMatrixAt(i, tempObj.matrix);
-
-      // Cone 1: pos={[0, 1.4*s, 0]}
-      tempObj.position.set(t.x, t.y + 1.4 * t.scale, t.z);
-      tempObj.updateMatrix();
-      cone1Ref.current.setMatrixAt(i, tempObj.matrix);
-
-      // Cone 2: pos={[0, 2.1*s, 0]}
-      tempObj.position.set(t.x, t.y + 2.1 * t.scale, t.z);
-      tempObj.updateMatrix();
-      cone2Ref.current.setMatrixAt(i, tempObj.matrix);
-
-      // Cone 3: pos={[0, 2.7*s, 0]}
-      tempObj.position.set(t.x, t.y + 2.7 * t.scale, t.z);
-      tempObj.updateMatrix();
-      cone3Ref.current.setMatrixAt(i, tempObj.matrix);
+      
+      barkInstRef.current.setMatrixAt(i, tempObj.matrix);
+      leavesInstRef.current.setMatrixAt(i, tempObj.matrix);
     });
 
-    trunkRef.current.instanceMatrix.needsUpdate = true;
-    cone1Ref.current.instanceMatrix.needsUpdate = true;
-    cone2Ref.current.instanceMatrix.needsUpdate = true;
-    cone3Ref.current.instanceMatrix.needsUpdate = true;
-
-    trunkRef.current.computeBoundingBox();
-    trunkRef.current.computeBoundingSphere();
-    cone1Ref.current.computeBoundingBox();
-    cone1Ref.current.computeBoundingSphere();
-    cone2Ref.current.computeBoundingBox();
-    cone2Ref.current.computeBoundingSphere();
-    cone3Ref.current.computeBoundingBox();
-    cone3Ref.current.computeBoundingSphere();
+    barkInstRef.current.instanceMatrix.needsUpdate = true;
+    leavesInstRef.current.instanceMatrix.needsUpdate = true;
+    barkInstRef.current.computeBoundingBox();
+    barkInstRef.current.computeBoundingSphere();
+    leavesInstRef.current.computeBoundingBox();
+    leavesInstRef.current.computeBoundingSphere();
 
     // Populate boulders
     const tempColor = new THREE.Color();
@@ -996,29 +1039,15 @@ function ForestDecorations() {
 
   return (
     <group>
-      {/* Pine Trunks */}
-      <instancedMesh ref={trunkRef} args={[null, null, trees.length]} castShadow frustumCulled={false}>
-        <cylinderGeometry args={[0.1, 0.14, 1.1, 32]} />
-        <ClayMaterial color="#5c3d1e" roughness={0.95} />
-      </instancedMesh>
+      {/* GLB Tree Bark (Trunk) */}
+      {barkGeom && barkMat && (
+        <instancedMesh ref={barkInstRef} args={[barkGeom, barkMat, trees.length]} castShadow receiveShadow frustumCulled={false} />
+      )}
 
-      {/* Pine Cone 1 */}
-      <instancedMesh ref={cone1Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
-        <coneGeometry args={[0.72, 1.5, 32]} />
-        <ClayMaterial color="#2d6a4f" roughness={0.85} />
-      </instancedMesh>
-
-      {/* Pine Cone 2 */}
-      <instancedMesh ref={cone2Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
-        <coneGeometry args={[0.5, 1.1, 32]} />
-        <ClayMaterial color="#1b4332" roughness={0.88} />
-      </instancedMesh>
-
-      {/* Pine Cone 3 */}
-      <instancedMesh ref={cone3Ref} args={[null, null, trees.length]} castShadow frustumCulled={false}>
-        <coneGeometry args={[0.3, 0.8, 32]} />
-        <ClayMaterial color="#166534" roughness={0.9} />
-      </instancedMesh>
+      {/* GLB Tree Leaves */}
+      {leavesGeom && leavesMat && (
+        <instancedMesh ref={leavesInstRef} args={[leavesGeom, leavesMat, trees.length]} castShadow receiveShadow frustumCulled={false} />
+      )}
 
       {/* Boulders */}
       <instancedMesh ref={boulderRef} args={[null, null, boulders.length]} castShadow receiveShadow frustumCulled={false}>
@@ -1477,8 +1506,10 @@ function NightSky({ isNight }) {
         uTime: { value: 0 },
         uOpacity: { value: 0 },
       },
+      vertexColors: true,
       vertexShader: `
         uniform float uTime;
+        attribute vec3 color;
         attribute float aSize;
         attribute float aPhase;
         attribute float aSpeed;
@@ -1619,6 +1650,21 @@ function DayClouds({ isNight }) {
     depthWrite: false,
   }), []);
 
+  // Pre-create sphere geometries for optimization
+  const geometries = useMemo(() => {
+    return [
+      new THREE.SphereGeometry(0.82, 10, 8),
+      new THREE.SphereGeometry(1.06, 10, 8),
+      new THREE.SphereGeometry(1.3, 10, 8),
+    ];
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      geometries.forEach(g => g.dispose());
+    };
+  }, [geometries]);
+
   useFrame((s, delta) => {
     const transitionSpeed = 0.25;
     if (isNight) {
@@ -1655,8 +1701,7 @@ function DayClouds({ isNight }) {
             [-0.5,0.6,0],[2.1,0.1,0],[-1.8,0.1,0],
             [0.1,0.1,0.6],[-0.2,0.2,-0.6],[1.0,0.5,0.4],
           ].map(([cx,cy,cz], j) => (
-            <mesh key={j} position={[cx, cy, cz]}>
-              <sphereGeometry args={[0.82+(j%3)*0.24, 16, 12]} />
+            <mesh key={j} position={[cx, cy, cz]} geometry={geometries[j % 3]}>
               <primitive object={sharedMaterial} attach="material" />
             </mesh>
           ))}
@@ -1812,6 +1857,17 @@ function AnimatedBirds({ isNight }) {
     opacity: 1
   }), []);
 
+  // Pre-create wing and body geometries for reuse
+  const wingGeom = useMemo(() => new THREE.PlaneGeometry(0.58, 0.17), []);
+  const bodyGeom = useMemo(() => new THREE.SphereGeometry(0.08, 8, 8), []);
+
+  useEffect(() => {
+    return () => {
+      wingGeom.dispose();
+      bodyGeom.dispose();
+    };
+  }, [wingGeom, bodyGeom]);
+
   useFrame((state, delta) => {
     const transitionSpeed = 0.25;
     if (isNight) {
@@ -1853,16 +1909,13 @@ function AnimatedBirds({ isNight }) {
     <group ref={groupRef}>
       {birds.map((d, i) => (
         <group key={i} ref={el => birdRefs.current[i]=el} position={[d.x, d.y, d.z]}>
-          <mesh ref={el => lRefs.current[i]=el} position={[-0.26,0,0]}>
-            <planeGeometry args={[0.58, 0.17]} />
+          <mesh ref={el => lRefs.current[i]=el} position={[-0.26,0,0]} geometry={wingGeom}>
             <primitive object={wingMaterial} attach="material" />
           </mesh>
-          <mesh ref={el => rRefs.current[i]=el} position={[0.26,0,0]}>
-            <planeGeometry args={[0.58, 0.17]} />
+          <mesh ref={el => rRefs.current[i]=el} position={[0.26,0,0]} geometry={wingGeom}>
             <primitive object={wingMaterial} attach="material" />
           </mesh>
-          <mesh>
-            <sphereGeometry args={[0.08,8,8]} />
+          <mesh geometry={bodyGeom}>
             <primitive object={bodyMaterial} attach="material" />
           </mesh>
         </group>
@@ -2269,14 +2322,14 @@ function CheckpointArch({ z, label, isNight }) {
         <sphereGeometry args={[0.09, 6, 6]} />
         <meshStandardMaterial color="#ff7700" emissive="#ff4400" emissiveIntensity={3} />
       </mesh>
-      {!isMobileDevice() && <pointLight ref={flameRef} position={[cx - 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />}
+      <pointLight ref={flameRef} position={[cx - 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />
       {/* Right torch */}
       <Cyl pos={[cx + 4.2, ty + 3.6, z]} args={[0.05, 0.07, 0.28, 6]} color="#7c3d11" />
       <mesh position={[cx + 4.2, ty + 3.78, z]}>
         <sphereGeometry args={[0.09, 6, 6]} />
         <meshStandardMaterial color="#ff7700" emissive="#ff4400" emissiveIntensity={3} />
       </mesh>
-      {!isMobileDevice() && <pointLight ref={flameRef2} position={[cx + 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />}
+      <pointLight ref={flameRef2} position={[cx + 4.2, ty + 3.88, z]} color="#ff9900" intensity={3} distance={7} />
       {/* Flag pennants on posts */}
       {[[-4.2, '#ef4444'], [4.2, '#3b82f6']].map(([ox, col], i) => (
         <mesh key={i} position={[cx + ox + (ox < 0 ? 0.3 : -0.3), ty + 3.28, z - 0.04]}>
@@ -2522,7 +2575,7 @@ function Zone_Skills({ z, isNight }) {
         <planeGeometry args={[0.98,0.55]} />
         <meshStandardMaterial color="#0f172a" emissive="#38bdf8" emissiveIntensity={0.7} transparent opacity={0.95} />
       </mesh>
-      {!isMobileDevice() && <pointLight ref={glowRef} position={[cx+6.5, ty+1.66,z-0.5]} color="#38bdf8" intensity={1.2} distance={4} />}
+      <pointLight ref={glowRef} position={[cx+6.5, ty+1.66,z-0.5]} color="#38bdf8" intensity={1.2} distance={4} />
 
       {/* ── Server rack left ── */}
       <Box pos={[cx-6.5, ty+1.46, z]} size={[0.6,2.0,0.8]} color="#1f2937" />
@@ -2586,7 +2639,7 @@ function Zone_Projects({ z, isNight }) {
                 <meshBasicMaterial color={p.color} transparent opacity={0.8} /></mesh>
               <mesh position={[0,-0.65,0]}><boxGeometry args={[0.1,0.35,0.1]} />
                 <ClayMaterial color="#374151" roughness={0.8} /></mesh>
-              {!isMobileDevice() && <pointLight position={[0,0,-0.5]} color={p.color} intensity={0.8} distance={3} />}
+              <pointLight position={[0,0,-0.5]} color={p.color} intensity={0.8} distance={3} />
             </group>
           </RigidBody>
         );
@@ -2596,7 +2649,7 @@ function Zone_Projects({ z, isNight }) {
         <sphereGeometry args={[0.5,12,12]} />
         <meshStandardMaterial color="#38bdf8" transparent opacity={0.22} emissive="#0ea5e9" emissiveIntensity={0.6} depthWrite={false} wireframe />
       </mesh>
-      {!isMobileDevice() && <pointLight position={[cx-5,ty+2.26,z-0.5]} color="#38bdf8" intensity={0.9} distance={4} />}
+      <pointLight position={[cx-5,ty+2.26,z-0.5]} color="#38bdf8" intensity={0.9} distance={4} />
       <WoodenSign position={[cx-5.5,ty+0.46,z+3]} text="PROJECTS" />
       <Campfire position={[cx+6, ty+0.46, z+2]} isNight={isNight} />
       <LanternPost position={[cx-5, ty+0.46, z+1]} isNight={isNight} />
@@ -2745,7 +2798,7 @@ function Zone_Contact({ z, isNight }) {
             <sphereGeometry args={[0.16,8,8]} />
             <meshBasicMaterial color="#ef4444" />
           </mesh>
-          {!isMobileDevice() && <pointLight ref={beaconRef} position={[0,6.2,0]} color="#ef4444" intensity={3} distance={14} />}
+          <pointLight ref={beaconRef} position={[0,6.2,0]} color="#ef4444" intensity={3} distance={14} />
         </group>
       </RigidBody>
       
@@ -2773,8 +2826,8 @@ function Zone_Contact({ z, isNight }) {
             <sphereGeometry args={[0.38, 12, 12]} />
             <meshStandardMaterial color="#22d3ee" emissive="#0ea5e9" emissiveIntensity={2.5} transparent opacity={0.85} />
           </mesh>
-          {!isMobileDevice() && <pointLight position={[0, 3.66, 0]} color="#22d3ee"
-            intensity={isNight?5:2.5} distance={16} />}
+          <pointLight position={[0, 3.66, 0]} color="#22d3ee"
+            intensity={isNight?5:2.5} distance={16} />
         </group>
       </RigidBody>
       
@@ -3015,14 +3068,12 @@ function Lighting({ isNight }) {
         shadow-bias={-0.0005}
       />
       <hemisphereLight ref={hemiRef} />
-      {!isMobileDevice() && (
-        <pointLight
-          ref={pointRef}
-          position={[15, 45, -80]}
-          color="#7dd3fc"
-          distance={200}
-        />
-      )}
+      <pointLight
+        ref={pointRef}
+        position={[15, 45, -80]}
+        color="#7dd3fc"
+        distance={200}
+      />
     </>
   );
 }
