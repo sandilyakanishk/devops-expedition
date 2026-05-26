@@ -32,7 +32,7 @@ const chromeProcess = spawn(selectedPath, [
   '--disable-gpu',
   '--enable-logging=stderr',
   '--v=1',
-  'http://localhost:5173'
+  'http://localhost:5173/devops-expedition/'
 ]);
 
 chromeProcess.stderr.pipe(stream);
@@ -59,4 +59,4 @@ setTimeout(() => {
   }
   
   process.exit(0);
-}, 6000);
+}, 12000);
