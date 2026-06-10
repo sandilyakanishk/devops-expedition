@@ -832,7 +832,7 @@ export default function App() {
               </div>
               
               <a 
-                href="https://drive.google.com/file/d/1wO3_SnLtr8mm53qHkaOTBHaXUt-kbLTa/view?usp=drive_link" 
+                href="https://drive.google.com/file/d/1QDAZ8jEiX_prJ2rKa_-24StyoD9IqXQ5/view?usp=drive_link" 
                 target="_blank" 
                 rel="noreferrer" 
                 className="resume-btn"
